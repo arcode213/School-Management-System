@@ -1,0 +1,68 @@
+const FeeRecord = require('../models/FeeRecord');
+const SalaryRecord = require('../models/SalaryRecord');
+
+// @desc    Get financial summary report (Fees collected vs Salaries paid)
+// @route   GET /api/reports/financial
+const getFinancialReport = async (req, res) => {
+  try {
+    const { year } = req.query;
+    const filterYear = year ? Number(year) : new Date().getFullYear();
+
+    // 1. Total Fees Collected (PaidAmount + Discount is total received/forgiven, but actual cash is PaidAmount)
+    const feesResult = await FeeRecord.aggregate([
+      { $match: { feeYear: filterYear, isDeleted: false, status: { $in: ['Paid', 'Partial'] } } },
+      { $group: {
+          _id: '$feeMonth',
+          collected: { $sum: '$paidAmount' },
+          discounts: { $sum: '$discount' }
+      } }
+    ]);
+
+    // 2. Total Salaries Paid
+    const salariesResult = await SalaryRecord.aggregate([
+      { $match: { salaryYear: filterYear, isDeleted: false, status: 'Paid' } },
+      { $group: {
+          _id: '$salaryMonth',
+          paid: { $sum: '$netSalary' }
+      } }
+    ]);
+
+    // Merge into a 12-month array
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    
+    let totalRevenue = 0;
+    let totalExpense = 0;
+    
+    const monthlyData = MONTHS.map(month => {
+      const feeMatch = feesResult.find(f => f._id === month);
+      const salMatch = salariesResult.find(s => s._id === month);
+      
+      const revenue = feeMatch ? feeMatch.collected : 0;
+      const expense = salMatch ? salMatch.paid : 0;
+      
+      totalRevenue += revenue;
+      totalExpense += expense;
+      
+      return {
+        month,
+        revenue,
+        expense,
+        profit: revenue - expense
+      };
+    });
+
+    res.json({
+      year: filterYear,
+      summary: {
+        totalRevenue,
+        totalExpense,
+        netProfit: totalRevenue - totalExpense
+      },
+      monthlyData
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { getFinancialReport };
