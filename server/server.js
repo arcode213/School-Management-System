@@ -35,6 +35,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'API is running', db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
 
+// Root welcome route
+app.get('/', (req, res) => {
+  res.json({ status: 'success', message: 'School Management System API is running' });
+});
+
 // Error Handling
 app.use(notFound);
 app.use(errorHandler);
