@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useAppContext } from '../context/AppContext';
 import { getStudents, deleteStudent, getClasses } from '../api/students';
 import StudentFormModal from '../components/StudentFormModal';
+import StudentPrintModal from '../components/StudentPrintModal';
 import toast from 'react-hot-toast';
 import {
-  UserPlus, Search, Filter, Download, Trash2,
+  UserPlus, Search, Filter, Download, Trash2, Printer,
   Edit2, Eye, ChevronLeft, ChevronRight, Users,
 } from 'lucide-react';
 
@@ -26,6 +28,7 @@ const StatusBadge = ({ status }) => {
 
 export default function StudentsPage() {
   const { user } = useAuth();
+  const { currentCampus, currentSession } = useAppContext();
   const [students, setStudents] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -36,17 +39,19 @@ export default function StudentsPage() {
   const [filterClass, setFilterClass] = useState('');
   const [filterSection, setFilterSection] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterGender, setFilterGender] = useState('');
   const [page, setPage] = useState(1);
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false);
   const [editStudent, setEditStudent] = useState(null);
+  const [printOpen, setPrintOpen] = useState(false);
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await getStudents({
-        search, class: filterClass, section: filterSection, status: filterStatus, page, limit: 10,
+        search, class: filterClass, section: filterSection, status: filterStatus, gender: filterGender, page, limit: 10,
       });
       setStudents(data.students);
       setPagination(data.pagination);
@@ -55,12 +60,16 @@ export default function StudentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterClass, filterSection, filterStatus, page]);
+  }, [search, filterClass, filterSection, filterStatus, filterGender, page]);
 
-  useEffect(() => { fetchStudents(); }, [fetchStudents]);
+  useEffect(() => { 
+    if (currentCampus && currentSession) fetchStudents(); 
+  }, [fetchStudents, currentCampus, currentSession]);
   useEffect(() => {
-    getClasses().then(r => setClasses(r.data)).catch(() => {});
-  }, []);
+    if (currentCampus && currentSession) {
+      getClasses().then(r => setClasses(r.data)).catch(() => {});
+    }
+  }, [currentCampus, currentSession]);
 
   const handleDelete = async (id, name) => {
     if (!window.confirm(`Remove "${name}" from the system?`)) return;
@@ -102,6 +111,10 @@ export default function StudentsPage() {
           <button onClick={exportCSV}
             className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 transition shadow-sm">
             <Download size={14} /> Export CSV
+          </button>
+          <button onClick={() => setPrintOpen(true)}
+            className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 transition shadow-sm">
+            <Printer size={14} /> Print Records
           </button>
           {['Admin', 'Accountant'].includes(user?.role) && (
             <button id="add-student-btn" onClick={openAdd}
@@ -148,9 +161,18 @@ export default function StudentsPage() {
             <option value="">All Statuses</option>
             {STATUSES.map(s => <option key={s}>{s}</option>)}
           </select>
+          {/* Gender filter */}
+          <select id="filter-gender" value={filterGender}
+            onChange={e => { setFilterGender(e.target.value); setPage(1); }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Genders</option>
+            <option value="Male">Boys</option>
+            <option value="Female">Girls</option>
+            <option value="Other">Other</option>
+          </select>
           {/* Clear */}
-          {(search || filterClass || filterSection || filterStatus) && (
-            <button onClick={() => { setSearch(''); setFilterClass(''); setFilterSection(''); setFilterStatus(''); setPage(1); }}
+          {(search || filterClass || filterSection || filterStatus || filterGender) && (
+            <button onClick={() => { setSearch(''); setFilterClass(''); setFilterSection(''); setFilterStatus(''); setFilterGender(''); setPage(1); }}
               className="text-xs text-red-500 hover:text-red-700 px-3 py-2 border border-red-200 rounded-lg transition">
               Clear filters
             </button>
@@ -258,6 +280,13 @@ export default function StudentsPage() {
         onClose={() => setModalOpen(false)}
         student={editStudent}
         onSaved={fetchStudents}
+      />
+
+      {/* Print records (respects current filters) */}
+      <StudentPrintModal
+        open={printOpen}
+        onClose={() => setPrintOpen(false)}
+        filters={{ search, class: filterClass, section: filterSection, status: filterStatus, gender: filterGender }}
       />
     </div>
   );

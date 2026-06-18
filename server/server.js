@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./utils/connectDB');
 const { errorHandler, notFound } = require('./middleware/errorMiddleware');
+const { contextMiddleware } = require('./middleware/contextMiddleware');
 
 dotenv.config();
 
@@ -16,13 +17,18 @@ const app = express();
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(express.json());
 
+// Global Context Middleware
+app.use(contextMiddleware);
+
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/students', require('./routes/studentRoutes'));
 app.use('/api/employees', require('./routes/employeeRoutes'));
 app.use('/api/fees', require('./routes/feeRoutes'));
+app.use('/api/fee-structures', require('./routes/feeStructureRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
+app.use('/api/system', require('./routes/systemRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const salaryRecordSchema = new mongoose.Schema(
   {
     employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
+    campus: { type: mongoose.Schema.Types.ObjectId, ref: 'Campus', required: true },
+    academicSession: { type: mongoose.Schema.Types.ObjectId, ref: 'AcademicSession', required: true },
     salaryMonth: {
       type: String,
       enum: ['January','February','March','April','May','June','July','August','September','October','November','December'],

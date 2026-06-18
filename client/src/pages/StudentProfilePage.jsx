@@ -146,6 +146,41 @@ export default function StudentProfilePage() {
         )}
       </div>
 
+      {/* Academic History Timeline */}
+      {student.academicHistory && student.academicHistory.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center">
+              <Calendar size={14} className="text-indigo-600" />
+            </div>
+            <h2 className="text-base font-bold text-slate-800">Academic History Timeline</h2>
+          </div>
+          
+          <div className="relative border-l border-slate-200 ml-3 space-y-6">
+            {student.academicHistory.map((record, index) => (
+              <div key={record._id} className="relative pl-6">
+                <div className={`absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-white ${index === 0 ? 'bg-indigo-500' : 'bg-slate-300'}`} />
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-sm font-bold text-slate-800">
+                    {record.academicSession?.name || 'Unknown Session'}
+                  </h3>
+                  {record.academicSession?.isActive && (
+                    <span className="bg-green-100 text-green-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Active</span>
+                  )}
+                  <StatusBadge status={record.status} />
+                </div>
+                <div className="text-sm text-slate-600">
+                  <span className="font-semibold">Class {record.className}</span> {record.section && `(Sec ${record.section})`} • Roll: {record.rollNumber || '—'}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Campus: {record.campus?.name} {record.promotionStatus && `• Promotion: ${record.promotionStatus}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <StudentFormModal open={editOpen} onClose={() => setEditOpen(false)} student={student} onSaved={fetchStudent} />
     </div>
   );

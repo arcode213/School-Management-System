@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const Student = require('../models/Student');
+const StudentAcademicRecord = require('../models/StudentAcademicRecord');
 
 // Helper: auto-generate studentId safely
 const generateStudentId = async () => {
@@ -10,11 +12,50 @@ const generateStudentId = async () => {
 // @desc    Add a new student
 // @route   POST /api/students
 const addStudent = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
+    const { currentCampus, currentSession } = req;
+    if (!currentCampus || !currentSession) {
+      throw new Error('Campus and Academic Session context are required');
+    }
+
+    const { class: className, section, rollNumber, status, feeStructure, ...personalDetails } = req.body;
+    
     const studentId = await generateStudentId();
-    const student = await Student.create({ ...req.body, studentId });
-    res.status(201).json(student);
+    
+    // Create personal record
+    const student = new Student({
+      ...personalDetails,
+      studentId,
+      currentCampus
+    });
+    await student.save({ session });
+
+    // Create academic record
+    const academicRecord = new StudentAcademicRecord({
+      student: student._id,
+      campus: currentCampus,
+      academicSession: currentSession,
+      className: className || 'Unassigned',
+      section,
+      rollNumber,
+      status: status || 'Active',
+      feeStructure,
+      admissionDate: personalDetails.admissionDate
+    });
+    await academicRecord.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // Format response
+    const result = { ...student.toJSON(), class: academicRecord.className, section: academicRecord.section, rollNumber: academicRecord.rollNumber, status: academicRecord.status };
+    res.status(201).json(result);
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
     if (err.code === 11000) return res.status(400).json({ message: 'Duplicate entry', field: Object.keys(err.keyValue)[0] });
     res.status(500).json({ message: err.message });
   }
@@ -24,27 +65,76 @@ const addStudent = async (req, res) => {
 // @route   GET /api/students?class=&section=&status=&search=&page=&limit=
 const getStudents = async (req, res) => {
   try {
-    const { class: cls, section, status, search, page = 1, limit = 10 } = req.query;
-    const filter = { isDeleted: false };
+    const { currentCampus, currentSession } = req;
+    const { class: cls, section, status, search, gender, page = 1, limit = 10 } = req.query;
 
-    if (cls)     filter.class   = cls;
-    if (section) filter.section = section;
-    if (status)  filter.status  = status;
-    if (search) {
-      filter.$or = [
-        { fullName:   { $regex: search, $options: 'i' } },
-        { studentId:  { $regex: search, $options: 'i' } },
-        { fatherName: { $regex: search, $options: 'i' } },
-        { rollNumber: { $regex: search, $options: 'i' } },
-      ];
+    const matchPipeline = {
+      isDeleted: false
+    };
+
+    if (currentCampus) matchPipeline.campus = new mongoose.Types.ObjectId(currentCampus);
+    if (currentSession) matchPipeline.academicSession = new mongoose.Types.ObjectId(currentSession);
+    if (cls) matchPipeline.className = cls;
+    if (section) matchPipeline.section = section;
+    if (status) matchPipeline.status = status;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Build aggregation to join Student data for searching
+    const pipeline = [
+      { $match: matchPipeline },
+      {
+        $lookup: {
+          from: 'students',
+          localField: 'student',
+          foreignField: '_id',
+          as: 'studentData'
+        }
+      },
+      { $unwind: '$studentData' },
+      { $match: { 'studentData.isDeleted': false } }
+    ];
+
+    if (gender) {
+      pipeline.push({ $match: { 'studentData.gender': gender } });
     }
 
-    const skip  = (Number(page) - 1) * Number(limit);
-    const total = await Student.countDocuments(filter);
-    const students = await Student.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit));
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'studentData.fullName': { $regex: search, $options: 'i' } },
+            { 'studentData.studentId': { $regex: search, $options: 'i' } },
+            { 'studentData.fatherName': { $regex: search, $options: 'i' } },
+            { rollNumber: { $regex: search, $options: 'i' } }
+          ]
+        }
+      });
+    }
+
+    const countPipeline = [...pipeline, { $count: 'total' }];
+    const totalResult = await StudentAcademicRecord.aggregate(countPipeline);
+    const total = totalResult.length > 0 ? totalResult[0].total : 0;
+
+    const dataPipeline = [
+      ...pipeline,
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: Number(limit) }
+    ];
+
+    const records = await StudentAcademicRecord.aggregate(dataPipeline);
+
+    // Format output to match old frontend format
+    const students = records.map(r => ({
+      ...r.studentData,
+      _id: r.studentData._id, // student id is the primary _id
+      academicRecordId: r._id,
+      class: r.className,
+      section: r.section,
+      rollNumber: r.rollNumber,
+      status: r.status
+    }));
 
     res.json({
       students,
@@ -55,30 +145,84 @@ const getStudents = async (req, res) => {
   }
 };
 
-// @desc    Get single student by ID
+// @desc    Get single student by ID with history
 // @route   GET /api/students/:id
 const getStudent = async (req, res) => {
   try {
     const student = await Student.findOne({ _id: req.params.id, isDeleted: false });
     if (!student) return res.status(404).json({ message: 'Student not found' });
-    res.json(student);
+
+    const academicHistory = await StudentAcademicRecord.find({ student: student._id, isDeleted: false })
+      .populate('academicSession', 'name startDate endDate isActive')
+      .populate('campus', 'name code')
+      .sort({ createdAt: -1 });
+
+    const result = student.toJSON();
+    result.academicHistory = academicHistory;
+    
+    // Mount current context fields for quick form binding
+    if (academicHistory.length > 0) {
+      const current = academicHistory[0];
+      result.class = current.className;
+      result.section = current.section;
+      result.rollNumber = current.rollNumber;
+      result.status = current.status;
+      result.academicRecordId = current._id;
+    }
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// @desc    Update student
+// @desc    Update student (both personal and current academic record)
 // @route   PUT /api/students/:id
 const updateStudent = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
+    const { currentCampus, currentSession } = req;
+    const { class: className, section, rollNumber, status, feeStructure, academicRecordId, ...personalDetails } = req.body;
+
     const student = await Student.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
-      { $set: req.body },
-      { new: true, runValidators: true }
+      { $set: personalDetails },
+      { new: true, runValidators: true, session }
     );
-    if (!student) return res.status(404).json({ message: 'Student not found' });
-    res.json(student);
+    if (!student) throw new Error('Student not found');
+
+    let academicRecord;
+    if (academicRecordId) {
+      academicRecord = await StudentAcademicRecord.findByIdAndUpdate(
+        academicRecordId,
+        { $set: { className, section, rollNumber, status, feeStructure } },
+        { new: true, runValidators: true, session }
+      );
+    } else if (currentCampus && currentSession) {
+      academicRecord = await StudentAcademicRecord.findOneAndUpdate(
+        { student: student._id, academicSession: currentSession, campus: currentCampus },
+        { $set: { className, section, rollNumber, status, feeStructure } },
+        { new: true, runValidators: true, session }
+      );
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    const result = student.toJSON();
+    if (academicRecord) {
+      result.class = academicRecord.className;
+      result.section = academicRecord.section;
+      result.rollNumber = academicRecord.rollNumber;
+      result.status = academicRecord.status;
+    }
+
+    res.json(result);
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ message: err.message });
   }
 };
@@ -86,15 +230,30 @@ const updateStudent = async (req, res) => {
 // @desc    Soft delete student
 // @route   DELETE /api/students/:id
 const deleteStudent = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const student = await Student.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
-      { $set: { isDeleted: true, status: 'Left' } },
-      { new: true }
+      { $set: { isDeleted: true } },
+      { new: true, session }
     );
-    if (!student) return res.status(404).json({ message: 'Student not found' });
+    if (!student) throw new Error('Student not found');
+
+    // Mark all academic records as Left
+    await StudentAcademicRecord.updateMany(
+      { student: student._id, isDeleted: false },
+      { $set: { status: 'Left' } },
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
     res.json({ message: 'Student removed successfully' });
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ message: err.message });
   }
 };
@@ -103,7 +262,12 @@ const deleteStudent = async (req, res) => {
 // @route   GET /api/students/classes
 const getClasses = async (req, res) => {
   try {
-    const classes = await Student.distinct('class', { isDeleted: false });
+    const { currentCampus, currentSession } = req;
+    const filter = { isDeleted: false, status: 'Active' };
+    if (currentCampus) filter.campus = new mongoose.Types.ObjectId(currentCampus);
+    if (currentSession) filter.academicSession = new mongoose.Types.ObjectId(currentSession);
+
+    const classes = await StudentAcademicRecord.distinct('className', filter);
     res.json(classes.filter(Boolean).sort());
   } catch (err) {
     res.status(500).json({ message: err.message });

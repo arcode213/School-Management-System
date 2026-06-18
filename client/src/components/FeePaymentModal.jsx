@@ -7,21 +7,24 @@ import { updateFee } from '../api/fees';
 export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
   const { register, handleSubmit, reset, watch, formState: { isSubmitting } } = useForm();
   
-  const discount = Number(watch('discount') || 0);
-  const paid = Number(watch('paidAmount') || 0);
-  const totalDue = feeRecord ? (feeRecord.totalAmount - (feeRecord.discount || 0) - (feeRecord.paidAmount || 0)) : 0;
-  
-  // Predict new status
-  const finalDiscount = (feeRecord?.discount || 0) + discount;
-  const finalPaid = (feeRecord?.paidAmount || 0) + paid;
-  const netPayable = feeRecord ? feeRecord.totalAmount - finalDiscount : 0;
+  const newDiscount = Number(watch('discount') || 0);
+  const paid = Number(watch('amountPaid') || 0);
+  // balance is the authoritative outstanding amount (totalAmount - amountPaid), kept by the pre-save hook.
+  const totalDue = feeRecord ? (feeRecord.balance ?? 0) : 0;
+
+  // Predict new status (mirrors the server pre-save recalculation).
+  // The server recomputes totalAmount as (charges + lateFine + previousDues) - discount,
+  // so applying an additional discount reduces the new total by exactly that amount.
+  const finalDiscount = (feeRecord?.discount || 0) + newDiscount;
+  const finalPaid = (feeRecord?.amountPaid || 0) + paid;
+  const netPayable = feeRecord ? feeRecord.totalAmount - newDiscount : 0;
   let nextStatus = 'Unpaid';
   if (finalPaid >= netPayable && netPayable > 0) nextStatus = 'Paid';
   else if (finalPaid > 0) nextStatus = 'Partial';
 
   useEffect(() => {
     if (open && feeRecord) {
-      reset({ discount: 0, paidAmount: 0, paymentMethod: 'Cash', remarks: '' });
+      reset({ discount: 0, amountPaid: 0, paymentMethod: 'Cash', remarks: '' });
     }
   }, [open, feeRecord, reset]);
 
@@ -29,8 +32,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
     try {
       const payload = {
         discount: finalDiscount,
-        paidAmount: finalPaid,
-        status: nextStatus,
+        amountPaid: finalPaid,
         paymentDate: new Date(),
         paymentMethod: data.paymentMethod,
         remarks: data.remarks
@@ -77,7 +79,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Prev Paid/Discount:</span>
-              <span className="text-slate-700">Rs. {((feeRecord.paidAmount || 0) + (feeRecord.discount || 0)).toLocaleString()}</span>
+              <span className="text-slate-700">Rs. {((feeRecord.amountPaid || 0) + (feeRecord.discount || 0)).toLocaleString()}</span>
             </div>
             <div className="flex justify-between font-bold text-red-600 mt-1 text-base">
               <span>Current Due:</span>
@@ -92,7 +94,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Paying Amount (Rs.)</label>
-              <input type="number" max={totalDue - discount} {...register('paidAmount', { required: true })} className="w-full border border-emerald-300 bg-emerald-50 rounded-lg px-3 py-2 text-sm focus:ring-emerald-500 font-bold text-emerald-700" />
+              <input type="number" max={totalDue - newDiscount} {...register('amountPaid', { required: true })} className="w-full border border-emerald-300 bg-emerald-50 rounded-lg px-3 py-2 text-sm focus:ring-emerald-500 font-bold text-emerald-700" />
             </div>
           </div>
 
@@ -100,7 +102,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Payment Method</label>
               <select {...register('paymentMethod')} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
-                <option>Cash</option><option>Bank Transfer</option><option>Cheque</option><option>Online</option>
+                <option>Cash</option><option>Bank</option><option>Online</option>
               </select>
             </div>
             <div>

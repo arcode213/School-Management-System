@@ -33,21 +33,21 @@ export default function DuesPage() {
       const matchSearch = search ? (
         d.student?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
         d.student?.studentId?.toLowerCase().includes(search.toLowerCase()) ||
-        d.receiptNumber?.toLowerCase().includes(search.toLowerCase())
+        d.challanNo?.toLowerCase().includes(search.toLowerCase())
       ) : true;
       return matchClass && matchMonth && matchSearch;
     });
   }, [dues, filterClass, filterMonth, search]);
 
-  const totalOutstanding = filteredDues.reduce((acc, curr) => acc + (curr.totalAmount - (curr.paidAmount || 0) - (curr.discount || 0)), 0);
+  const totalOutstanding = filteredDues.reduce((acc, curr) => acc + (curr.balance || 0), 0);
 
   const exportCSV = () => {
-    const headers = ['Receipt No', 'Student ID', 'Student Name', 'Class', 'Month', 'Total Fee', 'Paid', 'Discount', 'Remaining Due'];
+    const headers = ['Challan No', 'Student ID', 'Student Name', 'Class', 'Month', 'Total Fee', 'Paid', 'Discount', 'Remaining Due'];
     const rows = filteredDues.map(d => {
-      const remaining = d.totalAmount - (d.paidAmount || 0) - (d.discount || 0);
+      const remaining = d.balance || 0;
       return [
-        d.receiptNumber, d.student?.studentId, d.student?.fullName, `${d.student?.class} ${d.student?.section || ''}`,
-        `${d.feeMonth} ${d.feeYear}`, d.totalAmount, d.paidAmount || 0, d.discount || 0, remaining
+        d.challanNo, d.student?.studentId, d.student?.fullName, `${d.student?.class} ${d.student?.section || ''}`,
+        `${d.dueMonthRange || d.feeMonth} ${d.feeYear}`, d.totalAmount, d.amountPaid || 0, d.discount || 0, remaining
       ];
     });
     const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ''}"`).join(',')).join('\n');
@@ -107,7 +107,7 @@ export default function DuesPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase text-xs">
                 <tr>
-                  <th className="text-left px-4 py-3">Receipt No.</th>
+                  <th className="text-left px-4 py-3">Challan No.</th>
                   <th className="text-left px-4 py-3">Student</th>
                   <th className="text-left px-4 py-3">Class</th>
                   <th className="text-left px-4 py-3">Month</th>
@@ -118,15 +118,15 @@ export default function DuesPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredDues.map(d => {
-                  const remaining = d.totalAmount - (d.paidAmount || 0) - (d.discount || 0);
+                  const remaining = d.balance || 0;
                   return (
                     <tr key={d._id} className="hover:bg-slate-50 transition">
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{d.receiptNumber}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{d.challanNo}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">{d.student?.fullName} <span className="text-slate-400 text-xs block">{d.student?.studentId}</span></td>
                       <td className="px-4 py-3 text-slate-600">{d.student?.class} {d.student?.section || ''}</td>
-                      <td className="px-4 py-3 text-slate-600">{d.feeMonth} {d.feeYear}</td>
+                      <td className="px-4 py-3 text-slate-600">{d.dueMonthRange || d.feeMonth} {d.feeYear}</td>
                       <td className="px-4 py-3 text-right">Rs. {d.totalAmount.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right text-slate-400">Rs. {((d.paidAmount || 0) + (d.discount || 0)).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right text-slate-400">Rs. {((d.amountPaid || 0) + (d.discount || 0)).toLocaleString()}</td>
                       <td className="px-4 py-3 text-right font-bold text-red-600">Rs. {remaining.toLocaleString()}</td>
                     </tr>
                   );

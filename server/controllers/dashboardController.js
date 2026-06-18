@@ -1,6 +1,8 @@
+const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const Employee = require('../models/Employee');
 const FeeRecord = require('../models/FeeRecord');
+const StudentAcademicRecord = require('../models/StudentAcademicRecord');
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -9,40 +11,61 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 // @access  Private
 const getStats = async (req, res) => {
   try {
+    const { currentCampus, currentSession } = req;
+
+    // Build query filters based on provided headers.
+    // Student counts are derived from StudentAcademicRecord because status
+    // (Active/Left/Graduated) and the per-session class live there — the Student
+    // document itself has no status field and is not session-scoped.
+    const recordFilter = { isDeleted: false };
+    const empFilter = { isDeleted: false };
+    const feeFilter = { isDeleted: false };
+
+    if (currentCampus) {
+      recordFilter.campus = new mongoose.Types.ObjectId(currentCampus);
+      empFilter.campus = new mongoose.Types.ObjectId(currentCampus);
+      feeFilter.campus = new mongoose.Types.ObjectId(currentCampus);
+    }
+
+    if (currentSession) {
+      recordFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
+      feeFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
+    }
+
     const now = new Date();
     const currentMonth = MONTHS[now.getMonth()];
     const currentYear = now.getFullYear();
 
-    // Student counts
+    // Student counts (scoped to selected campus + session)
     const [totalStudents, activeStudents, leftStudents, graduatedStudents] = await Promise.all([
-      Student.countDocuments({ isDeleted: false }),
-      Student.countDocuments({ isDeleted: false, status: 'Active' }),
-      Student.countDocuments({ isDeleted: false, status: 'Left' }),
-      Student.countDocuments({ isDeleted: false, status: 'Graduated' }),
+      StudentAcademicRecord.countDocuments(recordFilter),
+      StudentAcademicRecord.countDocuments({ ...recordFilter, status: 'Active' }),
+      StudentAcademicRecord.countDocuments({ ...recordFilter, status: 'Left' }),
+      StudentAcademicRecord.countDocuments({ ...recordFilter, status: 'Graduated' }),
     ]);
 
     // New admissions this month
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const newAdmissions = await Student.countDocuments({
-      isDeleted: false,
+    const newAdmissions = await StudentAcademicRecord.countDocuments({
+      ...recordFilter,
       admissionDate: { $gte: startOfMonth },
     });
 
     // Employee counts
     const [totalEmployees, activeEmployees] = await Promise.all([
-      Employee.countDocuments({ isDeleted: false }),
-      Employee.countDocuments({ isDeleted: false, status: 'Active' }),
+      Employee.countDocuments(empFilter),
+      Employee.countDocuments({ ...empFilter, status: 'Active' }),
     ]);
 
     const teacherCount = await Employee.countDocuments({
-      isDeleted: false,
+      ...empFilter,
       status: 'Active',
       designation: 'Teacher',
     });
 
     // Fee stats - this month
     const feeThisMonth = await FeeRecord.aggregate([
-      { $match: { feeMonth: currentMonth, feeYear: currentYear, isDeleted: false } },
+      { $match: { ...feeFilter, feeMonth: currentMonth, feeYear: currentYear } },
       {
         $group: {
           _id: null,
@@ -53,9 +76,9 @@ const getStats = async (req, res) => {
       },
     ]);
 
-    // Total outstanding dues (all time)
+    // Total outstanding dues (all time within session/campus)
     const totalDues = await FeeRecord.aggregate([
-      { $match: { isDeleted: false, status: { $in: ['Unpaid', 'Partial'] } } },
+      { $match: { ...feeFilter, status: { $in: ['Unpaid', 'Partial', 'Overdue'] }, hasBeenCarriedForward: false } },
       { $group: { _id: null, totalDue: { $sum: '$balance' } } },
     ]);
 
@@ -90,6 +113,11 @@ const getStats = async (req, res) => {
 // @access  Private
 const getMonthlyFees = async (req, res) => {
   try {
+    const { currentCampus, currentSession } = req;
+    const feeFilter = { isDeleted: false };
+    if (currentCampus) feeFilter.campus = new mongoose.Types.ObjectId(currentCampus);
+    if (currentSession) feeFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
+
     const now = new Date();
     const results = [];
 
@@ -99,7 +127,7 @@ const getMonthlyFees = async (req, res) => {
       const year = d.getFullYear();
 
       const agg = await FeeRecord.aggregate([
-        { $match: { feeMonth: month, feeYear: year, isDeleted: false } },
+        { $match: { ...feeFilter, feeMonth: month, feeYear: year } },
         { $group: { _id: null, collected: { $sum: '$amountPaid' }, due: { $sum: '$balance' } } },
       ]);
 
@@ -121,9 +149,16 @@ const getMonthlyFees = async (req, res) => {
 // @access  Private
 const getClassDistribution = async (req, res) => {
   try {
-    const data = await Student.aggregate([
-      { $match: { isDeleted: false, status: 'Active' } },
-      { $group: { _id: '$class', count: { $sum: 1 } } },
+    const { currentCampus, currentSession } = req;
+    
+    // We now query StudentAcademicRecord instead of Student directly
+    const recordFilter = { isDeleted: false, status: 'Active' };
+    if (currentCampus) recordFilter.campus = new mongoose.Types.ObjectId(currentCampus);
+    if (currentSession) recordFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
+
+    const data = await StudentAcademicRecord.aggregate([
+      { $match: recordFilter },
+      { $group: { _id: '$className', count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]);
 
@@ -138,12 +173,17 @@ const getClassDistribution = async (req, res) => {
 // @access  Private
 const getFeeStatus = async (req, res) => {
   try {
+    const { currentCampus, currentSession } = req;
+    const feeFilter = { isDeleted: false };
+    if (currentCampus) feeFilter.campus = new mongoose.Types.ObjectId(currentCampus);
+    if (currentSession) feeFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
+
     const now = new Date();
     const currentMonth = MONTHS[now.getMonth()];
     const currentYear = now.getFullYear();
 
     const data = await FeeRecord.aggregate([
-      { $match: { feeMonth: currentMonth, feeYear: currentYear, isDeleted: false } },
+      { $match: { ...feeFilter, feeMonth: currentMonth, feeYear: currentYear, hasBeenCarriedForward: false } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]);
 
@@ -151,9 +191,10 @@ const getFeeStatus = async (req, res) => {
     data.forEach((d) => { result[d._id] = d.count; });
 
     res.json([
-      { name: 'Paid', value: result.Paid },
-      { name: 'Unpaid', value: result.Unpaid },
-      { name: 'Partial', value: result.Partial },
+      { name: 'Paid', value: result.Paid || 0 },
+      { name: 'Unpaid', value: result.Unpaid || 0 },
+      { name: 'Partial', value: result.Partial || 0 },
+      { name: 'Overdue', value: result.Overdue || 0 },
     ]);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -165,12 +206,31 @@ const getFeeStatus = async (req, res) => {
 // @access  Private
 const getRecentPayments = async (req, res) => {
   try {
-    const payments = await FeeRecord.find({ isDeleted: false, status: { $ne: 'Unpaid' } })
+    const { currentCampus, currentSession } = req;
+    const feeFilter = { isDeleted: false, status: { $ne: 'Unpaid' } };
+    if (currentCampus) feeFilter.campus = currentCampus;
+    if (currentSession) feeFilter.academicSession = currentSession;
+
+    const payments = await FeeRecord.find(feeFilter)
       .sort({ updatedAt: -1 })
       .limit(5)
-      .populate('student', 'fullName class section studentId');
+      .populate('student', 'fullName studentId') // Cannot populate class/section here directly from Student, need AcademicRecord
+      .populate('studentAcademicRecord', 'className section');
 
-    res.json(payments);
+    // Format response to match existing frontend
+    const formatted = payments.map(p => {
+      const doc = p.toJSON();
+      if (doc.studentAcademicRecord) {
+        doc.student = {
+          ...doc.student,
+          class: doc.studentAcademicRecord.className,
+          section: doc.studentAcademicRecord.section
+        };
+      }
+      return doc;
+    });
+
+    res.json(formatted);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

@@ -1,5 +1,6 @@
 const Employee = require('../models/Employee');
 const SalaryRecord = require('../models/SalaryRecord');
+const mongoose = require('mongoose');
 
 const generateEmployeeId = async () => {
   const year = new Date().getFullYear();
@@ -11,8 +12,15 @@ const generateEmployeeId = async () => {
 // @route   POST /api/employees
 const addEmployee = async (req, res) => {
   try {
+    const { currentCampus } = req;
+    if (!currentCampus) return res.status(400).json({ message: 'Campus context is required' });
+
     const employeeId = await generateEmployeeId();
-    const employee = await Employee.create({ ...req.body, employeeId });
+    const employee = await Employee.create({ 
+      ...req.body, 
+      employeeId,
+      campus: currentCampus
+    });
     res.status(201).json(employee);
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ message: 'Duplicate entry', field: Object.keys(err.keyValue)[0] });
@@ -24,12 +32,15 @@ const addEmployee = async (req, res) => {
 // @route   GET /api/employees?designation=&department=&status=&search=&page=&limit=
 const getEmployees = async (req, res) => {
   try {
+    const { currentCampus } = req;
     const { designation, department, status, search, page = 1, limit = 10 } = req.query;
     const filter = { isDeleted: false };
 
+    if (currentCampus) filter.campus = new mongoose.Types.ObjectId(currentCampus);
     if (designation) filter.designation = designation;
     if (department)  filter.department = department;
     if (status)      filter.status = status;
+    
     if (search) {
       filter.$or = [
         { fullName: { $regex: search, $options: 'i' } },
@@ -59,7 +70,8 @@ const getEmployees = async (req, res) => {
 // @route   GET /api/employees/:id
 const getEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ _id: req.params.id, isDeleted: false });
+    const employee = await Employee.findOne({ _id: req.params.id, isDeleted: false })
+      .populate('campus', 'name code');
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
     res.json(employee);
   } catch (err) {
@@ -103,10 +115,21 @@ const deleteEmployee = async (req, res) => {
 // @route   POST /api/employees/salary
 const postSalary = async (req, res) => {
   try {
+    const { currentCampus, currentSession } = req;
+    if (!currentCampus || !currentSession) {
+      return res.status(400).json({ message: 'Campus and Academic Session context are required' });
+    }
+
     const { employeeId, salaryMonth, salaryYear, baseSalary, allowances, deductions, paymentMethod, remarks } = req.body;
     
-    // Check if salary already posted for this month/year
-    const existing = await SalaryRecord.findOne({ employee: employeeId, salaryMonth, salaryYear, isDeleted: false });
+    // Check if salary already posted for this month/year/session
+    const existing = await SalaryRecord.findOne({ 
+      employee: employeeId, 
+      salaryMonth, 
+      salaryYear,
+      academicSession: currentSession, 
+      isDeleted: false 
+    });
     if (existing) {
       return res.status(400).json({ message: `Salary for ${salaryMonth} ${salaryYear} is already posted.` });
     }
@@ -115,6 +138,8 @@ const postSalary = async (req, res) => {
 
     const salary = await SalaryRecord.create({
       employee: employeeId,
+      campus: currentCampus,
+      academicSession: currentSession,
       salaryMonth,
       salaryYear,
       baseSalary,
@@ -138,6 +163,8 @@ const postSalary = async (req, res) => {
 const getSalaryHistory = async (req, res) => {
   try {
     const history = await SalaryRecord.find({ employee: req.params.id, isDeleted: false })
+      .populate('academicSession', 'name')
+      .populate('campus', 'name')
       .sort({ salaryYear: -1, createdAt: -1 });
     res.json(history);
   } catch (err) {

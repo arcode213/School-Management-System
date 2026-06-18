@@ -4,10 +4,13 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 const {
   addStudent, getStudents, getStudent, updateStudent, deleteStudent, getClasses,
 } = require('../controllers/studentController');
+const { promoteStudents } = require('../controllers/promotionController');
 
 router.use(protect);
 
 router.get('/classes', getClasses);
+router.post('/promote', authorize('Admin'), promoteStudents);
+
 router.route('/')
   .get(getStudents)
   .post(authorize('Admin', 'Accountant'), addStudent);

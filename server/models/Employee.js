@@ -27,7 +27,7 @@ const employeeSchema = new mongoose.Schema(
     experience: { type: String },
     photo: { type: String },
     documents: [{ type: String }],
-    campus: { type: String, enum: ['Main-Campus', 'Al-Hussain Campus'], required: true, default: 'Main-Campus' },
+    campus: { type: mongoose.Schema.Types.ObjectId, ref: 'Campus', required: true },
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }

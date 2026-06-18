@@ -8,3 +8,10 @@ export const getFee         = (id)     => api.get(`/fees/${id}`);
 export const getDues        = ()       => api.get('/fees/dues');
 export const updateFee      = (id, data) => api.put(`/fees/${id}`, data);
 export const deleteFee      = (id)     => api.delete(`/fees/${id}`);
+
+// Fee Structures
+export const getFeeStructures = () => api.get('/fee-structures');
+export const saveFeeStructure = (data) => api.post('/fee-structures', data);
+export const getFeeOverrides  = () => api.get('/fee-structures/overrides');
+export const saveFeeOverride  = (data) => api.post('/fee-structures/overrides', data);
+export const deleteFeeOverride= (id) => api.delete(`/fee-structures/overrides/${id}`);

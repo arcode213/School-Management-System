@@ -11,6 +11,13 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    const campus = localStorage.getItem('sms_campus');
+    if (campus) config.headers['x-campus-id'] = campus;
+    
+    const session = localStorage.getItem('sms_session');
+    if (session) config.headers['x-session-id'] = session;
+    
     return config;
   },
   (error) => Promise.reject(error)

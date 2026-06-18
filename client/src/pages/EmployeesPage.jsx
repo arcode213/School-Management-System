@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useAppContext } from '../context/AppContext';
 import { getEmployees, deleteEmployee } from '../api/employees';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import SalaryModal from '../components/SalaryModal';
@@ -18,6 +19,7 @@ const StatusBadge = ({ status }) => {
 };
 
 export default function EmployeesPage() {
+  const { currentCampus } = useAppContext();
   const [employees, setEmployees] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,9 @@ export default function EmployeesPage() {
     }
   }, [search, filterDesig, filterDept, page]);
 
-  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+  useEffect(() => { 
+    if (currentCampus) fetchEmployees(); 
+  }, [fetchEmployees, currentCampus]);
 
   const handleDelete = async (id, name) => {
     if (!window.confirm(`Terminate/Remove ${name}?`)) return;

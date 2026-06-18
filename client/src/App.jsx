@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { AppProvider } from './context/AppContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
@@ -9,6 +10,9 @@ import StudentsPage from './pages/StudentsPage';
 import StudentProfilePage from './pages/StudentProfilePage';
 import EmployeesPage from './pages/EmployeesPage';
 import EmployeeProfilePage from './pages/EmployeeProfilePage';
+import PromotionsPage from './pages/PromotionsPage';
+import SystemSettingsPage from './pages/SystemSettingsPage';
+import FeeStructurePage from './pages/FeeStructurePage';
 import FeesPage from './pages/FeesPage';
 import ChallansPage from './pages/ChallansPage';
 import DuesPage from './pages/DuesPage';
@@ -20,8 +24,9 @@ const Unauthorized = () => <div className="text-red-500 p-8"><h1 className="text
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      <AppProvider>
+        <BrowserRouter>
+          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
@@ -36,22 +41,30 @@ function App() {
 
               {/* Admin + Accountant */}
               <Route element={<ProtectedRoute allowedRoles={['Admin', 'Accountant']} />}>
+                <Route path="/promotions" element={<PromotionsPage />} />
                 <Route path="/fees" element={<FeesPage />} />
                 <Route path="/challans" element={<ChallansPage />} />
               </Route>
 
-              {/* Admin only */}
+              {/* Admin & Accountant only routes */}
+            <Route element={<ProtectedRoute allowedRoles={['Admin', 'Accountant']} />}>
+              <Route path="/fee-structures" element={<FeeStructurePage />} />
+            </Route>
+
+            {/* Admin only routes */}
               <Route element={<ProtectedRoute allowedRoles={['Admin']} />}>
                 <Route path="/employees" element={<EmployeesPage />} />
                 <Route path="/employees/:id" element={<EmployeeProfilePage />} />
                 <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/settings" element={<SystemSettingsPage />} />
               </Route>
             </Route>
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
+        </BrowserRouter>
+      </AppProvider>
     </AuthProvider>
   );
 }

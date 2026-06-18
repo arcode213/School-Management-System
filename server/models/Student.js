@@ -16,11 +16,7 @@ const studentSchema = new mongoose.Schema(
     fatherOccupation: { type: String, trim: true },
     cnic: { type: String, trim: true }, // Student CNIC / B-Form
     fatherCnic: { type: String, trim: true },
-    class: { type: String },
-    section: { type: String },
-    rollNumber: { type: String },
     admissionDate: { type: Date, default: Date.now },
-    status: { type: String, enum: ['Active', 'Left', 'Graduated'], default: 'Active' },
     address: { type: String },
     phone: { type: String },
     fatherContact: { type: String, trim: true },
@@ -29,7 +25,7 @@ const studentSchema = new mongoose.Schema(
     lastSchool: { type: String, trim: true },
     email: { type: String },
     photo: { type: String },
-    campus: { type: String, enum: ['Main-Campus', 'Al-Hussain Campus'], required: true, default: 'Main-Campus' },
+    currentCampus: { type: mongoose.Schema.Types.ObjectId, ref: 'Campus', required: true },
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }
@@ -46,7 +42,7 @@ studentSchema.pre('save', async function (next) {
 });
 
 // Indexes for performance
-studentSchema.index({ campus: 1, class: 1, section: 1, status: 1 });
+studentSchema.index({ currentCampus: 1 });
 studentSchema.index({ studentId: 1 });
 
 module.exports = mongoose.model('Student', studentSchema);

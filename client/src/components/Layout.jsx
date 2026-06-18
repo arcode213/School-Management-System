@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useAppContext } from '../context/AppContext';
 import {
   LayoutDashboard, Users, UserCog, DollarSign,
-  FileText, BarChart2, LogOut, Menu, X, BookOpen, ChevronRight
+  FileText, BarChart2, LogOut, Menu, X, BookOpen, Settings
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -11,14 +12,22 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Teacher', 'Accountant'] },
   { to: '/students', label: 'Students', icon: Users, roles: ['Admin', 'Teacher', 'Accountant'] },
   { to: '/employees', label: 'Employees', icon: UserCog, roles: ['Admin'] },
+  { to: '/promotions', label: 'Promotions', icon: Users, roles: ['Admin', 'Accountant'] },
+  { to: '/fee-structures', label: 'Fee Structures', icon: Settings, roles: ['Admin', 'Accountant'] },
   { to: '/fees', label: 'Fee Management', icon: DollarSign, roles: ['Admin', 'Accountant'] },
   { to: '/challans', label: 'Challans', icon: FileText, roles: ['Admin', 'Accountant'] },
   { to: '/dues', label: 'Dues Report', icon: BarChart2, roles: ['Admin', 'Accountant'] },
   { to: '/reports', label: 'Reports', icon: BarChart2, roles: ['Admin'] },
+  { to: '/settings', label: 'System Settings', icon: Settings, roles: ['Admin'] },
 ];
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { 
+    campuses, sessions, 
+    currentCampus, setCurrentCampus, 
+    currentSession, setCurrentSession 
+  } = useAppContext();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -103,6 +112,33 @@ export default function Layout() {
           >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
+          
+          <div className="flex items-center gap-4 ml-4">
+            {/* Campus Switcher */}
+            <select
+              value={currentCampus || ''}
+              onChange={(e) => setCurrentCampus(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="" disabled>Select Campus</option>
+              {campuses.map(c => (
+                <option key={c._id} value={c._id}>{c.name}</option>
+              ))}
+            </select>
+
+            {/* Session Switcher */}
+            <select
+              value={currentSession || ''}
+              onChange={(e) => setCurrentSession(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="" disabled>Select Session</option>
+              {sessions.map(s => (
+                <option key={s._id} value={s._id}>{s.name} {s.isActive ? '(Active)' : ''}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex-1" />
           <div className="flex items-center gap-2 bg-slate-100 rounded-full px-3 py-1.5">
             <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">

@@ -10,6 +10,7 @@ import {
   ChevronRight, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useAppContext } from '../context/AppContext';
 import {
   getDashboardStats, getMonthlyFees, getClassDistribution,
   getFeeStatus, getRecentPayments,
@@ -71,6 +72,7 @@ const fmtRs = (n) => `Rs. ${Number(n || 0).toLocaleString()}`;
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { currentCampus, currentSession } = useAppContext();
   const [stats, setStats] = useState(null);
   const [monthly, setMonthly] = useState([]);
   const [classDist, setClassDist] = useState([]);
@@ -103,7 +105,9 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { 
+    if (currentCampus && currentSession) fetchAll(); 
+  }, [currentCampus, currentSession]);
 
   return (
     <div className="space-y-6">

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const FeeRecord = require('../models/FeeRecord');
 const SalaryRecord = require('../models/SalaryRecord');
 
@@ -5,22 +6,36 @@ const SalaryRecord = require('../models/SalaryRecord');
 // @route   GET /api/reports/financial
 const getFinancialReport = async (req, res) => {
   try {
+    const { currentCampus, currentSession } = req;
     const { year } = req.query;
     const filterYear = year ? Number(year) : new Date().getFullYear();
 
-    // 1. Total Fees Collected (PaidAmount + Discount is total received/forgiven, but actual cash is PaidAmount)
+    const feeFilter = { feeYear: filterYear, isDeleted: false, status: { $in: ['Paid', 'Partial'] } };
+    const salaryFilter = { salaryYear: filterYear, isDeleted: false, status: 'Paid' };
+
+    if (currentCampus) {
+      feeFilter.campus = new mongoose.Types.ObjectId(currentCampus);
+      salaryFilter.campus = new mongoose.Types.ObjectId(currentCampus);
+    }
+
+    if (currentSession) {
+      feeFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
+      salaryFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
+    }
+
+    // 1. Total Fees Collected (paidAmount)
     const feesResult = await FeeRecord.aggregate([
-      { $match: { feeYear: filterYear, isDeleted: false, status: { $in: ['Paid', 'Partial'] } } },
+      { $match: feeFilter },
       { $group: {
           _id: '$feeMonth',
-          collected: { $sum: '$paidAmount' },
+          collected: { $sum: '$amountPaid' }, // Note: changed from paidAmount to amountPaid to match FeeRecord schema
           discounts: { $sum: '$discount' }
       } }
     ]);
 
     // 2. Total Salaries Paid
     const salariesResult = await SalaryRecord.aggregate([
-      { $match: { salaryYear: filterYear, isDeleted: false, status: 'Paid' } },
+      { $match: salaryFilter },
       { $group: {
           _id: '$salaryMonth',
           paid: { $sum: '$netSalary' }

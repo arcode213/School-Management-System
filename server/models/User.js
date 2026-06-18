@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema(
       enum: ['Admin', 'Teacher', 'Accountant'],
       default: 'Teacher',
     },
-    campus: { type: String, enum: ['All', 'Main-Campus', 'Al-Hussain Campus'], default: 'All' },
+    campus: { type: mongoose.Schema.Types.ObjectId, ref: 'Campus', default: null },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
