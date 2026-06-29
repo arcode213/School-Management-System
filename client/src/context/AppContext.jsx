@@ -26,19 +26,34 @@ export function AppProvider({ children }) {
         setCampuses(campRes.data);
         setSessions(sessRes.data);
 
+        // Validate currentCampus
+        let validCampus = currentCampus;
+        if (currentCampus && !campRes.data.find(c => c._id === currentCampus)) {
+          validCampus = null;
+        }
+
         // Set default campus (from user or first available)
-        if (!currentCampus) {
-          if (user.campus) {
+        if (!validCampus) {
+          if (user.campus && campRes.data.find(c => c._id === user.campus)) {
             setCurrentCampus(user.campus);
             localStorage.setItem('sms_campus', user.campus);
           } else if (campRes.data.length > 0) {
             setCurrentCampus(campRes.data[0]._id);
             localStorage.setItem('sms_campus', campRes.data[0]._id);
+          } else {
+            setCurrentCampus(null);
+            localStorage.removeItem('sms_campus');
           }
         }
 
+        // Validate currentSession
+        let validSession = currentSession;
+        if (currentSession && !sessRes.data.find(s => s._id === currentSession)) {
+          validSession = null;
+        }
+
         // Set default session (active session)
-        if (!currentSession) {
+        if (!validSession) {
           const activeSess = sessRes.data.find(s => s.isActive);
           if (activeSess) {
             setCurrentSession(activeSess._id);
@@ -46,6 +61,9 @@ export function AppProvider({ children }) {
           } else if (sessRes.data.length > 0) {
             setCurrentSession(sessRes.data[0]._id);
             localStorage.setItem('sms_session', sessRes.data[0]._id);
+          } else {
+            setCurrentSession(null);
+            localStorage.removeItem('sms_session');
           }
         }
       } catch (err) {

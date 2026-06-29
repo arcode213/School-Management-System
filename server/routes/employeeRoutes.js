@@ -5,21 +5,19 @@ const {
   addEmployee, getEmployees, getEmployee, updateEmployee, deleteEmployee, postSalary, getSalaryHistory
 } = require('../controllers/employeeController');
 
-// All employee routes are for Admin only
-router.use(protect);
-router.use(authorize('Admin'));
+// Removed router-level authorize
 
 router.route('/')
-  .get(getEmployees)
-  .post(addEmployee);
+  .get(authorize('Admin', 'Administrator', 'Staff'), getEmployees)
+  .post(authorize('Admin', 'Administrator', 'Staff'), addEmployee);
 
-router.post('/salary', postSalary);
+router.post('/salary', authorize('Admin', 'Administrator'), postSalary);
 
 router.route('/:id')
-  .get(getEmployee)
-  .put(updateEmployee)
-  .delete(deleteEmployee);
+  .get(authorize('Admin', 'Administrator', 'Staff'), getEmployee)
+  .put(authorize('Admin', 'Administrator', 'Staff'), updateEmployee)
+  .delete(authorize('Admin', 'Administrator'), deleteEmployee);
 
-router.get('/:id/salary-history', getSalaryHistory);
+router.get('/:id/salary-history', authorize('Admin', 'Administrator'), getSalaryHistory);
 
 module.exports = router;

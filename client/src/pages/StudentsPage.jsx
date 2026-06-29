@@ -116,7 +116,7 @@ export default function StudentsPage() {
             className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 transition shadow-sm">
             <Printer size={14} /> Print Records
           </button>
-          {['Admin', 'Accountant'].includes(user?.role) && (
+          {user?.role !== 'Staff' && (
             <button id="add-student-btn" onClick={openAdd}
               className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 transition shadow-sm font-medium">
               <UserPlus size={14} /> Add Student
@@ -222,13 +222,13 @@ export default function StudentsPage() {
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View">
                           <Eye size={14} />
                         </Link>
-                        {['Admin','Accountant'].includes(user?.role) && (
+                        {user?.role !== 'Staff' && (
                           <button onClick={() => openEdit(s)}
                             className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Edit">
                             <Edit2 size={14} />
                           </button>
                         )}
-                        {user?.role === 'Admin' && (
+                        {user?.role !== 'Staff' && (
                           <button onClick={() => handleDelete(s._id, s.fullName)}
                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
                             <Trash2 size={14} />

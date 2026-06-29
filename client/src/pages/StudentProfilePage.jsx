@@ -57,7 +57,7 @@ export default function StudentProfilePage() {
         <Link to="/students" className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
           <ArrowLeft size={16} /> Back to Students
         </Link>
-        {['Admin', 'Accountant'].includes(user?.role) && (
+        {user && (
           <button onClick={() => setEditOpen(true)}
             className="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">
             <Edit2 size={14} /> Edit Student

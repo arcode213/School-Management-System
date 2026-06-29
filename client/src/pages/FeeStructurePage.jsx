@@ -10,6 +10,7 @@ import { Settings, Plus, Edit, Trash2 } from 'lucide-react';
 const CLASSES = ['Nursery', 'KG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 export default function FeeStructurePage() {
+  const { user } = useAuth();
   const [structures, setStructures] = useState([]);
   const [overrides, setOverrides] = useState([]);
   const [activeTab, setActiveTab] = useState('class');
@@ -187,7 +188,9 @@ export default function FeeStructurePage() {
                   <td className="p-4">{o.customTransportFee !== null ? `Rs ${o.customTransportFee}` : '-'}</td>
                   <td className="p-4">{o.reason || '-'}</td>
                   <td className="p-4">
-                    <button onClick={() => handleDeleteOverride(o._id)} className="text-red-500 hover:text-red-700"><Trash2 size={18} /></button>
+                    {user?.role !== 'Staff' && (
+                      <button onClick={() => handleDeleteOverride(o._id)} className="text-red-500 hover:text-red-700"><Trash2 size={18} /></button>
+                    )}
                   </td>
                 </tr>
               ))}

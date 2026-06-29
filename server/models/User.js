@@ -8,8 +8,8 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: {
       type: String,
-      enum: ['Admin', 'Teacher', 'Accountant'],
-      default: 'Teacher',
+      enum: ['Admin', 'Administrator', 'Staff'],
+      default: 'Staff',
     },
     campus: { type: mongoose.Schema.Types.ObjectId, ref: 'Campus', default: null },
     isActive: { type: Boolean, default: true },

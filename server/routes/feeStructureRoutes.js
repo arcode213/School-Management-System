@@ -4,17 +4,15 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 const { getFeeStructures, saveFeeStructure, getOverrides, saveOverride, deleteOverride } = require('../controllers/feeStructureController');
 
 router.use(protect);
-router.use(authorize('Admin', 'Accountant'));
-
 router.route('/')
-  .get(getFeeStructures)
-  .post(saveFeeStructure);
+  .get(authorize('Admin', 'Administrator', 'Staff'), getFeeStructures)
+  .post(authorize('Admin', 'Administrator', 'Staff'), saveFeeStructure);
 
 router.route('/overrides')
-  .get(getOverrides)
-  .post(saveOverride);
+  .get(authorize('Admin', 'Administrator', 'Staff'), getOverrides)
+  .post(authorize('Admin', 'Administrator', 'Staff'), saveOverride);
 
 router.route('/overrides/:id')
-  .delete(deleteOverride);
+  .delete(authorize('Admin', 'Administrator'), deleteOverride);
 
 module.exports = router;

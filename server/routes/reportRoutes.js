@@ -4,7 +4,7 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 const { getFinancialReport } = require('../controllers/reportController');
 
 router.use(protect);
-router.use(authorize('Admin')); // Only Admin can view financial reports
+router.use(authorize('Admin', 'Administrator'));
 
 router.get('/financial', getFinancialReport);
 

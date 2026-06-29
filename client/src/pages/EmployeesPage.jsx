@@ -114,10 +114,14 @@ export default function EmployeesPage() {
                   <td className="px-4 py-3"><StatusBadge status={e.status} /></td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                      <button onClick={() => setSalaryModal({ open: true, emp: e })} className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Pay Salary"><DollarSign size={14} /></button>
+                      {user?.role !== 'Staff' && (
+                        <button onClick={() => setSalaryModal({ open: true, emp: e })} className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Pay Salary"><DollarSign size={14} /></button>
+                      )}
                       <Link to={`/employees/${e._id}`} className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg"><Eye size={14} /></Link>
                       <button onClick={() => setEmpModal({ open: true, data: e })} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"><Edit2 size={14} /></button>
-                      <button onClick={() => handleDelete(e._id, e.fullName)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                      {user?.role !== 'Staff' && (
+                        <button onClick={() => handleDelete(e._id, e.fullName)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                      )}
                     </div>
                   </td>
                 </tr>

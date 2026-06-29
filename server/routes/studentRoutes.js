@@ -13,11 +13,11 @@ router.post('/promote', authorize('Admin'), promoteStudents);
 
 router.route('/')
   .get(getStudents)
-  .post(authorize('Admin', 'Accountant'), addStudent);
+  .post(authorize('Admin', 'Administrator', 'Staff'), addStudent);
 
 router.route('/:id')
   .get(getStudent)
-  .put(authorize('Admin', 'Accountant'), updateStudent)
-  .delete(authorize('Admin'), deleteStudent);
+  .put(authorize('Admin', 'Administrator', 'Staff'), updateStudent)
+  .delete(authorize('Admin', 'Administrator'), deleteStudent);
 
 module.exports = router;

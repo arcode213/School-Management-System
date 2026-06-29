@@ -6,19 +6,17 @@ const {
 } = require('../controllers/feeController');
 
 router.use(protect);
-router.use(authorize('Admin', 'Accountant'));
-
-router.post('/bulk', addBulkFees);
-router.get('/dues', getDues);
-router.get('/student/:id', getStudentFees);
+router.post('/bulk', authorize('Admin', 'Administrator', 'Staff'), addBulkFees);
+router.get('/dues', authorize('Admin', 'Administrator'), getDues);
+router.get('/student/:id', authorize('Admin', 'Administrator', 'Staff'), getStudentFees);
 
 router.route('/')
-  .get(getFees)
-  .post(addFee);
+  .get(authorize('Admin', 'Administrator', 'Staff'), getFees)
+  .post(authorize('Admin', 'Administrator', 'Staff'), addFee);
 
 router.route('/:id')
-  .get(getFee)
-  .put(updateFee)
-  .delete(deleteFee);
+  .get(authorize('Admin', 'Administrator', 'Staff'), getFee)
+  .put(authorize('Admin', 'Administrator', 'Staff'), updateFee)
+  .delete(authorize('Admin', 'Administrator'), deleteFee);
 
 module.exports = router;

@@ -8,6 +8,8 @@ import ChallanPrintPreview from '../components/ChallanPrintPreview';
 import toast from 'react-hot-toast';
 import { CreditCard, Printer, Search, ChevronLeft, ChevronRight, CopyPlus, Wallet, FilePlus, Edit2, Trash2 } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
+
 const STATUSES = ['Paid', 'Partial', 'Unpaid', 'Overdue'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -17,6 +19,7 @@ const StatusBadge = ({ status }) => {
 };
 
 export default function FeesPage() {
+  const { user } = useAuth();
   const [fees, setFees] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -173,9 +176,11 @@ export default function FeesPage() {
                               <Edit2 size={16} />
                             </button>
                           )}
-                          <button onClick={() => handleDelete(f)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Delete Challan">
-                            <Trash2 size={16} />
-                          </button>
+                          {user?.role !== 'Staff' && (
+                            <button onClick={() => handleDelete(f)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Delete Challan">
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                           {f.status !== 'Paid' && !f.hasBeenCarriedForward && (
                             <button onClick={() => openPayment(f)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg font-medium transition" title="Receive Payment">
                               <CreditCard size={14} /> Pay
