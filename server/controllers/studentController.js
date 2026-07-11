@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const StudentAcademicRecord = require('../models/StudentAcademicRecord');
+const FeeRecord = require('../models/FeeRecord');
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 // Helper: auto-generate studentId safely
 const generateStudentId = async () => {
@@ -21,7 +24,7 @@ const addStudent = async (req, res) => {
       throw new Error('Campus and Academic Session context are required');
     }
 
-    const { class: className, section, rollNumber, status, feeStructure, ...personalDetails } = req.body;
+    const { class: className, section, rollNumber, status, feeStructure, previousDues, ...personalDetails } = req.body;
     
     const studentId = await generateStudentId();
     
@@ -33,6 +36,9 @@ const addStudent = async (req, res) => {
     });
     await student.save({ session });
 
+    // Normalize roll number (empty/null becomes undefined so it's not indexed as a duplicate string)
+    const cleanRollNumber = (rollNumber === '' || rollNumber === null || rollNumber === undefined) ? undefined : rollNumber;
+
     // Create academic record
     const academicRecord = new StudentAcademicRecord({
       student: student._id,
@@ -40,12 +46,33 @@ const addStudent = async (req, res) => {
       academicSession: currentSession,
       className: className || 'Unassigned',
       section,
-      rollNumber,
+      rollNumber: cleanRollNumber,
       status: status || 'Active',
       feeStructure,
       admissionDate: personalDetails.admissionDate
     });
     await academicRecord.save({ session });
+
+    // Handle previous dues
+    if (previousDues && Number(previousDues) > 0) {
+      const arrearsRecord = new FeeRecord({
+        challanNo: `ARR-${studentId}-${Date.now()}`,
+        student: student._id,
+        studentAcademicRecord: academicRecord._id,
+        campus: currentCampus,
+        academicSession: currentSession,
+        feeMonth: MONTHS[new Date().getMonth()],
+        feeYear: new Date().getFullYear(),
+        dueMonthRange: 'Previous Arrears',
+        tuitionFee: 0,
+        examFee: 0,
+        transportFee: 0,
+        miscFee: 0,
+        previousDues: Number(previousDues),
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 10))
+      });
+      await arrearsRecord.save({ session });
+    }
 
     await session.commitTransaction();
     session.endSession();
@@ -194,16 +221,30 @@ const updateStudent = async (req, res) => {
     if (!student) throw new Error('Student not found');
 
     let academicRecord;
+    const updatePayload = { className, section, status, feeStructure };
+    const unsetPayload = {};
+    
+    if (rollNumber === '' || rollNumber === null || rollNumber === undefined) {
+      unsetPayload.rollNumber = '';
+    } else {
+      updatePayload.rollNumber = rollNumber;
+    }
+
+    const updateObj = { $set: updatePayload };
+    if (Object.keys(unsetPayload).length > 0) {
+      updateObj.$unset = unsetPayload;
+    }
+
     if (academicRecordId) {
       academicRecord = await StudentAcademicRecord.findByIdAndUpdate(
         academicRecordId,
-        { $set: { className, section, rollNumber, status, feeStructure } },
+        updateObj,
         { new: true, runValidators: true, session }
       );
     } else if (currentCampus && currentSession) {
       academicRecord = await StudentAcademicRecord.findOneAndUpdate(
         { student: student._id, academicSession: currentSession, campus: currentCampus },
-        { $set: { className, section, rollNumber, status, feeStructure } },
+        updateObj,
         { new: true, runValidators: true, session }
       );
     }
@@ -274,4 +315,91 @@ const getClasses = async (req, res) => {
   }
 };
 
-module.exports = { addStudent, getStudents, getStudent, updateStudent, deleteStudent, getClasses };
+// @desc    Bulk Add Students
+// @route   POST /api/students/bulk
+const bulkAddStudents = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { currentCampus, currentSession } = req;
+    if (!currentCampus || !currentSession) {
+      throw new Error('Campus and Academic Session context are required');
+    }
+
+    const studentsData = req.body.students;
+    if (!studentsData || !Array.isArray(studentsData)) {
+      throw new Error('Invalid data format. Expected an array of students.');
+    }
+
+    const addedStudents = [];
+
+    // Pre-calculate starting student ID
+    const year = new Date().getFullYear();
+    let currentCount = await Student.countDocuments();
+
+    for (let i = 0; i < studentsData.length; i++) {
+      const studentObj = studentsData[i];
+      const { class: className, section, rollNumber, status, feeStructure, previousDues, ...personalDetails } = studentObj;
+
+      currentCount++;
+      const studentId = `SMS-${year}-${String(currentCount).padStart(3, '0')}`;
+
+      // Create personal record
+      const student = new Student({
+        ...personalDetails,
+        studentId,
+        currentCampus
+      });
+      await student.save({ session });
+
+      // Create academic record
+      const academicRecord = new StudentAcademicRecord({
+        student: student._id,
+        campus: currentCampus,
+        academicSession: currentSession,
+        className: className || 'Unassigned',
+        section,
+        rollNumber,
+        status: status || 'Active',
+        feeStructure,
+        admissionDate: personalDetails.admissionDate || Date.now()
+      });
+      await academicRecord.save({ session });
+
+      if (previousDues && Number(previousDues) > 0) {
+        const arrearsRecord = new FeeRecord({
+          challanNo: `ARR-${studentId}-${Date.now()}-${i}`,
+          student: student._id,
+          studentAcademicRecord: academicRecord._id,
+          campus: currentCampus,
+          academicSession: currentSession,
+          feeMonth: MONTHS[new Date().getMonth()],
+          feeYear: new Date().getFullYear(),
+          dueMonthRange: 'Previous Arrears',
+          tuitionFee: 0,
+          examFee: 0,
+          transportFee: 0,
+          miscFee: 0,
+          previousDues: Number(previousDues),
+          dueDate: new Date(new Date().setDate(new Date().getDate() + 10))
+        });
+        await arrearsRecord.save({ session });
+      }
+
+      addedStudents.push({ ...student.toJSON(), class: academicRecord.className, section: academicRecord.section, rollNumber: academicRecord.rollNumber, status: academicRecord.status });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(201).json({ message: `${addedStudents.length} students imported successfully`, students: addedStudents });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    if (err.code === 11000) return res.status(400).json({ message: 'Duplicate entry', field: Object.keys(err.keyValue)[0] });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { addStudent, getStudents, getStudent, updateStudent, deleteStudent, getClasses, bulkAddStudents };

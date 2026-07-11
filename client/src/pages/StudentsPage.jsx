@@ -5,9 +5,10 @@ import { useAppContext } from '../context/AppContext';
 import { getStudents, deleteStudent, getClasses } from '../api/students';
 import StudentFormModal from '../components/StudentFormModal';
 import StudentPrintModal from '../components/StudentPrintModal';
+import ImportExcelModal from '../components/ImportExcelModal';
 import toast from 'react-hot-toast';
 import {
-  UserPlus, Search, Filter, Download, Trash2, Printer,
+  UserPlus, Search, Filter, Download, Trash2, Printer, Upload,
   Edit2, Eye, ChevronLeft, ChevronRight, Users,
 } from 'lucide-react';
 
@@ -46,6 +47,7 @@ export default function StudentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editStudent, setEditStudent] = useState(null);
   const [printOpen, setPrintOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
@@ -116,6 +118,12 @@ export default function StudentsPage() {
             className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 transition shadow-sm">
             <Printer size={14} /> Print Records
           </button>
+          {user?.role !== 'Staff' && (
+            <button onClick={() => setImportOpen(true)}
+              className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 transition shadow-sm">
+              <Upload size={14} /> Import Data
+            </button>
+          )}
           {user?.role !== 'Staff' && (
             <button id="add-student-btn" onClick={openAdd}
               className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 transition shadow-sm font-medium">
@@ -280,6 +288,13 @@ export default function StudentsPage() {
         onClose={() => setModalOpen(false)}
         student={editStudent}
         onSaved={fetchStudents}
+      />
+
+      <ImportExcelModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImportSuccess={fetchStudents}
+        type="students"
       />
 
       {/* Print records (respects current filters) */}

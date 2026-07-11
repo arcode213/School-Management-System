@@ -44,6 +44,7 @@ const feeRecordSchema = new mongoose.Schema(
     
     // Flag to indicate if this challan's unpaid balance has been rolled over to a NEWER challan.
     hasBeenCarriedForward: { type: Boolean, default: false },
+    carriedForwardTo: { type: mongoose.Schema.Types.ObjectId, ref: 'FeeRecord' },
     
     remarks: { type: String },
     isDeleted: { type: Boolean, default: false },

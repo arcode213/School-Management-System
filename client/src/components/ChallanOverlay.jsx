@@ -1,4 +1,4 @@
-import { FIELD_MAP, TABLE, COPY_OFFSET_X } from '../utils/challanCalibration';
+import { COPY_OFFSET_X, DEFAULT_CALIBRATION } from '../utils/challanCalibration';
 
 const fmt = (n) => Number(n || 0).toLocaleString();
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB') : '');
@@ -30,7 +30,7 @@ const normalize = (fee) => {
 };
 
 // One printed copy (left = Student, right = School). `dx` shifts the right copy.
-function Copy({ d, dx, fontMm }) {
+function Copy({ d, dx, fontMm, calib, onDragUpdate }) {
   const at = (x, y) => ({ position: 'absolute', left: `${x + dx}%`, top: `${y}%` });
   const textStyle = (align) => ({
     fontSize: `${fontMm}mm`,
@@ -41,10 +41,65 @@ function Copy({ d, dx, fontMm }) {
     color: '#000',
   });
 
+  const fieldMap = calib?.fieldMap || DEFAULT_CALIBRATION.fieldMap;
+  const tableMap = calib?.tableMap || DEFAULT_CALIBRATION.tableMap;
+
   const Field = ({ k, value }) => {
-    const f = FIELD_MAP[k];
+    const f = fieldMap[k];
+    if (!f) return null;
+
+    const isDraggable = onDragUpdate && dx === 0;
+
+    const handlePointerDown = (e) => {
+      if (!isDraggable) return;
+      e.stopPropagation();
+      e.preventDefault();
+
+      let startX = e.clientX;
+      let startY = e.clientY;
+      let currentX = f.x;
+      let currentY = f.y;
+
+      const sheet = e.currentTarget.closest('.challan-sheet');
+      if (!sheet) return;
+      const rect = sheet.getBoundingClientRect();
+      const sheetWidthPx = rect.width;
+      const sheetHeightPx = rect.height;
+
+      const onPointerMove = (moveEv) => {
+        const pctX = ((moveEv.clientX - startX) / sheetWidthPx) * 100;
+        const pctY = ((moveEv.clientY - startY) / sheetHeightPx) * 100;
+        onDragUpdate('field', k, currentX + pctX, currentY + pctY);
+      };
+
+      const onPointerUp = (upEv) => {
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        const pctX = ((upEv.clientX - startX) / sheetWidthPx) * 100;
+        const pctY = ((upEv.clientY - startY) / sheetHeightPx) * 100;
+        onDragUpdate('field', k, currentX + pctX, currentY + pctY, true);
+      };
+
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+    };
+
     return (
-      <span style={{ ...at(f.x, f.y), ...textStyle(f.align) }}>{value}</span>
+      <span 
+        onPointerDown={handlePointerDown}
+        style={{ 
+          ...at(f.x, f.y), 
+          ...textStyle(f.align),
+          cursor: isDraggable ? 'move' : 'default',
+          outline: isDraggable ? '1px dotted rgba(59, 130, 246, 0.5)' : 'none',
+          padding: isDraggable ? '2px' : '0',
+          background: isDraggable ? 'rgba(255, 255, 255, 0.4)' : 'transparent',
+          zIndex: isDraggable ? 10 : 1,
+        }}
+        title={isDraggable ? `Drag to move ${k}` : undefined}
+      >
+        {value}
+      </span>
     );
   };
 
@@ -57,27 +112,28 @@ function Copy({ d, dx, fontMm }) {
       <Field k="className" value={d.className} />
       <Field k="section" value={d.section} />
       <Field k="dueDate" value={d.dueDate} />
+      <Field k="month" value={d.month} />
 
       {/* Fee table line items */}
-      {d.items.slice(0, TABLE.maxRows).map((item, i) => {
-        const y = TABLE.firstRowY + i * TABLE.rowStep;
+      {d.items.slice(0, tableMap.maxRows).map((item, i) => {
+        const y = tableMap.firstRowY + i * tableMap.rowStep;
         return (
           <span key={item.title}>
-            <span style={{ ...at(TABLE.titleX, y), ...textStyle('left') }}>{item.title}</span>
-            <span style={{ ...at(TABLE.amountRightX, y), ...textStyle('right') }}>{fmt(item.amount)}</span>
+            <span style={{ ...at(tableMap.titleX, y), ...textStyle('left') }}>{item.title}</span>
+            <span style={{ ...at(tableMap.amountRightX, y), ...textStyle('right') }}>{fmt(item.amount)}</span>
           </span>
         );
       })}
 
       {/* Net payable boxes */}
-      <span style={{ ...at(TABLE.amountRightX, TABLE.netByDueY), ...textStyle('right') }}>{fmt(d.netByDue)}</span>
-      <span style={{ ...at(TABLE.amountRightX, TABLE.netAfterDueY), ...textStyle('right') }}>{fmt(d.netAfterDue)}</span>
+      <span style={{ ...at(tableMap.amountRightX, tableMap.netByDueY), ...textStyle('right') }}>{fmt(d.netByDue)}</span>
+      <span style={{ ...at(tableMap.amountRightX, tableMap.netAfterDueY), ...textStyle('right') }}>{fmt(d.netAfterDue)}</span>
     </>
   );
 }
 
 // Renders one full challan sheet (both copies) sized to the physical paper.
-export default function ChallanOverlay({ fee, calib, showBackground = false }) {
+export default function ChallanOverlay({ fee, calib, showBackground = false, onDragUpdate }) {
   if (!fee) return null;
   const d = normalize(fee);
   // Base text size scales with the sheet width; user can fine-tune via fontScale.
@@ -92,13 +148,14 @@ export default function ChallanOverlay({ fee, calib, showBackground = false }) {
         height: `${calib.paperHeight}mm`,
         background: '#fff',
         overflow: 'hidden',
+        userSelect: onDragUpdate ? 'none' : 'auto', // prevent text selection during drag
       }}
     >
       {showBackground && (
         <img
           src="/challan.jpeg"
           alt="challan form"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', pointerEvents: 'none' }}
         />
       )}
       <div
@@ -109,8 +166,8 @@ export default function ChallanOverlay({ fee, calib, showBackground = false }) {
           transformOrigin: 'top left',
         }}
       >
-        <Copy d={d} dx={0} fontMm={fontMm} />
-        <Copy d={d} dx={COPY_OFFSET_X} fontMm={fontMm} />
+        <Copy d={d} dx={0} fontMm={fontMm} calib={calib} onDragUpdate={onDragUpdate} />
+        <Copy d={d} dx={COPY_OFFSET_X} fontMm={fontMm} calib={calib} onDragUpdate={onDragUpdate} />
       </div>
     </div>
   );

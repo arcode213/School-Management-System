@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getFeeStructures, saveFeeStructure, getFeeOverrides, saveFeeOverride, deleteFeeOverride } from '../api/fees';
+import { useAppContext } from '../context/AppContext';
+import { getFeeStructures, saveFeeStructure, getFeeOverrides, saveFeeOverride, deleteFeeOverride, rolloverFeeStructure } from '../api/fees';
 import { getStudents } from '../api/students';
 import toast from 'react-hot-toast';
-import { Settings, Plus, Edit, Trash2 } from 'lucide-react';
+import { Settings, Plus, Edit, Trash2, ArrowRightLeft } from 'lucide-react';
 
 // Must match the class values used when adding students (StudentFormModal),
 // otherwise fee-structure lookups during challan generation will not match.
@@ -11,6 +12,7 @@ const CLASSES = ['Nursery', 'KG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '
 
 export default function FeeStructurePage() {
   const { user } = useAuth();
+  const { sessions, currentSession } = useAppContext();
   const [structures, setStructures] = useState([]);
   const [overrides, setOverrides] = useState([]);
   const [activeTab, setActiveTab] = useState('class');
@@ -18,10 +20,12 @@ export default function FeeStructurePage() {
   // Modals
   const [showStructModal, setShowStructModal] = useState(false);
   const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [showRolloverModal, setShowRolloverModal] = useState(false);
 
   // Form states
   const [structForm, setStructForm] = useState({ className: 'Nursery', tuitionFee: 0, admissionFee: 0, examFee: 0, transportFee: 0, miscFee: 0 });
   const [overrideForm, setOverrideForm] = useState({ student: '', customTuitionFee: '', customTransportFee: '', customMiscFee: '', reason: '' });
+  const [rolloverForm, setRolloverForm] = useState({ sourceSessionId: '', targetSessionId: '', incrementAmount: 200 });
 
   const [students, setStudents] = useState([]);
 
@@ -68,6 +72,18 @@ export default function FeeStructurePage() {
     }
   };
 
+  const handleRolloverSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await rolloverFeeStructure(rolloverForm);
+      toast.success(res.data.message || 'Fees carried forward successfully!');
+      setShowRolloverModal(false);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error during fee rollover');
+    }
+  };
+
   const handleDeleteOverride = async (id) => {
     if (!window.confirm('Delete this override?')) return;
     try {
@@ -95,21 +111,43 @@ export default function FeeStructurePage() {
     setShowStructModal(true);
   };
 
+  const openRolloverModal = () => {
+    // Attempt to guess source (current) and target (next)
+    const sorted = [...sessions].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    const currentIdx = sorted.findIndex(s => s._id === currentSession);
+    const source = currentSession || (sorted[0]?._id || '');
+    const target = (currentIdx !== -1 && sorted[currentIdx + 1]?._id) || '';
+    
+    setRolloverForm({
+      sourceSessionId: source,
+      targetSessionId: target,
+      incrementAmount: 200
+    });
+    setShowRolloverModal(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <Settings className="text-blue-600" /> Fee Structure
         </h1>
-        {activeTab === 'class' ? (
-          <button onClick={() => openStructModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
-            <Plus size={18} /> Set Class Fee
-          </button>
-        ) : (
-          <button onClick={() => { setOverrideForm({ student: '', customTuitionFee: '', customTransportFee: '', customMiscFee: '', reason: '' }); setShowOverrideModal(true); }} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700">
-            <Plus size={18} /> Add Student Override
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {user?.role !== 'Staff' && (
+            <button onClick={openRolloverModal} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+              <ArrowRightLeft size={18} /> Carry/Rollover Fees
+            </button>
+          )}
+          {activeTab === 'class' ? (
+            <button onClick={() => openStructModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
+              <Plus size={18} /> Set Class Fee
+            </button>
+          ) : (
+            <button onClick={() => { setOverrideForm({ student: '', customTuitionFee: '', customTransportFee: '', customMiscFee: '', reason: '' }); setShowOverrideModal(true); }} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700">
+              <Plus size={18} /> Add Student Override
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-4 border-b border-slate-200">
@@ -252,6 +290,43 @@ export default function FeeStructurePage() {
               <div className="flex gap-3 justify-end pt-4">
                 <button type="button" onClick={() => setShowOverrideModal(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Save Override</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showRolloverModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <ArrowRightLeft className="text-emerald-600" /> Carry/Rollover Fees
+            </h2>
+            <p className="text-sm text-slate-500 mb-4">
+              This copies all Class Fee Structures and Student Fee Overrides from the source session to the target session, adding the specified tuition increment.
+            </p>
+            <form onSubmit={handleRolloverSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Source Session (Copy from)</label>
+                <select className="w-full p-2 border rounded" value={rolloverForm.sourceSessionId} onChange={e=>setRolloverForm({...rolloverForm, sourceSessionId: e.target.value})} required>
+                  <option value="">Select source session...</option>
+                  {sessions.map(s => <option key={s._id} value={s._id}>{s.name} {s.isActive ? '(Active)' : ''}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Target Session (Copy to)</label>
+                <select className="w-full p-2 border rounded" value={rolloverForm.targetSessionId} onChange={e=>setRolloverForm({...rolloverForm, targetSessionId: e.target.value})} required>
+                  <option value="">Select target session...</option>
+                  {sessions.map(s => <option key={s._id} value={s._id}>{s.name} {s.isActive ? '(Active)' : ''}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Tuition Fee Increment (Rs.)</label>
+                <input type="number" className="w-full p-2 border rounded" value={rolloverForm.incrementAmount} onChange={e=>setRolloverForm({...rolloverForm, incrementAmount: e.target.value})} required min="0" />
+              </div>
+              <div className="flex gap-3 justify-end pt-4">
+                <button type="button" onClick={() => setShowRolloverModal(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium">Carry Fees</button>
               </div>
             </form>
           </div>

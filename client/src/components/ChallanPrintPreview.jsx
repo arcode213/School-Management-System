@@ -45,6 +45,17 @@ export default function ChallanPrintPreview({ feeId, onClose }) {
   const set = (key, val) => setCalib((c) => ({ ...c, [key]: val }));
   const num = (key, val) => set(key, val === '' ? '' : Number(val));
 
+  const handleDragUpdate = (type, key, x, y, isFinal = false) => {
+    setCalib(prev => {
+      const updated = { ...prev };
+      if (type === 'field') {
+        const currentMap = updated.fieldMap || DEFAULT_CALIBRATION.fieldMap;
+        updated.fieldMap = { ...currentMap, [key]: { ...currentMap[key], x, y } };
+      }
+      return updated;
+    });
+  };
+
   const persist = () => {
     saveCalibration(calib);
     toast.success('Print alignment saved');
@@ -78,9 +89,7 @@ export default function ChallanPrintPreview({ feeId, onClose }) {
         {/* Calibration panel */}
         <div className="w-72 bg-white border-r border-slate-200 p-4 space-y-4 overflow-y-auto print:hidden">
           <p className="text-xs text-slate-500 leading-relaxed">
-            Load your pre-printed challan paper in the printer. Only the values are printed — adjust the numbers below
-            until they line up with the boxes, then <strong>Save</strong>. Print a test page on plain paper first and
-            hold it against the challan to check.
+            Load your pre-printed challan paper in the printer. You can now <strong>drag the text values with your mouse</strong> directly in the preview to align them. Once aligned, click <strong>Save</strong>.
           </p>
 
           <div className="space-y-2">
@@ -122,7 +131,7 @@ export default function ChallanPrintPreview({ feeId, onClose }) {
             className="shadow-xl"
           >
             <div style={{ transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-              <ChallanOverlay fee={fee} calib={calib} showBackground />
+              <ChallanOverlay fee={fee} calib={calib} showBackground onDragUpdate={handleDragUpdate} />
             </div>
           </div>
         </div>

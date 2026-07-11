@@ -15,3 +15,4 @@ export const saveFeeStructure = (data) => api.post('/fee-structures', data);
 export const getFeeOverrides  = () => api.get('/fee-structures/overrides');
 export const saveFeeOverride  = (data) => api.post('/fee-structures/overrides', data);
 export const deleteFeeOverride= (id) => api.delete(`/fee-structures/overrides/${id}`);
+export const rolloverFeeStructure = (data) => api.post('/fee-structures/rollover', data);

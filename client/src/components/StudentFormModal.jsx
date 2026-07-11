@@ -151,6 +151,9 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
                 <option>Active</option><option>Left</option><option>Graduated</option>
               </select>
             </Field>
+            <Field label="Previous Dues (Arrears)">
+              <input id="std-previousDues" type="number" min="0" {...register('previousDues', { valueAsNumber: true })} className={input()} placeholder="e.g. 1500" disabled={isEdit} />
+            </Field>
           </Section>
 
           {/* Address */}

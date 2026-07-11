@@ -172,6 +172,57 @@ const getSalaryHistory = async (req, res) => {
   }
 };
 
+// @desc    Bulk Add Employees
+// @route   POST /api/employees/bulk
+const bulkAddEmployees = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { currentCampus } = req;
+    if (!currentCampus) {
+      throw new Error('Campus context is required');
+    }
+
+    const employeesData = req.body.employees;
+    if (!employeesData || !Array.isArray(employeesData)) {
+      throw new Error('Invalid data format. Expected an array of employees.');
+    }
+
+    const addedEmployees = [];
+
+    // Pre-calculate starting employee ID
+    const year = new Date().getFullYear();
+    let currentCount = await Employee.countDocuments();
+
+    for (let i = 0; i < employeesData.length; i++) {
+      const employeeObj = employeesData[i];
+
+      currentCount++;
+      const employeeId = `EMP-${year}-${String(currentCount).padStart(3, '0')}`;
+
+      const employee = new Employee({
+        ...employeeObj,
+        employeeId,
+        campus: currentCampus
+      });
+      await employee.save({ session });
+
+      addedEmployees.push(employee);
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(201).json({ message: `${addedEmployees.length} employees imported successfully`, employees: addedEmployees });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    if (err.code === 11000) return res.status(400).json({ message: 'Duplicate entry', field: Object.keys(err.keyValue)[0] });
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
-  addEmployee, getEmployees, getEmployee, updateEmployee, deleteEmployee, postSalary, getSalaryHistory
+  addEmployee, getEmployees, getEmployee, updateEmployee, deleteEmployee, postSalary, getSalaryHistory, bulkAddEmployees
 };

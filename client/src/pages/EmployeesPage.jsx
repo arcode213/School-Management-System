@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { getEmployees, deleteEmployee } from '../api/employees';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import SalaryModal from '../components/SalaryModal';
+import ImportExcelModal from '../components/ImportExcelModal';
 import toast from 'react-hot-toast';
 import {
-  UserPlus, Search, Download, Trash2, Edit2, Eye,
+  UserPlus, Search, Download, Trash2, Edit2, Eye, Upload,
   ChevronLeft, ChevronRight, Users, Briefcase, DollarSign
 } from 'lucide-react';
 
@@ -20,6 +22,7 @@ const StatusBadge = ({ status }) => {
 
 export default function EmployeesPage() {
   const { currentCampus } = useAppContext();
+  const { user } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,7 @@ export default function EmployeesPage() {
   // Modals
   const [empModal, setEmpModal] = useState({ open: false, data: null });
   const [salaryModal, setSalaryModal] = useState({ open: false, emp: null });
+  const [importOpen, setImportOpen] = useState(false);
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -70,10 +74,18 @@ export default function EmployeesPage() {
           <h1 className="text-2xl font-bold text-slate-800">Employees</h1>
           <p className="text-slate-400 text-sm mt-0.5">{pagination.total} staff members</p>
         </div>
-        <button onClick={() => setEmpModal({ open: true, data: null })}
-          className="flex items-center gap-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-xl px-4 py-2 transition shadow-sm font-medium">
-          <UserPlus size={14} /> Add Employee
-        </button>
+        <div className="flex items-center gap-2">
+          {user?.role !== 'Staff' && (
+            <button onClick={() => setImportOpen(true)}
+              className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 transition shadow-sm">
+              <Upload size={14} /> Import Data
+            </button>
+          )}
+          <button onClick={() => setEmpModal({ open: true, data: null })}
+            className="flex items-center gap-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-xl px-4 py-2 transition shadow-sm font-medium">
+            <UserPlus size={14} /> Add Employee
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -133,6 +145,12 @@ export default function EmployeesPage() {
 
       <EmployeeFormModal open={empModal.open} employee={empModal.data} onClose={() => setEmpModal({ open: false })} onSaved={fetchEmployees} />
       <SalaryModal open={salaryModal.open} employee={salaryModal.emp} onClose={() => setSalaryModal({ open: false })} onSaved={() => {}} />
+      <ImportExcelModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImportSuccess={fetchEmployees}
+        type="employees"
+      />
     </div>
   );
 }

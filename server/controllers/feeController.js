@@ -29,22 +29,50 @@ const absMonth = (monthName, year) => Number(year) * 12 + MONTHS.indexOf(monthNa
 // `monthlyRecurring` is the recurring per-month charge (tuition + transport + misc)
 // used to bill any skipped months that never received a challan of their own.
 const getPreviousDues = async (studentId, currentSession, session, currentFeeMonth, currentFeeYear, monthlyRecurring = 0) => {
-  // Find the most recent active challan that is NOT fully paid and has NOT been carried forward
-  const oldChallans = await FeeRecord.find({
+  // Find the most recent active challan that is NOT fully paid and has NOT been carried forward across ALL sessions
+  const allOldChallans = await FeeRecord.find({
     student: studentId,
-    academicSession: currentSession,
     isDeleted: false,
     hasBeenCarriedForward: false,
     status: { $in: ['Unpaid', 'Partial', 'Overdue'] }
   }).session(session);
 
   let totalDue = 0;
-  let startMonth = '';
-  let globalStartAbs = Infinity;
-  // Every month that an existing unpaid challan already accounts for.
-  const coveredMonths = new Set();
+  let displayStartMonth = '';
+  let globalDisplayStartAbs = Infinity;
+  
+  let currentSessionStartMonth = '';
+  let globalCurrentSessionStartAbs = Infinity;
 
-  for (const challan of oldChallans) {
+  // Every month that an existing unpaid challan in the current session already accounts for.
+  const coveredMonths = new Set();
+  
+  const currentSessionId = currentSession.toString();
+  const currentSessionChallans = allOldChallans.filter(c => c.academicSession.toString() === currentSessionId);
+  const pastSessionChallans = allOldChallans.filter(c => c.academicSession.toString() !== currentSessionId);
+
+  const challansToCarryForward = [];
+
+  // Roll over past session dues without calculating gap months
+  for (const challan of pastSessionChallans) {
+    totalDue += challan.balance;
+    challansToCarryForward.push(challan);
+
+    const feeIdx = MONTHS.indexOf(challan.feeMonth);
+    const candidate = parseStartMonth(challan.dueMonthRange, challan.feeMonth);
+    const candidateIdx = MONTHS.indexOf(candidate);
+    const startYear = candidateIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
+    const challanStartAbs = absMonth(candidate, startYear);
+    
+    // For the UI label, track the absolute earliest month across ANY session
+    if (challanStartAbs < globalDisplayStartAbs) {
+      globalDisplayStartAbs = challanStartAbs;
+      displayStartMonth = candidate;
+    }
+  }
+
+  // Process current session challans
+  for (const challan of currentSessionChallans) {
     totalDue += challan.balance;
 
     const feeIdx = MONTHS.indexOf(challan.feeMonth);
@@ -58,30 +86,33 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     const challanFeeAbs = absMonth(challan.feeMonth, challan.feeYear);
     for (let m = challanStartAbs; m <= challanFeeAbs; m++) coveredMonths.add(m);
 
-    // Track the earliest month in the unpaid chain so the new challan can show "X to Y".
-    if (challanStartAbs < globalStartAbs) {
-      globalStartAbs = challanStartAbs;
-      startMonth = candidate;
+    // Track for gap month calculation (strictly within current session)
+    if (challanStartAbs < globalCurrentSessionStartAbs) {
+      globalCurrentSessionStartAbs = challanStartAbs;
+      currentSessionStartMonth = candidate;
     }
-    // Mark as carried forward
-    challan.hasBeenCarriedForward = true;
-    await challan.save({ session });
+
+    // Also track for the UI label
+    if (challanStartAbs < globalDisplayStartAbs) {
+      globalDisplayStartAbs = challanStartAbs;
+      displayStartMonth = candidate;
+    }
+    
+    challansToCarryForward.push(challan);
   }
 
   // Bill any months that were skipped between the oldest unpaid month and the
-  // current month. Without this, generating (say) a June challan while April is
-  // unpaid and May was never generated would label the challan "April to June"
-  // but only charge for April + June.
+  // current month IN THE CURRENT SESSION.
   let gapMonths = 0;
-  if (oldChallans.length > 0 && currentFeeMonth) {
+  if (currentSessionChallans.length > 0 && currentFeeMonth) {
     const currentAbs = absMonth(currentFeeMonth, currentFeeYear);
-    for (let m = globalStartAbs; m < currentAbs; m++) {
+    for (let m = globalCurrentSessionStartAbs; m < currentAbs; m++) {
       if (!coveredMonths.has(m)) gapMonths++;
     }
     totalDue += gapMonths * (monthlyRecurring || 0);
   }
 
-  return { previousDues: totalDue, startMonth, gapMonths };
+  return { previousDues: totalDue, startMonth: displayStartMonth, gapMonths, challansToCarryForward };
 };
 
 // Helper to generate unique challan number
@@ -139,7 +170,7 @@ const addFee = async (req, res) => {
     // month's recurring charges (tuition + transport + misc) as the per-month
     // rate used to bill any skipped months.
     const monthlyRecurring = (tuitionFee || 0) + (transportFee || 0) + (miscFee || 0);
-    const { previousDues, startMonth } = await getPreviousDues(student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
+    const { previousDues, startMonth, challansToCarryForward } = await getPreviousDues(student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
     const dueMonthRange = buildDueMonthRange(startMonth, feeMonth);
 
     const challanNo = await generateChallanNo(currentCampus, feeYear, session);
@@ -162,6 +193,14 @@ const addFee = async (req, res) => {
     });
 
     await fee.save({ session });
+    
+    if (challansToCarryForward && challansToCarryForward.length > 0) {
+      for (const oldChallan of challansToCarryForward) {
+        oldChallan.hasBeenCarriedForward = true;
+        oldChallan.carriedForwardTo = fee._id;
+        await oldChallan.save({ session });
+      }
+    }
     
     await session.commitTransaction();
     session.endSession();
@@ -247,7 +286,7 @@ const addBulkFees = async (req, res) => {
       // Calculate previous dues and carry forward. Skipped months are billed at
       // the recurring monthly rate (tuition + transport + misc) for this student.
       const monthlyRecurring = tFee + tTrans + tMisc;
-      const { previousDues, startMonth } = await getPreviousDues(record.student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
+      const { previousDues, startMonth, challansToCarryForward } = await getPreviousDues(record.student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
       const dueMonthRange = buildDueMonthRange(startMonth, feeMonth);
       
       const challanNo = await generateChallanNo(currentCampus, feeYear, session);
@@ -270,6 +309,14 @@ const addBulkFees = async (req, res) => {
       });
 
       await fee.save({ session });
+
+      if (challansToCarryForward && challansToCarryForward.length > 0) {
+        for (const oldChallan of challansToCarryForward) {
+          oldChallan.hasBeenCarriedForward = true;
+          oldChallan.carriedForwardTo = fee._id;
+          await oldChallan.save({ session });
+        }
+      }
       createdCount++;
     }
 
@@ -431,16 +478,32 @@ const updateFee = async (req, res) => {
 // @desc    Delete fee record
 // @route   DELETE /api/fees/:id
 const deleteFee = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const fee = await FeeRecord.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
       { $set: { isDeleted: true } },
-      { new: true }
+      { new: true, session }
     );
-    if (!fee) return res.status(404).json({ message: 'Fee record not found' });
+    if (!fee) throw new Error('Fee record not found');
+
+    // Reset any older challans that were carried forward into this deleted challan
+    await FeeRecord.updateMany(
+      { carriedForwardTo: fee._id },
+      { $set: { hasBeenCarriedForward: false, carriedForwardTo: null } },
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
     res.json({ message: 'Fee record deleted' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    await session.abortTransaction();
+    session.endSession();
+    const status = err.message === 'Fee record not found' ? 404 : 500;
+    res.status(status).json({ message: err.message });
   }
 };
 
