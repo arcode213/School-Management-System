@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { CreditCard, Printer, Search, ChevronLeft, ChevronRight, CopyPlus, Wallet, FilePlus, Edit2, Trash2 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
+import { useAppContext } from '../context/AppContext';
 
 const STATUSES = ['Paid', 'Partial', 'Unpaid', 'Overdue'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -20,6 +21,7 @@ const StatusBadge = ({ status }) => {
 
 export default function FeesPage() {
   const { user } = useAuth();
+  const { currentCampus, currentSession } = useAppContext();
   const [fees, setFees] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -55,8 +57,14 @@ export default function FeesPage() {
     }
   }, [filterMonth, filterClass, filterStatus, searchChallan, page]);
 
-  useEffect(() => { fetchFees(); }, [fetchFees]);
-  useEffect(() => { getClasses().then(r => setClasses(r.data)).catch(() => {}); }, []);
+  // Refetch whenever the campus/session context changes, so switching the
+  // active session in the top bar always reloads this campus/session's challans.
+  useEffect(() => {
+    if (currentCampus && currentSession) fetchFees();
+  }, [fetchFees, currentCampus, currentSession]);
+  useEffect(() => {
+    if (currentCampus && currentSession) getClasses().then(r => setClasses(r.data)).catch(() => {});
+  }, [currentCampus, currentSession]);
 
   const openPayment = (fee) => { setSelectedFee(fee); setPaymentOpen(true); };
   const openPrint = (fee) => { setSelectedFee(fee); setPrintOpen(true); };
@@ -159,6 +167,9 @@ export default function FeesPage() {
                       <td className="px-4 py-3">
                         <div className="text-emerald-600 text-xs font-semibold">Paid: {paid}</div>
                         {due > 0 && <div className="text-rose-500 text-xs font-semibold">Due: {due}</div>}
+                        {f.paidUpToMonth && f.status === 'Partial' && (
+                          <div className="text-slate-400 text-[10px]">Paid thru {f.paidUpToMonth}</div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">

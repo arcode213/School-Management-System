@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getDues } from '../api/fees';
 import { getClasses } from '../api/students';
+import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
 import { AlertCircle, Download, Search } from 'lucide-react';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function DuesPage() {
+  const { currentCampus, currentSession } = useAppContext();
   const [dues, setDues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState([]);
@@ -16,15 +18,17 @@ export default function DuesPage() {
   const [filterMonth, setFilterMonth] = useState('');
   const [search, setSearch] = useState('');
 
+  // Reload whenever the active campus/session changes.
   useEffect(() => {
+    if (!currentCampus || !currentSession) return;
     getClasses().then(r => setClasses(r.data)).catch(() => {});
-    
+
     setLoading(true);
     getDues()
       .then(res => setDues(res.data))
       .catch(() => toast.error('Failed to load dues'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [currentCampus, currentSession]);
 
   const filteredDues = useMemo(() => {
     return dues.filter(d => {
@@ -42,11 +46,11 @@ export default function DuesPage() {
   const totalOutstanding = filteredDues.reduce((acc, curr) => acc + (curr.balance || 0), 0);
 
   const exportCSV = () => {
-    const headers = ['Challan No', 'Student ID', 'Student Name', 'Class', 'Month', 'Total Fee', 'Paid', 'Discount', 'Remaining Due'];
+    const headers = ['Challan No', 'Student ID', 'Student Name', 'Father Name', 'Class', 'Month', 'Total Fee', 'Paid', 'Discount', 'Remaining Due'];
     const rows = filteredDues.map(d => {
       const remaining = d.balance || 0;
       return [
-        d.challanNo, d.student?.studentId, d.student?.fullName, `${d.student?.class} ${d.student?.section || ''}`,
+        d.challanNo, d.student?.studentId, d.student?.fullName, d.student?.fatherName, `${d.student?.class} ${d.student?.section || ''}`,
         `${d.dueMonthRange || d.feeMonth} ${d.feeYear}`, d.totalAmount, d.amountPaid || 0, d.discount || 0, remaining
       ];
     });
@@ -122,7 +126,11 @@ export default function DuesPage() {
                   return (
                     <tr key={d._id} className="hover:bg-slate-50 transition">
                       <td className="px-4 py-3 font-mono text-xs text-slate-500">{d.challanNo}</td>
-                      <td className="px-4 py-3 font-medium text-slate-800">{d.student?.fullName} <span className="text-slate-400 text-xs block">{d.student?.studentId}</span></td>
+                      <td className="px-4 py-3 font-medium text-slate-800">
+                        {d.student?.fullName}
+                        {d.student?.fatherName && <span className="text-slate-500 text-xs block font-normal">s/o {d.student.fatherName}</span>}
+                        <span className="text-slate-400 text-xs block font-normal">{d.student?.studentId}</span>
+                      </td>
                       <td className="px-4 py-3 text-slate-600">{d.student?.class} {d.student?.section || ''}</td>
                       <td className="px-4 py-3 text-slate-600">{d.dueMonthRange || d.feeMonth} {d.feeYear}</td>
                       <td className="px-4 py-3 text-right">Rs. {d.totalAmount.toLocaleString()}</td>

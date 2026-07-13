@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
@@ -265,13 +265,13 @@ export default function StudentsPage() {
               {Array.from({ length: pagination.pages }, (_, i) => i + 1)
                 .filter(p => p === 1 || p === pagination.pages || Math.abs(p - page) <= 1)
                 .map((p, i, arr) => (
-                  <>
-                    {i > 0 && arr[i - 1] !== p - 1 && <span key={`dots-${p}`} className="px-1 text-slate-300 text-xs">…</span>}
-                    <button key={p} onClick={() => setPage(p)}
+                  <Fragment key={p}>
+                    {i > 0 && arr[i - 1] !== p - 1 && <span className="px-1 text-slate-300 text-xs">…</span>}
+                    <button onClick={() => setPage(p)}
                       className={`w-7 h-7 text-xs rounded-lg border transition ${page === p ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 text-slate-600 hover:border-blue-300'}`}>
                       {p}
                     </button>
-                  </>
+                  </Fragment>
                 ))}
               <button disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)}
                 className="p-1.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed border border-slate-200 rounded-lg transition">

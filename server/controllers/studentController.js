@@ -2,15 +2,15 @@ const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const StudentAcademicRecord = require('../models/StudentAcademicRecord');
 const FeeRecord = require('../models/FeeRecord');
+const FeeStructure = require('../models/FeeStructure');
+const StudentFeeOverride = require('../models/StudentFeeOverride');
+const { getNextSeqNumber, formatSeqId, generateSequentialId } = require('../utils/sequentialId');
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-// Helper: auto-generate studentId safely
-const generateStudentId = async () => {
-  const year = new Date().getFullYear();
-  const count = await Student.countDocuments();
-  return `SMS-${year}-${String(count + 1).padStart(3, '0')}`;
-};
+// Helper: auto-generate a collision-safe studentId (derived from the max
+// existing suffix, so it survives hard-deleted records).
+const generateStudentId = (session) => generateSequentialId(Student, 'studentId', 'SMS', session);
 
 // @desc    Add a new student
 // @route   POST /api/students
@@ -25,8 +25,8 @@ const addStudent = async (req, res) => {
     }
 
     const { class: className, section, rollNumber, status, feeStructure, previousDues, ...personalDetails } = req.body;
-    
-    const studentId = await generateStudentId();
+
+    const studentId = await generateStudentId(session);
     
     // Create personal record
     const student = new Student({
@@ -186,15 +186,47 @@ const getStudent = async (req, res) => {
 
     const result = student.toJSON();
     result.academicHistory = academicHistory;
-    
+
+    // Determine the "current" academic record — prefer the one for the selected
+    // session, otherwise the most recent.
+    const { currentCampus, currentSession } = req;
+    let current = academicHistory[0];
+    if (currentSession) {
+      const match = academicHistory.find(r => r.academicSession?._id?.toString() === currentSession.toString());
+      if (match) current = match;
+    }
+
     // Mount current context fields for quick form binding
-    if (academicHistory.length > 0) {
-      const current = academicHistory[0];
+    if (current) {
       result.class = current.className;
       result.section = current.section;
       result.rollNumber = current.rollNumber;
       result.status = current.status;
       result.academicRecordId = current._id;
+
+      // Effective monthly fee = class fee structure with any per-student
+      // override applied (mirrors the fee/challan generation logic).
+      const campusId = current.campus?._id || currentCampus;
+      const sessionId = current.academicSession?._id || currentSession;
+      const [struct, override] = await Promise.all([
+        FeeStructure.findOne({ campus: campusId, academicSession: sessionId, className: current.className }),
+        StudentFeeOverride.findOne({ student: student._id, campus: campusId, academicSession: sessionId, isActive: true }),
+      ]);
+      const pick = (custom, base) => (custom !== undefined && custom !== null ? custom : (base || 0));
+      const tuitionFee = pick(override?.customTuitionFee, struct?.tuitionFee);
+      const transportFee = pick(override?.customTransportFee, struct?.transportFee);
+      const miscFee = pick(override?.customMiscFee, struct?.miscFee);
+      result.feeInfo = {
+        className: current.className,
+        tuitionFee,
+        transportFee,
+        miscFee,
+        admissionFee: struct?.admissionFee || 0,
+        examFee: struct?.examFee || 0,
+        monthlyTotal: tuitionFee + transportFee + miscFee,
+        hasStructure: !!struct,
+        hasOverride: !!override,
+      };
     }
 
     res.json(result);
@@ -334,16 +366,15 @@ const bulkAddStudents = async (req, res) => {
 
     const addedStudents = [];
 
-    // Pre-calculate starting student ID
-    const year = new Date().getFullYear();
-    let currentCount = await Student.countDocuments();
+    // Pre-calculate the starting sequence number (max existing suffix + 1),
+    // then increment locally for each imported record.
+    let nextSeq = await getNextSeqNumber(Student, 'studentId', 'SMS', session);
 
     for (let i = 0; i < studentsData.length; i++) {
       const studentObj = studentsData[i];
       const { class: className, section, rollNumber, status, feeStructure, previousDues, ...personalDetails } = studentObj;
 
-      currentCount++;
-      const studentId = `SMS-${year}-${String(currentCount).padStart(3, '0')}`;
+      const studentId = formatSeqId('SMS', nextSeq++);
 
       // Create personal record
       const student = new Student({

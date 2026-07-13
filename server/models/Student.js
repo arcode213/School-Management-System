@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { generateSequentialId } = require('../utils/sequentialId');
 
 const studentSchema = new mongoose.Schema(
   {
@@ -34,9 +35,7 @@ const studentSchema = new mongoose.Schema(
 // Auto-generate studentId before saving
 studentSchema.pre('save', async function (next) {
   if (!this.studentId) {
-    const year = new Date().getFullYear();
-    const count = await mongoose.model('Student').countDocuments();
-    this.studentId = `SMS-${year}-${String(count + 1).padStart(3, '0')}`;
+    this.studentId = await generateSequentialId(this.constructor, 'studentId', 'SMS');
   }
   next();
 });

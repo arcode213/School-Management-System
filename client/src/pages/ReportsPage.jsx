@@ -1,21 +1,26 @@
 import { useState, useEffect } from 'react';
 import { getFinancialReport } from '../api/reports';
+import { useAppContext } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Download, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function ReportsPage() {
+  const { currentCampus, currentSession } = useAppContext();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
 
+  // The financial report is scoped to campus + session server-side, so refetch
+  // when either the selected year or the active campus/session changes.
   useEffect(() => {
+    if (!currentCampus || !currentSession) return;
     setLoading(true);
     getFinancialReport({ year })
       .then(res => setReport(res.data))
       .catch(() => toast.error('Failed to load report'))
       .finally(() => setLoading(false));
-  }, [year]);
+  }, [year, currentCampus, currentSession]);
 
   const exportCSV = () => {
     if (!report) return;

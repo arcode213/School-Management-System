@@ -1,14 +1,11 @@
 const contextMiddleware = (req, res, next) => {
-  let campusId = req.headers['x-campus-id'];
+  const campusId = req.headers['x-campus-id'];
   const sessionId = req.headers['x-session-id'];
 
-  // Enforce Campus for Administrator and Staff
-  if (req.user && (req.user.role === 'Administrator' || req.user.role === 'Staff')) {
-    if (req.user.campus) {
-      campusId = req.user.campus.toString();
-    }
-  }
-
+  // NOTE: This middleware runs globally, before `protect` sets req.user, so it
+  // can only parse the context headers. The authoritative per-user campus
+  // enforcement (for Administrator/Staff) lives in `protect`, which overrides
+  // req.currentCampus after the user is authenticated.
   if (campusId && campusId !== 'undefined' && campusId !== 'null') {
     req.currentCampus = campusId;
   }

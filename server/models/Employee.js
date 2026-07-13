@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { generateSequentialId } = require('../utils/sequentialId');
 
 const employeeSchema = new mongoose.Schema(
   {
@@ -36,9 +37,7 @@ const employeeSchema = new mongoose.Schema(
 // Auto-generate employeeId
 employeeSchema.pre('save', async function (next) {
   if (!this.employeeId) {
-    const year = new Date().getFullYear();
-    const count = await mongoose.model('Employee').countDocuments();
-    this.employeeId = `EMP-${year}-${String(count + 1).padStart(3, '0')}`;
+    this.employeeId = await generateSequentialId(this.constructor, 'employeeId', 'EMP');
   }
   next();
 });

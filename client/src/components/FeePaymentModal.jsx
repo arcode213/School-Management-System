@@ -3,14 +3,43 @@ import { useForm } from 'react-hook-form';
 import { X, Loader2, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { updateFee } from '../api/fees';
+import { MONTHS, parseStartMonth, monthAt } from '../utils/feeMonths';
 
 export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
-  const { register, handleSubmit, reset, watch, formState: { isSubmitting } } = useForm();
-  
+  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm();
+
   const newDiscount = Number(watch('discount') || 0);
   const paid = Number(watch('amountPaid') || 0);
   // balance is the authoritative outstanding amount (totalAmount - amountPaid), kept by the pre-save hook.
   const totalDue = feeRecord ? (feeRecord.balance ?? 0) : 0;
+
+  // ─── Month-based payment helper ──────────────────────────────────
+  // A multi-month challan (e.g. "April - June") can be paid a few months at a
+  // time. The recurring monthly rate is tuition + transport + misc.
+  const recurring = feeRecord ? (feeRecord.tuitionFee || 0) + (feeRecord.transportFee || 0) + (feeRecord.miscFee || 0) : 0;
+  const rangeStart = feeRecord ? parseStartMonth(feeRecord.dueMonthRange, feeRecord.feeMonth) : '';
+  const startIdx = MONTHS.indexOf(rangeStart);
+  const feeIdx = feeRecord ? MONTHS.indexOf(feeRecord.feeMonth) : -1;
+  let totalMonths = 1;
+  if (startIdx >= 0 && feeIdx >= 0) { let s = feeIdx - startIdx; if (s < 0) s += 12; totalMonths = s + 1; }
+  const alreadyPaidMonths = recurring > 0 ? Math.min(totalMonths, Math.floor((feeRecord?.amountPaid || 0) / recurring)) : 0;
+  const remainingMonths = Math.max(0, totalMonths - alreadyPaidMonths);
+  const canPayByMonth = recurring > 0 && remainingMonths > 1;
+
+  // Live preview of what will be settled and what carries forward. Based on the
+  // challan's TOTAL paid-after-this-payment so it matches the server exactly.
+  const finalPaidTotal = (feeRecord?.amountPaid || 0) + paid;
+  const monthsPaidAfter = recurring > 0 ? Math.min(totalMonths, Math.floor(finalPaidTotal / recurring)) : 0;
+  const settlesThrough = monthsPaidAfter > 0 ? monthAt(startIdx + monthsPaidAfter - 1) : null;
+  const carriesFrom = monthsPaidAfter < totalMonths ? monthAt(startIdx + monthsPaidAfter) : null;
+
+  // Picking N months fills in the paying amount (still editable afterwards).
+  const selectMonths = (value) => {
+    const n = Number(value);
+    if (!n) return;
+    const amt = n >= remainingMonths ? totalDue : Math.min(totalDue, recurring * n);
+    setValue('amountPaid', amt, { shouldValidate: true });
+  };
 
   // Predict new status (mirrors the server pre-save recalculation).
   // The server recomputes totalAmount as (charges + lateFine + previousDues) - discount,
@@ -87,6 +116,28 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
             </div>
           </div>
 
+          {canPayByMonth && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Pay for how many months?</label>
+              <select onChange={e => selectMonths(e.target.value)} defaultValue=""
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+                <option value="" disabled>Select months to pay…</option>
+                {Array.from({ length: remainingMonths }, (_, i) => i + 1).map(n => {
+                  const thru = monthAt(startIdx + alreadyPaidMonths + n - 1);
+                  const isAll = n === remainingMonths;
+                  return (
+                    <option key={n} value={n}>
+                      {n} month{n > 1 ? 's' : ''} — through {thru}{isAll ? ' (clears challan)' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Monthly fee Rs. {recurring.toLocaleString()} — this fills the paying amount for you; you can still edit it.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">New Discount (Rs.)</label>
@@ -115,11 +166,20 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
             <span className="text-slate-500">Resulting Status:</span>
             <span className={`font-bold ${nextStatus === 'Paid' ? 'text-green-600' : nextStatus === 'Partial' ? 'text-amber-600' : 'text-red-600'}`}>{nextStatus}</span>
           </div>
+
+          {canPayByMonth && settlesThrough && (
+            <div className="text-xs bg-blue-50 border border-blue-100 text-blue-800 rounded-lg px-3 py-2">
+              Settles through <strong>{settlesThrough}</strong>.
+              {carriesFrom
+                ? <> Remaining <strong>{carriesFrom} – {feeRecord.feeMonth}</strong> will carry to the next challan as dues.</>
+                : <> This clears the full challan.</>}
+            </div>
+          )}
         </form>
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg">Cancel</button>
-          <button type="submit" form="payment-form" disabled={isSubmitting || paid === 0} className="px-5 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50">
+          <button type="submit" form="payment-form" disabled={isSubmitting || (paid === 0 && newDiscount === 0)} className="px-5 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50">
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
             Confirm Payment
           </button>

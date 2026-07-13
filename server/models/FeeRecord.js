@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { computePaidUpToMonth } = require('../utils/feeMonths');
 
 const feeRecordSchema = new mongoose.Schema(
   {
@@ -38,6 +39,12 @@ const feeRecordSchema = new mongoose.Schema(
     paymentDate: { type: Date },
     paymentMethod: { type: String, enum: ['Cash', 'Bank', 'Online'], default: 'Cash' },
     status: { type: String, enum: ['Paid', 'Unpaid', 'Partial', 'Overdue'], default: 'Unpaid' },
+
+    // Last month fully covered by payments so far (for multi-month challans).
+    // The outstanding balance is treated as beginning the month AFTER this, so
+    // it carries forward under an accurate range (e.g. paid through May -> the
+    // next challan's dues start at June).
+    paidUpToMonth: { type: String, default: null },
     
     issueDate: { type: Date, default: Date.now },
     dueDate: { type: Date, required: true },
@@ -66,7 +73,10 @@ feeRecordSchema.pre('save', function (next) {
   } else {
     this.status = 'Unpaid';
   }
-  
+
+  // Derive which months the payment has settled (uses the values computed above).
+  this.paidUpToMonth = computePaidUpToMonth(this);
+
   next();
 });
 

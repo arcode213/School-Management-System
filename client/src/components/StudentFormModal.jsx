@@ -3,9 +3,7 @@ import { useForm } from 'react-hook-form';
 import { X, Loader2, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { addStudent, updateStudent } from '../api/students';
-
-const CLASSES = ['Nursery','KG','1','2','3','4','5','6','7','8','9','10','11','12'];
-const SECTIONS = ['A','B','C','D','E'];
+import { CLASSES, SECTIONS } from '../utils/constants';
 
 export default function StudentFormModal({ open, onClose, student, onSaved }) {
   const isEdit = !!student;

@@ -32,6 +32,7 @@ const login = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      campus: user.campus, // needed so the client can scope campus-bound users
       token: generateToken(user._id, user.role),
     });
   } catch (err) {

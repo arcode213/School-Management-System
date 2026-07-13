@@ -48,17 +48,28 @@ const promoteStudents = async (req, res) => {
 
       // Create new record for the target session if not graduated
       if (promo.promotionStatus !== 'Graduated') {
-        const nextRecord = new StudentAcademicRecord({
+        // Guard against duplicates: re-running a promotion for the same student
+        // into the same target session must not create a second record.
+        const alreadyPromoted = await StudentAcademicRecord.findOne({
           student: promo.studentId,
           academicSession: targetSessionId,
           campus: currentCampus,
-          className: promo.targetClass || currentRecord.className,
-          section: promo.targetSection || currentRecord.section,
-          status: 'Active',
-          feeStructure: currentRecord.feeStructure, // carry over or update later
-          admissionDate: currentRecord.admissionDate
-        });
-        newRecords.push(nextRecord);
+          isDeleted: false
+        }).session(session);
+
+        if (!alreadyPromoted) {
+          const nextRecord = new StudentAcademicRecord({
+            student: promo.studentId,
+            academicSession: targetSessionId,
+            campus: currentCampus,
+            className: promo.targetClass || currentRecord.className,
+            section: promo.targetSection || currentRecord.section,
+            status: 'Active',
+            feeStructure: currentRecord.feeStructure, // carry over or update later
+            admissionDate: currentRecord.admissionDate
+          });
+          newRecords.push(nextRecord);
+        }
       } else {
         // If graduated, we can update the main Student model status (optional)
         const Student = require('../models/Student');

@@ -13,6 +13,16 @@ const protect = async (req, res, next) => {
       if (!req.user || !req.user.isActive) {
         return res.status(401).json({ message: 'Not authorized, user inactive' });
       }
+
+      // Enforce campus scoping for non-Admin roles. contextMiddleware runs
+      // globally (before this middleware) and only parses the header, so the
+      // authoritative user-based enforcement must happen here, once req.user
+      // exists. An assigned Administrator/Staff can never escape their campus
+      // by sending a different x-campus-id header.
+      if (req.user.campus && (req.user.role === 'Administrator' || req.user.role === 'Staff')) {
+        req.currentCampus = req.user.campus.toString();
+      }
+
       next();
     } catch (err) {
       return res.status(401).json({ message: 'Not authorized, token failed' });

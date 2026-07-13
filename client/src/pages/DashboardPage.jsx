@@ -18,7 +18,7 @@ import {
 import { StatCard, Skeleton } from '../components/DashboardWidgets';
 
 // ─── Color palettes ───────────────────────────────────────────────
-const PIE_COLORS = { Paid: '#22c55e', Unpaid: '#ef4444', Partial: '#f59e0b' };
+const PIE_COLORS = { Paid: '#22c55e', Unpaid: '#ef4444', Partial: '#f59e0b', Overdue: '#e11d48' };
 const CLASS_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#f59e0b','#ec4899','#10b981','#f97316','#6366f1'];
 
 // ─── Custom tooltip for bar chart ────────────────────────────────

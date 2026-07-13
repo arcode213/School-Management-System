@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { addFee, updateFee } from '../api/fees';
+import { addFee, updateFee, getFeeStructures, getFeeOverrides } from '../api/fees';
 import { getStudents } from '../api/students';
 import toast from 'react-hot-toast';
 import { X, Search, Loader2, FileText } from 'lucide-react';
@@ -31,6 +31,11 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
   const [searching, setSearching] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+  // Class fee structures + per-student overrides, used to auto-fill the fee
+  // fields when a student is picked (create mode only).
+  const [feeStructures, setFeeStructures] = useState([]);
+  const [feeOverrides, setFeeOverrides] = useState([]);
+
   useEffect(() => {
     if (!open) return;
     if (isEdit) {
@@ -57,6 +62,38 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
       setResults([]);
     }
   }, [open, feeRecord, isEdit]);
+
+  // Load class fee structures + student overrides once the modal opens in
+  // create mode, so selecting a student can auto-fill their fees.
+  useEffect(() => {
+    if (!open || isEdit) return;
+    Promise.all([getFeeStructures(), getFeeOverrides()])
+      .then(([sRes, oRes]) => {
+        setFeeStructures(sRes.data || []);
+        setFeeOverrides(oRes.data || []);
+      })
+      .catch(() => {});
+  }, [open, isEdit]);
+
+  // Fill the recurring fee fields from the student's class fee structure,
+  // letting any per-student override win — mirrors the bulk fee generator so
+  // individual and monthly challans stay consistent.
+  const applyStudentFees = (student) => {
+    if (!student) return;
+    const struct = feeStructures.find(s => s.className === student.class);
+    const override = feeOverrides.find(
+      o => String(o.student?._id || o.student) === String(student._id)
+    );
+    const pick = (custom, base) =>
+      custom !== undefined && custom !== null ? Number(custom) : Number(base || 0);
+
+    setForm(f => ({
+      ...f,
+      tuitionFee: pick(override?.customTuitionFee, struct?.tuitionFee),
+      transportFee: pick(override?.customTransportFee, struct?.transportFee),
+      miscFee: pick(override?.customMiscFee, struct?.miscFee),
+    }));
+  };
 
   // Debounced student search
   const runSearch = useCallback(async (q) => {
@@ -184,7 +221,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
                     <button
                       key={s.academicRecordId || s._id}
                       type="button"
-                      onClick={() => { setSelectedStudent(s); setResults([]); setQuery(''); }}
+                      onClick={() => { setSelectedStudent(s); applyStudentFees(s); setResults([]); setQuery(''); }}
                       className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm border-b border-slate-50 last:border-0"
                     >
                       <div className="font-medium text-slate-800">{s.fullName}</div>
@@ -245,7 +282,10 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
             <span className="font-bold text-slate-800">Rs. {currentTotal.toLocaleString()}</span>
           </div>
           {!isEdit && (
-            <p className="text-xs text-slate-400">Any unpaid previous dues for this student are automatically rolled into the new challan.</p>
+            <p className="text-xs text-slate-400">
+              Fees are auto-filled from the student's class fee structure (and any override) — edit if needed.
+              Any unpaid previous dues are automatically rolled into the new challan.
+            </p>
           )}
 
           <div className="pt-2 flex gap-3 justify-end">

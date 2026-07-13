@@ -39,7 +39,14 @@ const createCampus = async (req, res) => {
 // @route   PUT /api/system/campuses/:id
 const updateCampus = async (req, res) => {
   try {
-    const campus = await Campus.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // The settings form sends the phone as `contactNumber`; map it to the
+    // schema's `phone` field so edits actually persist (create already does this).
+    const updates = { ...req.body };
+    if (updates.contactNumber !== undefined) {
+      updates.phone = updates.phone || updates.contactNumber;
+      delete updates.contactNumber;
+    }
+    const campus = await Campus.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!campus) return res.status(404).json({ message: 'Campus not found' });
     res.json(campus);
   } catch (err) {

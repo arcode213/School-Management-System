@@ -1,12 +1,11 @@
 const Employee = require('../models/Employee');
 const SalaryRecord = require('../models/SalaryRecord');
 const mongoose = require('mongoose');
+const { getNextSeqNumber, formatSeqId, generateSequentialId } = require('../utils/sequentialId');
 
-const generateEmployeeId = async () => {
-  const year = new Date().getFullYear();
-  const count = await Employee.countDocuments();
-  return `EMP-${year}-${String(count + 1).padStart(3, '0')}`;
-};
+// Collision-safe employeeId (derived from the max existing suffix, so it
+// survives hard-deleted records instead of drifting like a document count).
+const generateEmployeeId = (session) => generateSequentialId(Employee, 'employeeId', 'EMP', session);
 
 // @desc    Add a new employee
 // @route   POST /api/employees
@@ -191,15 +190,14 @@ const bulkAddEmployees = async (req, res) => {
 
     const addedEmployees = [];
 
-    // Pre-calculate starting employee ID
-    const year = new Date().getFullYear();
-    let currentCount = await Employee.countDocuments();
+    // Pre-calculate the starting sequence number (max existing suffix + 1),
+    // then increment locally for each imported record.
+    let nextSeq = await getNextSeqNumber(Employee, 'employeeId', 'EMP', session);
 
     for (let i = 0; i < employeesData.length; i++) {
       const employeeObj = employeesData[i];
 
-      currentCount++;
-      const employeeId = `EMP-${year}-${String(currentCount).padStart(3, '0')}`;
+      const employeeId = formatSeqId('EMP', nextSeq++);
 
       const employee = new Employee({
         ...employeeObj,

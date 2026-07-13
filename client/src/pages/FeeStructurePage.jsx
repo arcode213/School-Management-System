@@ -5,14 +5,11 @@ import { getFeeStructures, saveFeeStructure, getFeeOverrides, saveFeeOverride, d
 import { getStudents } from '../api/students';
 import toast from 'react-hot-toast';
 import { Settings, Plus, Edit, Trash2, ArrowRightLeft } from 'lucide-react';
-
-// Must match the class values used when adding students (StudentFormModal),
-// otherwise fee-structure lookups during challan generation will not match.
-const CLASSES = ['Nursery', 'KG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+import { CLASSES } from '../utils/constants';
 
 export default function FeeStructurePage() {
   const { user } = useAuth();
-  const { sessions, currentSession } = useAppContext();
+  const { sessions, currentSession, currentCampus } = useAppContext();
   const [structures, setStructures] = useState([]);
   const [overrides, setOverrides] = useState([]);
   const [activeTab, setActiveTab] = useState('class');
@@ -29,9 +26,11 @@ export default function FeeStructurePage() {
 
   const [students, setStudents] = useState([]);
 
+  // Fee structures and overrides are scoped to campus + session, so reload
+  // whenever either changes (e.g. switching the active session in the top bar).
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (currentCampus && currentSession) fetchData();
+  }, [currentCampus, currentSession]);
 
   const fetchData = async () => {
     try {

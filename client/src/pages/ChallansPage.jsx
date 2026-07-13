@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getFees } from '../api/fees';
 import { getClasses } from '../api/students';
+import { useAppContext } from '../context/AppContext';
 import { useReactToPrint } from 'react-to-print';
 import toast from 'react-hot-toast';
 import { Printer, FileText, SlidersHorizontal } from 'lucide-react';
@@ -11,6 +12,7 @@ import { loadCalibration } from '../utils/challanCalibration';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function ChallansPage() {
+  const { currentCampus, currentSession } = useAppContext();
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState([]);
@@ -50,8 +52,12 @@ export default function ChallansPage() {
     }
   }, [filterMonth, filterClass]);
 
-  useEffect(() => { fetchFees(); }, [fetchFees]);
-  useEffect(() => { getClasses().then(r => setClasses(r.data)).catch(() => {}); }, []);
+  useEffect(() => {
+    if (currentCampus && currentSession) fetchFees();
+  }, [fetchFees, currentCampus, currentSession]);
+  useEffect(() => {
+    if (currentCampus && currentSession) getClasses().then(r => setClasses(r.data)).catch(() => {});
+  }, [currentCampus, currentSession]);
 
   const printSingle = (fee) => {
     setPrintData([fee]);

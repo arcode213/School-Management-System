@@ -4,25 +4,13 @@ const FeeStructure = require('../models/FeeStructure');
 const StudentFeeOverride = require('../models/StudentFeeOverride');
 const StudentAcademicRecord = require('../models/StudentAcademicRecord');
 const Campus = require('../models/Campus');
+const { MONTHS, parseStartMonth, buildDueMonthRange, absMonth, monthAfter } = require('../utils/feeMonths');
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-// Extract the earliest (start) month from a challan's dueMonthRange string.
-// Handles "April", "April to May", and legacy "April-May" / "April, May" / "April & May".
-const parseStartMonth = (range, fallback) => {
-  if (!range) return fallback;
-  let first = String(range).split(' to ')[0].split(/[-,&]/)[0].trim();
-  const match = MONTHS.find(m => m.toLowerCase().startsWith(first.toLowerCase().substring(0, 3)));
-  return match || fallback;
-};
-
-// Build a clean range label, e.g. "April" (no dues) or "April to June" (carried forward).
-const buildDueMonthRange = (startMonth, feeMonth) =>
-  startMonth && startMonth !== feeMonth ? `${startMonth} to ${feeMonth}` : feeMonth;
-
-// Absolute month number so months can be compared/ranged across calendar-year
-// boundaries (e.g. an academic session running December -> January).
-const absMonth = (monthName, year) => Number(year) * 12 + MONTHS.indexOf(monthName);
+// The first still-unpaid month of a challan. When some months have already been
+// paid (paidUpToMonth set), the outstanding balance begins the month after; the
+// remainder of the range falls back to the labelled start month.
+const outstandingStartMonth = (challan) =>
+  challan.paidUpToMonth ? monthAfter(challan.paidUpToMonth) : parseStartMonth(challan.dueMonthRange, challan.feeMonth);
 
 // Helper to calculate previous dues
 // `currentFeeMonth`/`currentFeeYear` describe the challan being generated now, and
@@ -59,11 +47,11 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     challansToCarryForward.push(challan);
 
     const feeIdx = MONTHS.indexOf(challan.feeMonth);
-    const candidate = parseStartMonth(challan.dueMonthRange, challan.feeMonth);
+    const candidate = outstandingStartMonth(challan);
     const candidateIdx = MONTHS.indexOf(candidate);
     const startYear = candidateIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
     const challanStartAbs = absMonth(candidate, startYear);
-    
+
     // For the UI label, track the absolute earliest month across ANY session
     if (challanStartAbs < globalDisplayStartAbs) {
       globalDisplayStartAbs = challanStartAbs;
@@ -76,7 +64,7 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     totalDue += challan.balance;
 
     const feeIdx = MONTHS.indexOf(challan.feeMonth);
-    const candidate = parseStartMonth(challan.dueMonthRange, challan.feeMonth);
+    const candidate = outstandingStartMonth(challan);
     const candidateIdx = MONTHS.indexOf(candidate);
     // If the range wraps the calendar year ("December to January"), the start
     // month belongs to the previous calendar year.
@@ -417,7 +405,7 @@ const getDues = async (req, res) => {
     if (currentSession) filter.academicSession = currentSession;
 
     const dues = await FeeRecord.find(filter)
-      .populate('student', 'fullName studentId phone')
+      .populate('student', 'fullName fatherName studentId phone')
       .populate('studentAcademicRecord', 'className section')
       .sort({ feeYear: 1, createdAt: 1 });
       
