@@ -27,9 +27,14 @@ export default function PromotionsPage() {
     if (!sourceClass) return toast.error('Please select a source class first');
     setLoading(true);
     try {
-      // Get all students for the source class (no pagination limit for bulk update, or large limit)
-      const { data } = await getStudents({ class: sourceClass, limit: 1000 });
+      // Only Active students are eligible for promotion. Left/Graduated/Failed
+      // records must never be carried into the next session.
+      const { data } = await getStudents({ class: sourceClass, status: 'Active', limit: 1000 });
       setStudents(data.students);
+
+      if (data.students.length === 0) {
+        toast.error('No active students found in this class');
+      }
       
       // Initialize default promotions
       const initial = {};

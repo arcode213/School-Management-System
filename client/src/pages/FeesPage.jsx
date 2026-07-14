@@ -31,7 +31,7 @@ export default function FeesPage() {
   const [filterMonth, setFilterMonth] = useState('');
   const [filterClass, setFilterClass] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [searchChallan, setSearchChallan] = useState('');
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   // Modals
@@ -42,11 +42,18 @@ export default function FeesPage() {
   const [printOpen, setPrintOpen] = useState(false);
   const [selectedFee, setSelectedFee] = useState(null);
 
+  // Debounce the free-text search so the aggregation isn't hit on every keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const fetchFees = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await getFees({
-        feeMonth: filterMonth, class: filterClass, status: filterStatus, challanNo: searchChallan, page, limit: 10
+        feeMonth: filterMonth, class: filterClass, status: filterStatus, search: debouncedSearch, page, limit: 10
       });
       setFees(data.fees);
       setPagination(data.pagination);
@@ -55,7 +62,7 @@ export default function FeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterMonth, filterClass, filterStatus, searchChallan, page]);
+  }, [filterMonth, filterClass, filterStatus, debouncedSearch, page]);
 
   // Refetch whenever the campus/session context changes, so switching the
   // active session in the top bar always reloads this campus/session's challans.
@@ -105,7 +112,7 @@ export default function FeesPage() {
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-wrap gap-3 items-center">
         <div className="flex bg-slate-50 border rounded-lg px-3 py-2 text-sm flex-1 min-w-48 items-center gap-2">
           <Search size={16} className="text-slate-400" />
-          <input type="text" placeholder="Search Challan No" className="bg-transparent outline-none w-full" value={searchChallan} onChange={e => { setSearchChallan(e.target.value); setPage(1); }} />
+          <input type="text" placeholder="Search by name, challan no, student ID, class, roll no..." className="bg-transparent outline-none w-full" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <select value={filterMonth} onChange={e => { setFilterMonth(e.target.value); setPage(1); }} className="border rounded-lg px-3 py-2 text-sm min-w-32">
           <option value="">All Months</option>

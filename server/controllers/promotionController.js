@@ -28,6 +28,8 @@ const promoteStudents = async (req, res) => {
     }
 
     const newRecords = [];
+    let promotedCount = 0;
+    let skippedCount = 0;
 
     for (const promo of promotions) {
       // Find the current academic record
@@ -42,9 +44,18 @@ const promoteStudents = async (req, res) => {
         throw new Error(`Academic record not found for student ${promo.studentId} in current session.`);
       }
 
+      // Only Active students are eligible for promotion. Skip any record that has
+      // already left, graduated, or was otherwise deactivated so it is never
+      // carried into the target session (defense-in-depth alongside the UI filter).
+      if (currentRecord.status !== 'Active') {
+        skippedCount++;
+        continue;
+      }
+
       // Update current record's promotion status
       currentRecord.promotionStatus = promo.promotionStatus;
       await currentRecord.save({ session });
+      promotedCount++;
 
       // Create new record for the target session if not graduated
       if (promo.promotionStatus !== 'Graduated') {
@@ -84,7 +95,8 @@ const promoteStudents = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    res.json({ message: `Successfully processed ${promotions.length} promotions.` });
+    const skipNote = skippedCount > 0 ? ` (${skippedCount} skipped — not Active)` : '';
+    res.json({ message: `Successfully processed ${promotedCount} promotions.${skipNote}` });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();

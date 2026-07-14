@@ -327,8 +327,8 @@ const addBulkFees = async (req, res) => {
 const getFees = async (req, res) => {
   try {
     const { currentCampus, currentSession } = req;
-    const { feeMonth, feeYear, status, class: studentClass, challanNo, page = 1, limit = 15 } = req.query;
-    
+    const { feeMonth, feeYear, status, class: studentClass, challanNo, search, page = 1, limit = 15 } = req.query;
+
     const matchStage = { isDeleted: false };
     if (currentCampus) matchStage.campus = new mongoose.Types.ObjectId(currentCampus);
     if (currentSession) matchStage.academicSession = new mongoose.Types.ObjectId(currentSession);
@@ -347,6 +347,28 @@ const getFees = async (req, res) => {
 
     if (studentClass) {
       pipeline.push({ $match: { 'academicInfo.className': studentClass } });
+    }
+
+    // Universal search across challan + joined student/class fields. Escape regex
+    // metacharacters so a stray '(' or '+' in the query can't throw.
+    if (search && search.trim()) {
+      const safe = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = { $regex: safe, $options: 'i' };
+      pipeline.push({
+        $match: {
+          $or: [
+            { challanNo: rx },
+            { dueMonthRange: rx },
+            { 'studentInfo.fullName': rx },
+            { 'studentInfo.fatherName': rx },
+            { 'studentInfo.studentId': rx },
+            { 'studentInfo.phone': rx },
+            { 'academicInfo.className': rx },
+            { 'academicInfo.section': rx },
+            { 'academicInfo.rollNumber': rx },
+          ],
+        },
+      });
     }
 
     const countPipeline = [...pipeline, { $count: 'total' }];

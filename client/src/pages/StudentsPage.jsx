@@ -39,7 +39,7 @@ export default function StudentsPage() {
   const [search, setSearch] = useState('');
   const [filterClass, setFilterClass] = useState('');
   const [filterSection, setFilterSection] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState('Active');
   const [filterGender, setFilterGender] = useState('');
   const [page, setPage] = useState(1);
 
@@ -180,7 +180,7 @@ export default function StudentsPage() {
           </select>
           {/* Clear */}
           {(search || filterClass || filterSection || filterStatus || filterGender) && (
-            <button onClick={() => { setSearch(''); setFilterClass(''); setFilterSection(''); setFilterStatus(''); setFilterGender(''); setPage(1); }}
+            <button onClick={() => { setSearch(''); setFilterClass(''); setFilterSection(''); setFilterStatus('Active'); setFilterGender(''); setPage(1); }}
               className="text-xs text-red-500 hover:text-red-700 px-3 py-2 border border-red-200 rounded-lg transition">
               Clear filters
             </button>
