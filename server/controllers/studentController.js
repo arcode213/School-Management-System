@@ -24,10 +24,10 @@ const addStudent = async (req, res) => {
       throw new Error('Campus and Academic Session context are required');
     }
 
-    const { class: className, section, rollNumber, status, feeStructure, previousDues, ...personalDetails } = req.body;
+    const { class: className, section, rollNumber, status, statusDate, feeStructure, previousDues, ...personalDetails } = req.body;
 
     const studentId = await generateStudentId(session);
-    
+
     // Create personal record
     const student = new Student({
       ...personalDetails,
@@ -48,6 +48,7 @@ const addStudent = async (req, res) => {
       section,
       rollNumber: cleanRollNumber,
       status: status || 'Active',
+      statusDate: (status === 'Left' || status === 'Graduated') ? (statusDate ? new Date(statusDate) : new Date()) : undefined,
       feeStructure,
       admissionDate: personalDetails.admissionDate
     });
@@ -160,7 +161,8 @@ const getStudents = async (req, res) => {
       class: r.className,
       section: r.section,
       rollNumber: r.rollNumber,
-      status: r.status
+      status: r.status,
+      statusDate: r.statusDate
     }));
 
     res.json({
@@ -202,6 +204,7 @@ const getStudent = async (req, res) => {
       result.section = current.section;
       result.rollNumber = current.rollNumber;
       result.status = current.status;
+      result.statusDate = current.statusDate;
       result.academicRecordId = current._id;
 
       // Effective monthly fee = class fee structure with any per-student
@@ -243,7 +246,7 @@ const updateStudent = async (req, res) => {
 
   try {
     const { currentCampus, currentSession } = req;
-    const { class: className, section, rollNumber, status, feeStructure, academicRecordId, ...personalDetails } = req.body;
+    const { class: className, section, rollNumber, status, statusDate, feeStructure, academicRecordId, ...personalDetails } = req.body;
 
     const student = await Student.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
@@ -255,11 +258,20 @@ const updateStudent = async (req, res) => {
     let academicRecord;
     const updatePayload = { className, section, status, feeStructure };
     const unsetPayload = {};
-    
+
     if (rollNumber === '' || rollNumber === null || rollNumber === undefined) {
       unsetPayload.rollNumber = '';
     } else {
       updatePayload.rollNumber = rollNumber;
+    }
+
+    // Track the day a student left / graduated. Stamp the date for terminal
+    // statuses (using the date supplied by the form, else today), and clear it
+    // if the student is set back to Active.
+    if (status === 'Left' || status === 'Graduated') {
+      updatePayload.statusDate = statusDate ? new Date(statusDate) : new Date();
+    } else if (status === 'Active') {
+      unsetPayload.statusDate = '';
     }
 
     const updateObj = { $set: updatePayload };
@@ -290,6 +302,7 @@ const updateStudent = async (req, res) => {
       result.section = academicRecord.section;
       result.rollNumber = academicRecord.rollNumber;
       result.status = academicRecord.status;
+      result.statusDate = academicRecord.statusDate;
     }
 
     res.json(result);
@@ -314,10 +327,10 @@ const deleteStudent = async (req, res) => {
     );
     if (!student) throw new Error('Student not found');
 
-    // Mark all academic records as Left
+    // Mark all academic records as Left, stamping the day they were removed
     await StudentAcademicRecord.updateMany(
       { student: student._id, isDeleted: false },
-      { $set: { status: 'Left' } },
+      { $set: { status: 'Left', statusDate: new Date() } },
       { session }
     );
 
@@ -372,7 +385,7 @@ const bulkAddStudents = async (req, res) => {
 
     for (let i = 0; i < studentsData.length; i++) {
       const studentObj = studentsData[i];
-      const { class: className, section, rollNumber, status, feeStructure, previousDues, ...personalDetails } = studentObj;
+      const { class: className, section, rollNumber, status, statusDate, feeStructure, previousDues, ...personalDetails } = studentObj;
 
       const studentId = formatSeqId('SMS', nextSeq++);
 
@@ -393,6 +406,7 @@ const bulkAddStudents = async (req, res) => {
         section,
         rollNumber,
         status: status || 'Active',
+        statusDate: (status === 'Left' || status === 'Graduated') ? (statusDate ? new Date(statusDate) : new Date()) : undefined,
         feeStructure,
         admissionDate: personalDetails.admissionDate || Date.now()
       });

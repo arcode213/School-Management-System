@@ -10,6 +10,7 @@ const studentAcademicRecordSchema = new mongoose.Schema(
     rollNumber: { type: String },
     status: { type: String, enum: ['Active', 'Left', 'Graduated', 'Failed', 'Promoted'], default: 'Active' },
     promotionStatus: { type: String }, // Details regarding promotion e.g., 'Promoted to Class 6'
+    statusDate: { type: Date }, // Date the student left / graduated (set when status becomes Left or Graduated)
     admissionDate: { type: Date, default: Date.now },
     feeStructure: {
       tuitionFee: { type: Number, default: 0 },

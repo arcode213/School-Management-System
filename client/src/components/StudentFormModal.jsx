@@ -7,7 +7,10 @@ import { CLASSES, SECTIONS } from '../utils/constants';
 
 export default function StudentFormModal({ open, onClose, student, onSaved }) {
   const isEdit = !!student;
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm();
+  const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors, isSubmitting } } = useForm();
+
+  const status = watch('status');
+  const isTerminalStatus = status === 'Left' || status === 'Graduated';
 
   useEffect(() => {
     if (open) {
@@ -15,6 +18,7 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
         ...student,
         dateOfBirth: student.dateOfBirth ? student.dateOfBirth.substring(0, 10) : '',
         admissionDate: student.admissionDate ? student.admissionDate.substring(0, 10) : '',
+        statusDate: student.statusDate ? student.statusDate.substring(0, 10) : '',
       } : {
         status: 'Active',
         gender: 'Male',
@@ -22,6 +26,14 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
       });
     }
   }, [open, student, reset, isEdit]);
+
+  // When the user marks a student Left/Graduated, default the date to today
+  // (unless one is already set) so the day of leaving is captured.
+  useEffect(() => {
+    if (isTerminalStatus && !getValues('statusDate')) {
+      setValue('statusDate', new Date().toISOString().substring(0, 10));
+    }
+  }, [isTerminalStatus, getValues, setValue]);
 
   const onSubmit = async (data) => {
     try {
@@ -149,6 +161,11 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
                 <option>Active</option><option>Left</option><option>Graduated</option>
               </select>
             </Field>
+            {isTerminalStatus && (
+              <Field label={`Date ${status}`}>
+                <input id="std-statusDate" type="date" {...register('statusDate')} className={input()} />
+              </Field>
+            )}
             <Field label="Previous Dues (Arrears)">
               <input id="std-previousDues" type="number" min="0" {...register('previousDues', { valueAsNumber: true })} className={input()} placeholder="e.g. 1500" disabled={isEdit} />
             </Field>

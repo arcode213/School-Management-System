@@ -6,6 +6,7 @@ import { getStudents, deleteStudent, getClasses } from '../api/students';
 import StudentFormModal from '../components/StudentFormModal';
 import StudentPrintModal from '../components/StudentPrintModal';
 import ImportExcelModal from '../components/ImportExcelModal';
+import { exportObjectsToCsv } from '../utils/exportCsv';
 import toast from 'react-hot-toast';
 import {
   UserPlus, Search, Filter, Download, Trash2, Printer, Upload,
@@ -87,18 +88,56 @@ export default function StudentsPage() {
   const openAdd = () => { setEditStudent(null); setModalOpen(true); };
   const openEdit = (s) => { setEditStudent(s); setModalOpen(true); };
 
-  // CSV export
-  const exportCSV = () => {
-    const headers = ['Student ID', 'Full Name', 'Father Name', 'Class', 'Section', 'Roll No', 'Status', 'Phone', 'Admission Date'];
-    const rows = students.map(s => [
-      s.studentId, s.fullName, s.fatherName, s.class, s.section, s.rollNumber,
-      s.status, s.phone, s.admissionDate?.substring(0, 10),
-    ]);
-    const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ''}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'students.csv'; a.click();
-    URL.revokeObjectURL(url);
+  // CSV export — every field, for every record matching the current filters
+  // (not just the visible page).
+  const [exporting, setExporting] = useState(false);
+  const date10 = (d) => (d ? String(d).substring(0, 10) : '');
+  const EXPORT_COLUMNS = [
+    { label: 'Student ID',        get: s => s.studentId },
+    { label: 'Full Name',         get: s => s.fullName },
+    { label: 'Father Name',       get: s => s.fatherName },
+    { label: 'Mother Name',       get: s => s.motherName },
+    { label: 'Class',             get: s => s.class },
+    { label: 'Section',           get: s => s.section },
+    { label: 'Roll No',           get: s => s.rollNumber },
+    { label: 'Status',            get: s => s.status },
+    { label: 'Gender',            get: s => s.gender },
+    { label: 'Date of Birth',     get: s => date10(s.dateOfBirth) },
+    { label: 'Place of Birth',    get: s => s.placeOfBirth },
+    { label: 'Cast',              get: s => s.cast },
+    { label: 'Religion',          get: s => s.religion },
+    { label: 'Nationality',       get: s => s.nationality },
+    { label: 'Mother Tongue',     get: s => s.motherTongue },
+    { label: 'CNIC / B-Form',     get: s => s.cnic },
+    { label: 'Father CNIC',       get: s => s.fatherCnic },
+    { label: 'Father Occupation', get: s => s.fatherOccupation },
+    { label: 'Phone',             get: s => s.phone },
+    { label: 'Father Contact',    get: s => s.fatherContact },
+    { label: 'Mother Contact',    get: s => s.motherContact },
+    { label: 'Emergency Contact', get: s => s.emergencyContact },
+    { label: 'Email',             get: s => s.email },
+    { label: 'Address',           get: s => s.address },
+    { label: 'Last School',       get: s => s.lastSchool },
+    { label: 'Admission Date',    get: s => date10(s.admissionDate) },
+  ];
+
+  const exportCSV = async () => {
+    setExporting(true);
+    try {
+      // Pull all matching records, not the paginated slice held in `students`.
+      const { data } = await getStudents({
+        search, class: filterClass, section: filterSection,
+        status: filterStatus, gender: filterGender, page: 1, limit: 100000,
+      });
+      const all = data.students || [];
+      if (all.length === 0) { toast.error('No students match the current filters'); return; }
+      exportObjectsToCsv('students.csv', EXPORT_COLUMNS, all);
+      toast.success(`Exported ${all.length} students`);
+    } catch {
+      toast.error('Failed to export students');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -110,9 +149,9 @@ export default function StudentsPage() {
           <p className="text-slate-400 text-sm mt-0.5">{pagination.total} total records</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={exportCSV}
-            className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 transition shadow-sm">
-            <Download size={14} /> Export CSV
+          <button onClick={exportCSV} disabled={exporting}
+            className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 transition shadow-sm disabled:opacity-50">
+            <Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}
           </button>
           <button onClick={() => setPrintOpen(true)}
             className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 transition shadow-sm">

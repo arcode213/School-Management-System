@@ -1,12 +1,35 @@
 import { COPY_OFFSET_X, DEFAULT_CALIBRATION } from '../utils/challanCalibration';
+import { MONTHS, parseStartMonth } from '../utils/feeMonths';
 
 const fmt = (n) => Number(n || 0).toLocaleString();
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB') : '');
+const monthBefore = (m) => MONTHS[(MONTHS.indexOf(m) + 11) % 12];
 
 // Accepts the fee object from either getFee (fee.student.*) or the getFees
 // aggregate (fee.studentInfo.*) and returns a flat shape.
 const normalize = (fee) => {
   const s = fee.student || fee.studentInfo || {};
+
+  // Current month net charges (this month only — arrears handled separately).
+  const currentAmount =
+    (fee.tuitionFee || 0) + (fee.examFee || 0) + (fee.transportFee || 0) +
+    (fee.miscFee || 0) + (fee.lateFine || 0) - (fee.discount || 0);
+
+  // Arrears = dues carried in from earlier unpaid months. Derive the month
+  // range they cover: from the challan's start month up to the month BEFORE
+  // the current fee month (e.g. current "April" -> arrears "February - March").
+  const arrearsAmount = fee.previousDues || 0;
+  let arrearsLabel = 'Arrears';
+  if (arrearsAmount > 0) {
+    const start = parseStartMonth(fee.dueMonthRange, fee.feeMonth);
+    if (start && start !== fee.feeMonth && MONTHS.includes(fee.feeMonth)) {
+      const end = monthBefore(fee.feeMonth);
+      arrearsLabel = `Arrears (${start === end ? start : `${start} - ${end}`})`;
+    }
+  }
+
+  const total = currentAmount + arrearsAmount;
+
   return {
     challanNo: fee.challanNo,
     issueDate: fmtDate(fee.issueDate),
@@ -16,16 +39,14 @@ const normalize = (fee) => {
     className: s.class || '',
     section: s.section || '',
     month: `${fee.dueMonthRange || fee.feeMonth} ${fee.feeYear}`,
-    items: [
-      { title: 'Tuition Fee', amount: fee.tuitionFee },
-      { title: 'Transport Fee', amount: fee.transportFee },
-      { title: 'Exam Fee', amount: fee.examFee },
-      { title: 'Misc Charges', amount: fee.miscFee },
-      { title: 'Previous Arrears', amount: fee.previousDues },
-      { title: 'Discount', amount: fee.discount ? -fee.discount : 0 },
-    ].filter((i) => i.amount),
-    netByDue: (fee.totalAmount || 0) - (fee.lateFine || 0),
-    netAfterDue: fee.totalAmount || 0,
+
+    // Fee summary: current month, arrears (optional) and grand total.
+    currentLabel: `${fee.feeMonth} ${fee.feeYear}`,
+    currentAmount,
+    hasArrears: arrearsAmount > 0,
+    arrearsLabel,
+    arrearsAmount,
+    total,
   };
 };
 
@@ -42,7 +63,6 @@ function Copy({ d, dx, fontMm, calib, onDragUpdate }) {
   });
 
   const fieldMap = calib?.fieldMap || DEFAULT_CALIBRATION.fieldMap;
-  const tableMap = calib?.tableMap || DEFAULT_CALIBRATION.tableMap;
 
   const Field = ({ k, value }) => {
     const f = fieldMap[k];
@@ -114,20 +134,14 @@ function Copy({ d, dx, fontMm, calib, onDragUpdate }) {
       <Field k="dueDate" value={d.dueDate} />
       <Field k="month" value={d.month} />
 
-      {/* Fee table line items */}
-      {d.items.slice(0, tableMap.maxRows).map((item, i) => {
-        const y = tableMap.firstRowY + i * tableMap.rowStep;
-        return (
-          <span key={item.title}>
-            <span style={{ ...at(tableMap.titleX, y), ...textStyle('left') }}>{item.title}</span>
-            <span style={{ ...at(tableMap.amountRightX, y), ...textStyle('right') }}>{fmt(item.amount)}</span>
-          </span>
-        );
-      })}
-
-      {/* Net payable boxes */}
-      <span style={{ ...at(tableMap.amountRightX, tableMap.netByDueY), ...textStyle('right') }}>{fmt(d.netByDue)}</span>
-      <span style={{ ...at(tableMap.amountRightX, tableMap.netAfterDueY), ...textStyle('right') }}>{fmt(d.netAfterDue)}</span>
+      {/* Fee summary — current month, arrears, total. Each label and amount is
+          an independently draggable field (see fieldMap in challanCalibration). */}
+      <Field k="sumCurrentLabel" value={d.currentLabel} />
+      <Field k="sumCurrentAmount" value={fmt(d.currentAmount)} />
+      {d.hasArrears && <Field k="sumArrearsLabel" value={d.arrearsLabel} />}
+      {d.hasArrears && <Field k="sumArrearsAmount" value={fmt(d.arrearsAmount)} />}
+      <Field k="sumTotalLabel" value="Total" />
+      <Field k="sumTotalAmount" value={fmt(d.total)} />
     </>
   );
 }

@@ -53,6 +53,12 @@ const getMe = async (req, res) => {
 // @access  Public (disable in production)
 const seedAdmin = async (req, res) => {
   try {
+    // Never expose the one-click admin seeder in production. Use the
+    // `scripts/seedAdmin.js` CLI script for the initial live setup instead.
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ message: 'Seeding is disabled in production' });
+    }
+
     const exists = await User.findOne({ email: 'admin@school.com' });
     if (exists) {
       return res.status(400).json({ message: 'Admin already seeded' });

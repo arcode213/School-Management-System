@@ -69,7 +69,9 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
         return;
       }
 
-      const endpoint = type === 'students' ? '/api/students/bulk' : '/api/employees/bulk';
+      // NOTE: the axios instance already has baseURL '.../api', so paths here must
+      // NOT be prefixed with '/api' (doing so produced '/api/api/...' -> 404).
+      const endpoint = type === 'students' ? '/students/bulk' : '/employees/bulk';
       const payloadKey = type === 'students' ? 'students' : 'employees';
       
       const res = await api.post(endpoint, { [payloadKey]: parsedData });

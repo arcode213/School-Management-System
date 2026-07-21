@@ -119,24 +119,42 @@ const getMonthlyFees = async (req, res) => {
     if (currentSession) feeFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
 
     const now = new Date();
-    const results = [];
 
+    // Build the list of the last 12 (month, year) buckets we want to report.
+    const buckets = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const month = MONTHS[d.getMonth()];
-      const year = d.getFullYear();
-
-      const agg = await FeeRecord.aggregate([
-        { $match: { ...feeFilter, feeMonth: month, feeYear: year } },
-        { $group: { _id: null, collected: { $sum: '$amountPaid' }, due: { $sum: '$balance' } } },
-      ]);
-
-      results.push({
-        month: `${month.substring(0, 3)} ${year}`,
-        collected: agg[0]?.collected || 0,
-        due: agg[0]?.due || 0,
-      });
+      buckets.push({ month: MONTHS[d.getMonth()], year: d.getFullYear() });
     }
+
+    const oldest = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const oldestYear = oldest.getFullYear();
+
+    // One aggregation grouped by (feeMonth, feeYear) instead of 12 round-trips.
+    // We over-fetch from the oldest year forward, then pick out the 12 buckets.
+    const agg = await FeeRecord.aggregate([
+      { $match: { ...feeFilter, feeYear: { $gte: oldestYear } } },
+      {
+        $group: {
+          _id: { month: '$feeMonth', year: '$feeYear' },
+          collected: { $sum: '$amountPaid' },
+          due: { $sum: '$balance' },
+        },
+      },
+    ]);
+
+    const lookup = new Map(
+      agg.map((a) => [`${a._id.month}-${a._id.year}`, a])
+    );
+
+    const results = buckets.map(({ month, year }) => {
+      const hit = lookup.get(`${month}-${year}`);
+      return {
+        month: `${month.substring(0, 3)} ${year}`,
+        collected: hit?.collected || 0,
+        due: hit?.due || 0,
+      };
+    });
 
     res.json(results);
   } catch (err) {

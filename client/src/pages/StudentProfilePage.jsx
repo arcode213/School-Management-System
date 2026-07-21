@@ -59,6 +59,7 @@ const printHTML = (s) => {
       <td>${esc(h.section)}</td>
       <td>${esc(h.rollNumber)}</td>
       <td>${esc(h.status)}</td>
+      <td>${(h.status === 'Left' || h.status === 'Graduated') && h.statusDate ? esc(fmtDate(h.statusDate)) : '—'}</td>
       <td>${esc(h.promotionStatus)}</td>
     </tr>`).join('');
 
@@ -135,6 +136,7 @@ const printHTML = (s) => {
           ${row("Section", s.section)}
           ${row("Roll Number", s.rollNumber)}
           ${row("Status", s.status)}
+          ${(s.status === 'Left' || s.status === 'Graduated') && s.statusDate ? row(`${s.status} On`, fmtDate(s.statusDate)) : ''}
           ${row("Admission Date", fmtDate(s.admissionDate))}
           ${row("Last School", s.lastSchool)}
           ${row("Student Phone", s.phone)}
@@ -152,7 +154,7 @@ const printHTML = (s) => {
       <div class="card full">
         <h2>Academic History</h2>
         <table class="hist">
-          <thead><tr><th>Session</th><th>Class</th><th>Section</th><th>Roll</th><th>Status</th><th>Promotion</th></tr></thead>
+          <thead><tr><th>Session</th><th>Class</th><th>Section</th><th>Roll</th><th>Status</th><th>Left/Grad On</th><th>Promotion</th></tr></thead>
           <tbody>${histRows}</tbody>
         </table>
       </div>` : ''}
@@ -315,6 +317,9 @@ export default function StudentProfilePage() {
             <InfoRow label="Section" value={student.section} />
             <InfoRow label="Roll Number" value={student.rollNumber} />
             <InfoRow label="Status" value={student.status} />
+            {(student.status === 'Left' || student.status === 'Graduated') && student.statusDate && (
+              <InfoRow label={`${student.status} On`} value={fmtDate(student.statusDate)} />
+            )}
             <InfoRow label="Admission Date" value={fmtDate(student.admissionDate)} />
           </div>
         </Card>
@@ -345,6 +350,7 @@ export default function StudentProfilePage() {
                 </div>
                 <div className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
                   <Users2 size={12} /> {record.campus?.name} {record.promotionStatus && `• Promotion: ${record.promotionStatus}`}
+                  {(record.status === 'Left' || record.status === 'Graduated') && record.statusDate && ` • ${record.status} on ${fmtDate(record.statusDate)}`}
                 </div>
               </div>
             ))}

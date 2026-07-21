@@ -9,7 +9,7 @@ const { promoteStudents } = require('../controllers/promotionController');
 router.use(protect);
 
 router.get('/classes', getClasses);
-router.post('/promote', authorize('Admin'), promoteStudents);
+router.post('/promote', authorize('Admin', 'Administrator'), promoteStudents);
 
 router.route('/')
   .get(getStudents)

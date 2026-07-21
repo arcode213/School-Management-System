@@ -1,2 +1,6 @@
 node_modules
-env
+
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.example
