@@ -42,9 +42,11 @@ export default function ChallansPage() {
     try {
       // Fetch up to 100 unpaid/partial fees for the selected criteria to print
       const { data } = await getFees({ feeMonth: filterMonth, class: filterClass, limit: 100 });
-      // Only keep unpaid/partial
-      const unpaids = data.fees.filter(f => f.status !== 'Paid');
-      setFees(unpaids);
+      // Keep only unpaid/partial challans, and never print for Freeship students —
+      // their fees are waived. (One can only appear here if the waiver was granted
+      // after the challan had already been generated.)
+      const printable = data.fees.filter(f => f.status !== 'Paid' && !f.studentInfo?.isFreeship);
+      setFees(printable);
     } catch {
       toast.error('Failed to load fees');
     } finally {
@@ -108,6 +110,7 @@ export default function ChallansPage() {
           <div className="p-12 text-center text-slate-400 flex flex-col items-center">
             <FileText size={40} className="text-slate-300 mb-3" />
             <p>No unpaid fees found for this criteria.</p>
+            <p className="text-xs mt-1">Freeship students are excluded — their fees are waived.</p>
           </div>
         ) : (
           <table className="w-full text-sm">

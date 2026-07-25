@@ -25,16 +25,44 @@ const feeRecordSchema = new mongoose.Schema(
     miscFee: { type: Number, default: 0 },
     lateFine: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
-    
-    // Previous Dues rolled into this challan
+
+    // Previous MONTHLY dues rolled into this challan
     previousDues: { type: Number, default: 0 },
-    
-    // Total Amount (Current charges + previousDues)
+
+    // ─── Annual fee ────────────────────────────────────────────────────────────
+    // Tracked as its own bucket, separate from the recurring monthly charges, so
+    // the challan can print "Current Annual Fee" and "Previous Annual Fee" as
+    // distinct lines and each can carry forward on its own.
+    //
+    // Annual fee charged ON this challan (opt-in per challan at generation time).
+    annualFee: { type: Number, default: 0 },
+    // Unpaid annual fee rolled in from earlier challans / an opening balance.
+    previousAnnualDues: { type: Number, default: 0 },
+
+    // Total Amount (monthlyTotal + annualTotal)
     totalAmount: { type: Number, default: 0 },
-    
+
+    // Derived bucket subtotals, stored so carry-forward and reports never have to
+    // re-derive them. monthly = recurring charges + monthly arrears;
+    // annual = this challan's annual fee + annual arrears.
+    //
+    // DELIBERATELY NO `default` on these four derived fields. Mongoose applies
+    // defaults when HYDRATING documents too, so a default of 0 would make every
+    // pre-existing challan report monthlyBalance: 0 — and the carry-forward
+    // fallback below would then read real arrears as nothing owed, silently wiping
+    // outstanding dues. Left undefined, legacy records fall back to `balance`
+    // (which is exactly what they were). The pre-save hook always sets them.
+    monthlyTotal: { type: Number },
+    annualTotal: { type: Number },
+
     // Payment Tracking
     amountPaid: { type: Number, default: 0 },
     balance: { type: Number, default: 0 },
+
+    // Outstanding split per bucket (see the pre-save hook for the allocation rule,
+    // and the note above on why these carry no default).
+    monthlyBalance: { type: Number },
+    annualBalance: { type: Number },
     
     paymentDate: { type: Date },
     paymentMethod: { type: String, enum: ['Cash', 'Bank', 'Online'], default: 'Cash' },
@@ -52,6 +80,13 @@ const feeRecordSchema = new mongoose.Schema(
     // Flag to indicate if this challan's unpaid balance has been rolled over to a NEWER challan.
     hasBeenCarriedForward: { type: Boolean, default: false },
     carriedForwardTo: { type: mongoose.Schema.Types.ObjectId, ref: 'FeeRecord' },
+
+    // True for the synthetic "opening arrears" record created when a student is
+    // admitted/imported with a pre-existing balance. Such a record states the FULL
+    // amount owed for its month range, so the carry-forward logic rolls it over as
+    // a flat lump sum and must NOT bill skipped months on top of it (see
+    // getPreviousDues) — that would double-charge the same period.
+    isOpeningBalance: { type: Boolean, default: false },
     
     remarks: { type: String },
     isDeleted: { type: Boolean, default: false },
@@ -59,11 +94,27 @@ const feeRecordSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Auto-calculate totalAmount, balance, and status before saving
+// Auto-calculate the bucket subtotals, balance, and status before saving
 feeRecordSchema.pre('save', function (next) {
-  this.totalAmount = this.tuitionFee + this.examFee + this.transportFee + this.miscFee + this.lateFine - this.discount + this.previousDues;
+  // Two independent buckets. The monthly side is the recurring obligation plus
+  // whatever monthly arrears rolled in; the annual side is the one-off annual fee
+  // plus any annual fee still unpaid from before.
+  this.monthlyTotal =
+    this.tuitionFee + this.examFee + this.transportFee + this.miscFee +
+    this.lateFine - this.discount + this.previousDues;
+  this.annualTotal = this.annualFee + this.previousAnnualDues;
+
+  this.totalAmount = this.monthlyTotal + this.annualTotal;
   this.balance = this.totalAmount - this.amountPaid;
-  
+
+  // ALLOCATION RULE: a payment settles the monthly side first and the annual fee
+  // last. The monthly fee is what the school chases every month, and fixing the
+  // order is what keeps paidUpToMonth meaningful — annual-fee money must never be
+  // counted as having settled a month.
+  const monthlyPaid = Math.min(Math.max(this.amountPaid, 0), Math.max(this.monthlyTotal, 0));
+  this.monthlyBalance = Math.max(0, this.monthlyTotal - monthlyPaid);
+  this.annualBalance = Math.max(0, this.annualTotal - (this.amountPaid - monthlyPaid));
+
   if (this.amountPaid >= this.totalAmount && this.totalAmount > 0) {
     this.status = 'Paid';
   } else if (this.amountPaid > 0) {
@@ -74,8 +125,8 @@ feeRecordSchema.pre('save', function (next) {
     this.status = 'Unpaid';
   }
 
-  // Derive which months the payment has settled (uses the values computed above).
-  this.paidUpToMonth = computePaidUpToMonth(this);
+  // Derive which months the payment has settled — only from the monthly share.
+  this.paidUpToMonth = computePaidUpToMonth(this, monthlyPaid);
 
   next();
 });

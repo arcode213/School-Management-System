@@ -15,6 +15,10 @@ const blankForm = () => ({
   transportFee: 0,
   miscFee: 0,
   previousDues: 0,
+  // Annual fee is opt-in per challan.
+  chargeAnnualFee: false,
+  annualFee: 0,
+  previousAnnualDues: 0,
 });
 
 // Dual-purpose modal: create an individual challan (with student search) or
@@ -48,12 +52,16 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
         transportFee: feeRecord.transportFee || 0,
         miscFee: feeRecord.miscFee || 0,
         previousDues: feeRecord.previousDues || 0,
+        chargeAnnualFee: (feeRecord.annualFee || 0) > 0,
+        annualFee: feeRecord.annualFee || 0,
+        previousAnnualDues: feeRecord.previousAnnualDues || 0,
       });
       setSelectedStudent({
         _id: feeRecord.student?._id || feeRecord.student,
         fullName: feeRecord.studentInfo?.fullName || feeRecord.student?.fullName,
         class: feeRecord.studentInfo?.class,
         section: feeRecord.studentInfo?.section,
+        isFreeship: feeRecord.studentInfo?.isFreeship,
       });
     } else {
       setForm(blankForm());
@@ -92,6 +100,8 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
       tuitionFee: pick(override?.customTuitionFee, struct?.tuitionFee),
       transportFee: pick(override?.customTransportFee, struct?.transportFee),
       miscFee: pick(override?.customMiscFee, struct?.miscFee),
+      // Pre-fill the class default, but leave it unticked — the user opts in.
+      annualFee: Number(struct?.annualFee || 0),
     }));
   };
 
@@ -119,15 +129,26 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
 
   const setNum = (key, v) => setForm(f => ({ ...f, [key]: v === '' ? '' : Number(v) }));
 
+  // Freeship students never receive a challan. Blocked here for immediate feedback;
+  // the server rejects it too.
+  const blockedByFreeship = !isEdit && !!selectedStudent?.isFreeship;
+
+  const annualCharge = form.chargeAnnualFee ? (Number(form.annualFee) || 0) : 0;
+
   const currentTotal =
     (Number(form.tuitionFee) || 0) + (Number(form.examFee) || 0) +
     (Number(form.transportFee) || 0) + (Number(form.miscFee) || 0) +
-    (isEdit ? (Number(form.previousDues) || 0) : 0);
+    annualCharge +
+    (isEdit ? (Number(form.previousDues) || 0) + (Number(form.previousAnnualDues) || 0) : 0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isEdit && !selectedStudent) {
       toast.error('Please select a student');
+      return;
+    }
+    if (blockedByFreeship) {
+      toast.error('This student is on Freeship — their fees are waived, so no challan can be generated.');
       return;
     }
     setLoading(true);
@@ -141,7 +162,9 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
           examFee: Number(form.examFee) || 0,
           transportFee: Number(form.transportFee) || 0,
           miscFee: Number(form.miscFee) || 0,
+          annualFee: annualCharge,
           previousDues: Number(form.previousDues) || 0,
+          previousAnnualDues: Number(form.previousAnnualDues) || 0,
         });
         toast.success('Challan updated successfully');
       } else {
@@ -155,6 +178,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
           examFee: Number(form.examFee) || 0,
           transportFee: Number(form.transportFee) || 0,
           miscFee: Number(form.miscFee) || 0,
+          annualFee: annualCharge,
         });
         toast.success('Challan generated successfully');
       }
@@ -191,14 +215,22 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
               </span>
             </div>
           ) : selectedStudent ? (
-            <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100 text-sm flex items-center justify-between">
-              <div>
-                <span className="text-slate-500">Student: </span>
-                <span className="font-semibold text-slate-800">
-                  {selectedStudent.fullName} (Class {selectedStudent.class}{selectedStudent.section ? ' ' + selectedStudent.section : ''})
-                </span>
+            <div className={`rounded-xl p-3 border text-sm ${blockedByFreeship ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-100'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-slate-500">Student: </span>
+                  <span className="font-semibold text-slate-800">
+                    {selectedStudent.fullName} (Class {selectedStudent.class}{selectedStudent.section ? ' ' + selectedStudent.section : ''})
+                  </span>
+                </div>
+                <button type="button" onClick={() => setSelectedStudent(null)} className="text-xs text-blue-600 hover:underline">Change</button>
               </div>
-              <button type="button" onClick={() => setSelectedStudent(null)} className="text-xs text-blue-600 hover:underline">Change</button>
+              {blockedByFreeship && (
+                <p className="text-xs text-amber-800 mt-2 font-medium">
+                  This student is on <strong>Freeship</strong> — their fees are waived, so no challan can be generated.
+                  Remove the Freeship flag from their record first if this is wrong.
+                </p>
+              )}
             </div>
           ) : (
             <div className="relative">
@@ -224,7 +256,14 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
                       onClick={() => { setSelectedStudent(s); applyStudentFees(s); setResults([]); setQuery(''); }}
                       className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm border-b border-slate-50 last:border-0"
                     >
-                      <div className="font-medium text-slate-800">{s.fullName}</div>
+                      <div className="font-medium text-slate-800 flex items-center gap-1.5">
+                        {s.fullName}
+                        {s.isFreeship && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700">
+                            FREESHIP
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-slate-500">{s.studentId} • Class {s.class}{s.section ? ' ' + s.section : ''}</div>
                     </button>
                   ))}
@@ -265,10 +304,40 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
             </div>
           </div>
 
+          {/* Annual fee — opt in for this challan */}
+          <div className={`rounded-lg border px-3 py-3 transition ${form.chargeAnnualFee ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-slate-50'}`}>
+            <label htmlFor="chal-chargeAnnual" className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                id="chal-chargeAnnual"
+                type="checkbox"
+                checked={form.chargeAnnualFee}
+                onChange={e => setForm(f => ({ ...f, chargeAnnualFee: e.target.checked }))}
+                className="mt-0.5 flex-shrink-0"
+              />
+              <span>
+                <span className="block text-sm font-medium text-slate-800">Charge the annual fee on this challan</span>
+                <span className="block text-xs text-slate-500 mt-0.5">Prints as its own “Annual Fee” line.</span>
+              </span>
+            </label>
+            {form.chargeAnnualFee && (
+              <div className="mt-3 pl-7">
+                <label className="block text-xs font-medium text-slate-600 mb-1">Annual Fee Amount (Rs.)</label>
+                <input type="number" min="0" value={form.annualFee} onChange={e => setNum('annualFee', e.target.value)}
+                  className="w-full text-sm border rounded-lg px-3 py-2 bg-white" placeholder="e.g. 3000" />
+              </div>
+            )}
+          </div>
+
           {isEdit && (
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Previous Dues</label>
-              <input type="number" value={form.previousDues} onChange={e => setNum('previousDues', e.target.value)} className="w-full text-sm border rounded-lg px-3 py-2 bg-slate-50" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Previous Dues (monthly)</label>
+                <input type="number" value={form.previousDues} onChange={e => setNum('previousDues', e.target.value)} className="w-full text-sm border rounded-lg px-3 py-2 bg-slate-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Previous Annual Fee</label>
+                <input type="number" value={form.previousAnnualDues} onChange={e => setNum('previousAnnualDues', e.target.value)} className="w-full text-sm border rounded-lg px-3 py-2 bg-slate-50" />
+              </div>
             </div>
           )}
 
@@ -290,7 +359,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
 
           <div className="pt-2 flex gap-3 justify-end">
             <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancel</button>
-            <button type="submit" disabled={loading} className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shadow-sm disabled:opacity-50 flex items-center gap-2">
+            <button type="submit" disabled={loading || blockedByFreeship} className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
               {loading && <Loader2 size={14} className="animate-spin" />}
               {isEdit ? 'Update Challan' : 'Generate Challan'}
             </button>

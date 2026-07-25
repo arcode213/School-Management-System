@@ -22,14 +22,25 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
   const feeIdx = feeRecord ? MONTHS.indexOf(feeRecord.feeMonth) : -1;
   let totalMonths = 1;
   if (startIdx >= 0 && feeIdx >= 0) { let s = feeIdx - startIdx; if (s < 0) s += 12; totalMonths = s + 1; }
-  const alreadyPaidMonths = recurring > 0 ? Math.min(totalMonths, Math.floor((feeRecord?.amountPaid || 0) / recurring)) : 0;
+  const alreadyPaidMonths = recurring > 0
+    ? Math.min(totalMonths, Math.floor(Math.min(feeRecord?.amountPaid || 0, feeRecord?.monthlyTotal ?? Infinity) / recurring))
+    : 0;
   const remainingMonths = Math.max(0, totalMonths - alreadyPaidMonths);
   const canPayByMonth = recurring > 0 && remainingMonths > 1;
+
+  // Annual fee is a separate bucket. A payment settles the MONTHLY side first and
+  // the annual fee last (same rule as the server's pre-save hook), so only the
+  // monthly share may count towards settling months.
+  const annualNow = feeRecord?.annualFee || 0;
+  const annualPrev = feeRecord?.previousAnnualDues || 0;
+  const annualTotal = feeRecord?.annualTotal ?? (annualNow + annualPrev);
+  const monthlyTotal = feeRecord?.monthlyTotal ?? Math.max(0, (feeRecord?.totalAmount || 0) - annualTotal);
 
   // Live preview of what will be settled and what carries forward. Based on the
   // challan's TOTAL paid-after-this-payment so it matches the server exactly.
   const finalPaidTotal = (feeRecord?.amountPaid || 0) + paid;
-  const monthsPaidAfter = recurring > 0 ? Math.min(totalMonths, Math.floor(finalPaidTotal / recurring)) : 0;
+  const monthlyPaidAfter = Math.min(finalPaidTotal, monthlyTotal);
+  const monthsPaidAfter = recurring > 0 ? Math.min(totalMonths, Math.floor(monthlyPaidAfter / recurring)) : 0;
   const settlesThrough = monthsPaidAfter > 0 ? monthAt(startIdx + monthsPaidAfter - 1) : null;
   const carriesFrom = monthsPaidAfter < totalMonths ? monthAt(startIdx + monthsPaidAfter) : null;
 
@@ -102,6 +113,27 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
               <span className="font-semibold text-slate-800">{feeRecord.feeMonth} {feeRecord.feeYear}</span>
             </div>
             <div className="h-px bg-slate-200 my-1" />
+            {/* Bucket breakdown, so it is clear what the payment is covering. */}
+            {annualTotal > 0 && (
+              <>
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-400">Monthly (incl. arrears):</span>
+                  <span className="text-slate-600">Rs. {monthlyTotal.toLocaleString()}</span>
+                </div>
+                {annualNow > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Annual fee:</span>
+                    <span className="text-slate-600">Rs. {annualNow.toLocaleString()}</span>
+                  </div>
+                )}
+                {annualPrev > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Previous annual fee:</span>
+                    <span className="text-slate-600">Rs. {annualPrev.toLocaleString()}</span>
+                  </div>
+                )}
+              </>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Total Fee:</span>
               <span className="text-slate-700">Rs. {feeRecord.totalAmount.toLocaleString()}</span>
@@ -134,6 +166,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
               </select>
               <p className="text-[11px] text-slate-400 mt-1">
                 Monthly fee Rs. {recurring.toLocaleString()} — this fills the paying amount for you; you can still edit it.
+                {annualTotal > 0 && ' The annual fee is settled last, after all months are cleared.'}
               </p>
             </div>
           )}

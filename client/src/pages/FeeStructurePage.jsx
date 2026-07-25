@@ -20,7 +20,7 @@ export default function FeeStructurePage() {
   const [showRolloverModal, setShowRolloverModal] = useState(false);
 
   // Form states
-  const [structForm, setStructForm] = useState({ className: 'Nursery', tuitionFee: 0, admissionFee: 0, examFee: 0, transportFee: 0, miscFee: 0 });
+  const [structForm, setStructForm] = useState({ className: 'Nursery', tuitionFee: 0, admissionFee: 0, examFee: 0, transportFee: 0, miscFee: 0, annualFee: 0 });
   const [overrideForm, setOverrideForm] = useState({ student: '', customTuitionFee: '', customTransportFee: '', customMiscFee: '', reason: '' });
   const [rolloverForm, setRolloverForm] = useState({ sourceSessionId: '', targetSessionId: '', incrementAmount: 200 });
 
@@ -102,10 +102,11 @@ export default function FeeStructurePage() {
         admissionFee: st.admissionFee,
         examFee: st.examFee,
         transportFee: st.transportFee,
-        miscFee: st.miscFee
+        miscFee: st.miscFee,
+        annualFee: st.annualFee || 0
       });
     } else {
-      setStructForm({ className: 'Nursery', tuitionFee: 0, admissionFee: 0, examFee: 0, transportFee: 0, miscFee: 0 });
+      setStructForm({ className: 'Nursery', tuitionFee: 0, admissionFee: 0, examFee: 0, transportFee: 0, miscFee: 0, annualFee: 0 });
     }
     setShowStructModal(true);
   };
@@ -175,6 +176,7 @@ export default function FeeStructurePage() {
                 <th className="p-4 font-semibold">Exam Fee</th>
                 <th className="p-4 font-semibold">Transport Fee</th>
                 <th className="p-4 font-semibold">Misc Fee</th>
+                <th className="p-4 font-semibold">Annual Fee</th>
                 <th className="p-4 font-semibold">Action</th>
               </tr>
             </thead>
@@ -187,6 +189,7 @@ export default function FeeStructurePage() {
                   <td className="p-4">Rs {s.examFee}</td>
                   <td className="p-4">Rs {s.transportFee}</td>
                   <td className="p-4">Rs {s.miscFee}</td>
+                  <td className="p-4">Rs {s.annualFee || 0}</td>
                   <td className="p-4">
                     <button onClick={() => openStructModal(s)} className="text-blue-600 hover:text-blue-800"><Edit size={18} /></button>
                   </td>
@@ -194,7 +197,7 @@ export default function FeeStructurePage() {
               ))}
               {structures.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-slate-500">No class fee structures defined yet.</td>
+                  <td colSpan="8" className="p-8 text-center text-slate-500">No class fee structures defined yet.</td>
                 </tr>
               )}
             </tbody>
@@ -259,6 +262,7 @@ export default function FeeStructurePage() {
                 <div><label className="block text-sm font-medium mb-1">Admission Fee</label><input type="number" className="w-full p-2 border rounded" value={structForm.admissionFee} onChange={e=>setStructForm({...structForm, admissionFee: e.target.value})} /></div>
                 <div><label className="block text-sm font-medium mb-1">Exam Fee</label><input type="number" className="w-full p-2 border rounded" value={structForm.examFee} onChange={e=>setStructForm({...structForm, examFee: e.target.value})} /></div>
                 <div><label className="block text-sm font-medium mb-1">Misc Fee</label><input type="number" className="w-full p-2 border rounded" value={structForm.miscFee} onChange={e=>setStructForm({...structForm, miscFee: e.target.value})} /></div>
+                <div><label className="block text-sm font-medium mb-1">Annual Fee</label><input type="number" className="w-full p-2 border rounded" value={structForm.annualFee} onChange={e=>setStructForm({...structForm, annualFee: e.target.value})} /></div>
               </div>
               <div className="flex gap-3 justify-end pt-4">
                 <button type="button" onClick={() => setShowStructModal(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancel</button>

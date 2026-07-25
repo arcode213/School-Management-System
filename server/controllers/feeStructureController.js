@@ -22,7 +22,7 @@ const getFeeStructures = async (req, res) => {
 const saveFeeStructure = async (req, res) => {
   try {
     const { currentCampus, currentSession } = req;
-    const { className, tuitionFee, admissionFee, examFee, transportFee, miscFee } = req.body;
+    const { className, tuitionFee, admissionFee, examFee, transportFee, miscFee, annualFee } = req.body;
 
     if (!currentCampus || !currentSession) {
       return res.status(400).json({ message: 'Campus and Session context required.' });
@@ -30,7 +30,9 @@ const saveFeeStructure = async (req, res) => {
 
     const structure = await FeeStructure.findOneAndUpdate(
       { campus: currentCampus, academicSession: currentSession, className },
-      { tuitionFee, admissionFee, examFee, transportFee, miscFee },
+      // isActive is set explicitly: a structure deactivated by the class remap
+      // would otherwise stay hidden after being re-saved here.
+      { tuitionFee, admissionFee, examFee, transportFee, miscFee, annualFee: annualFee || 0, isActive: true },
       { new: true, upsert: true }
     );
 
@@ -130,6 +132,7 @@ const rolloverFeeStructure = async (req, res) => {
           examFee: struct.examFee,
           transportFee: struct.transportFee,
           miscFee: struct.miscFee,
+          annualFee: struct.annualFee || 0,
           isActive: true
         },
         { new: true, upsert: true }

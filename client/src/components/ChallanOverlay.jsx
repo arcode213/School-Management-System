@@ -15,20 +15,32 @@ const normalize = (fee) => {
     (fee.tuitionFee || 0) + (fee.examFee || 0) + (fee.transportFee || 0) +
     (fee.miscFee || 0) + (fee.lateFine || 0) - (fee.discount || 0);
 
-  // Arrears = dues carried in from earlier unpaid months. Derive the month
-  // range they cover: from the challan's start month up to the month BEFORE
-  // the current fee month (e.g. current "April" -> arrears "February - March").
+  // Arrears = dues carried in from earlier unpaid months. Normally they run from
+  // the challan's start month up to the month BEFORE the current fee month, since
+  // feeMonth's own charges are billed on the "current" line
+  // (e.g. current "April" -> arrears "February - March").
+  //
+  // An arrears-only challan (opening balance from admission/import: no current
+  // charges at all) is the exception — there is no current line to exclude, so the
+  // arrears cover the WHOLE labelled range including feeMonth. Without this the
+  // period printed for an imported balance is short by one month.
   const arrearsAmount = fee.previousDues || 0;
+  const arrearsOnly = currentAmount === 0 && arrearsAmount > 0;
   let arrearsLabel = 'Arrears';
-  if (arrearsAmount > 0) {
+  if (arrearsAmount > 0 && MONTHS.includes(fee.feeMonth)) {
     const start = parseStartMonth(fee.dueMonthRange, fee.feeMonth);
-    if (start && start !== fee.feeMonth && MONTHS.includes(fee.feeMonth)) {
-      const end = monthBefore(fee.feeMonth);
+    const end = arrearsOnly ? fee.feeMonth : monthBefore(fee.feeMonth);
+    if (start && (arrearsOnly || start !== fee.feeMonth)) {
       arrearsLabel = `Arrears (${start === end ? start : `${start} - ${end}`})`;
     }
   }
 
-  const total = currentAmount + arrearsAmount;
+  // Annual fee is its own bucket, kept apart from the recurring monthly charges so
+  // the current-year and carried-forward annual amounts print as separate lines.
+  const annualAmount = fee.annualFee || 0;
+  const prevAnnualAmount = fee.previousAnnualDues || 0;
+
+  const total = currentAmount + arrearsAmount + annualAmount + prevAnnualAmount;
 
   return {
     challanNo: fee.challanNo,
@@ -40,12 +52,23 @@ const normalize = (fee) => {
     section: s.section || '',
     month: `${fee.dueMonthRange || fee.feeMonth} ${fee.feeYear}`,
 
-    // Fee summary: current month, arrears (optional) and grand total.
+    // Fee summary. Only the current-month line and the total always print; the
+    // arrears and annual lines appear only when there is an amount for them.
     currentLabel: `${fee.feeMonth} ${fee.feeYear}`,
     currentAmount,
+
     hasArrears: arrearsAmount > 0,
     arrearsLabel,
     arrearsAmount,
+
+    hasAnnual: annualAmount > 0,
+    annualLabel: 'Annual Fee',
+    annualAmount,
+
+    hasPrevAnnual: prevAnnualAmount > 0,
+    prevAnnualLabel: 'Previous Annual Fee',
+    prevAnnualAmount,
+
     total,
   };
 };
@@ -134,12 +157,17 @@ function Copy({ d, dx, fontMm, calib, onDragUpdate }) {
       <Field k="dueDate" value={d.dueDate} />
       <Field k="month" value={d.month} />
 
-      {/* Fee summary — current month, arrears, total. Each label and amount is
-          an independently draggable field (see fieldMap in challanCalibration). */}
+      {/* Fee summary — current month fee, previous arrears, current annual fee,
+          previous annual fee, then the total. Each label and amount is an
+          independently draggable field (see fieldMap in challanCalibration). */}
       <Field k="sumCurrentLabel" value={d.currentLabel} />
       <Field k="sumCurrentAmount" value={fmt(d.currentAmount)} />
       {d.hasArrears && <Field k="sumArrearsLabel" value={d.arrearsLabel} />}
       {d.hasArrears && <Field k="sumArrearsAmount" value={fmt(d.arrearsAmount)} />}
+      {d.hasAnnual && <Field k="sumAnnualLabel" value={d.annualLabel} />}
+      {d.hasAnnual && <Field k="sumAnnualAmount" value={fmt(d.annualAmount)} />}
+      {d.hasPrevAnnual && <Field k="sumPrevAnnualLabel" value={d.prevAnnualLabel} />}
+      {d.hasPrevAnnual && <Field k="sumPrevAnnualAmount" value={fmt(d.prevAnnualAmount)} />}
       <Field k="sumTotalLabel" value="Total" />
       <Field k="sumTotalAmount" value={fmt(d.total)} />
     </>

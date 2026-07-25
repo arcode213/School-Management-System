@@ -8,6 +8,10 @@ const feeStructureSchema = new mongoose.Schema(
     tuitionFee: { type: Number, default: 0 },
     admissionFee: { type: Number, default: 0 },
     examFee: { type: Number, default: 0 },
+    // Default annual fee for this class. Only a DEFAULT — it is never charged
+    // automatically; the Generate Fees screen pre-fills it and the user must tick
+    // "also charge annual fee" for it to appear on a challan.
+    annualFee: { type: Number, default: 0 },
     transportFee: { type: Number, default: 0 },
     miscFee: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },

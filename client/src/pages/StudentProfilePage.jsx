@@ -63,7 +63,14 @@ const printHTML = (s) => {
       <td>${esc(h.promotionStatus)}</td>
     </tr>`).join('');
 
-  const feeBlock = fee ? `
+  const feeBlock = s.isFreeship ? `
+    <div class="fee">
+      <div>
+        <div class="fee-label">Freeship — Fees Waived by the School</div>
+        <div class="fee-sub">No fee challan is generated for this student.</div>
+      </div>
+      <div class="fee-amt">${esc(fmtRs(0))}</div>
+    </div>` : fee ? `
     <div class="fee">
       <div>
         <div class="fee-label">Monthly Tuition Fee (Class ${esc(fee.className)})</div>
@@ -136,6 +143,7 @@ const printHTML = (s) => {
           ${row("Section", s.section)}
           ${row("Roll Number", s.rollNumber)}
           ${row("Status", s.status)}
+          ${row("Freeship", s.isFreeship ? 'Yes — fees waived' : 'No')}
           ${(s.status === 'Left' || s.status === 'Graduated') && s.statusDate ? row(`${s.status} On`, fmtDate(s.statusDate)) : ''}
           ${row("Admission Date", fmtDate(s.admissionDate))}
           ${row("Last School", s.lastSchool)}
@@ -238,6 +246,11 @@ export default function StudentProfilePage() {
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold">{student.fullName}</h1>
               <StatusBadge status={student.status} />
+              {student.isFreeship && (
+                <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                  Freeship
+                </span>
+              )}
             </div>
             {student.fatherName && <p className="text-blue-100 text-sm mt-0.5">s/o {student.fatherName}</p>}
             <div className="flex items-center gap-x-5 gap-y-1.5 mt-3 flex-wrap text-xs text-blue-50">
@@ -259,7 +272,15 @@ export default function StudentProfilePage() {
           </div>
           <h2 className="text-sm font-semibold text-slate-700">Fee Details <span className="text-slate-400 font-normal">(set by admin for Class {student.class})</span></h2>
         </div>
-        {fee && fee.hasStructure ? (
+        {student.isFreeship ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-amber-900">Freeship — fees waived by the school</p>
+            <p className="text-xs text-amber-700 mt-1">
+              No fee challan is generated or printed for this student.
+              {fee?.hasStructure && <> The Class {fee.className} rate would otherwise be {fmtRs(fee.tuitionFee)}/month.</>}
+            </p>
+          </div>
+        ) : fee && fee.hasStructure ? (
           <div className="flex flex-wrap items-stretch gap-4">
             <div className="flex-1 min-w-[180px] bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl p-4">
               <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">Monthly Tuition Fee</p>
@@ -317,6 +338,7 @@ export default function StudentProfilePage() {
             <InfoRow label="Section" value={student.section} />
             <InfoRow label="Roll Number" value={student.rollNumber} />
             <InfoRow label="Status" value={student.status} />
+            <InfoRow label="Freeship" value={student.isFreeship ? 'Yes — fees waived' : 'No'} />
             {(student.status === 'Left' || student.status === 'Graduated') && student.statusDate && (
               <InfoRow label={`${student.status} On`} value={fmtDate(student.statusDate)} />
             )}

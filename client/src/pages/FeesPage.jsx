@@ -147,6 +147,7 @@ export default function FeesPage() {
                   <th className="text-left px-4 py-3">Due Months</th>
                   <th className="text-left px-4 py-3">Prev. Dues</th>
                   <th className="text-left px-4 py-3">Current Fee</th>
+                  <th className="text-left px-4 py-3">Annual Fee</th>
                   <th className="text-left px-4 py-3">Total Amount</th>
                   <th className="text-left px-4 py-3">Paid / Due</th>
                   <th className="text-left px-4 py-3">Status</th>
@@ -157,6 +158,8 @@ export default function FeesPage() {
                 {fees.map(f => {
                   const student = f.studentInfo;
                   const currentFee = (f.tuitionFee||0) + (f.transportFee||0) + (f.miscFee||0) + (f.examFee||0);
+                  const annualNow = f.annualFee || 0;
+                  const annualPrev = f.previousAnnualDues || 0;
                   const paid = f.amountPaid || 0;
                   const due = f.balance || 0;
                   
@@ -164,12 +167,30 @@ export default function FeesPage() {
                     <tr key={f._id} className={`hover:bg-slate-50 transition group ${f.hasBeenCarriedForward ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-3 font-mono text-xs text-blue-600 font-medium">{f.challanNo}</td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-800">{student?.fullName || 'Unknown'}</div>
+                        <div className="font-medium text-slate-800 flex items-center gap-1.5">
+                          {student?.fullName || 'Unknown'}
+                          {student?.isFreeship && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700"
+                              title="Fees waived — new challans are not generated and this one cannot be printed">
+                              FREESHIP
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-slate-500">Class {student?.class} {student?.section}</div>
                       </td>
                       <td className="px-4 py-3 text-slate-600 font-medium">{f.dueMonthRange}</td>
                       <td className="px-4 py-3 text-rose-500 font-medium">Rs {f.previousDues?.toLocaleString()}</td>
                       <td className="px-4 py-3 text-slate-600">Rs {currentFee.toLocaleString()}</td>
+                      <td className="px-4 py-3">
+                        {annualNow === 0 && annualPrev === 0 ? (
+                          <span className="text-slate-300">—</span>
+                        ) : (
+                          <>
+                            {annualNow > 0 && <div className="text-indigo-600 text-xs font-semibold">Rs {annualNow.toLocaleString()}</div>}
+                            {annualPrev > 0 && <div className="text-rose-500 text-[10px]">Prev: {annualPrev.toLocaleString()}</div>}
+                          </>
+                        )}
+                      </td>
                       <td className="px-4 py-3 font-bold text-slate-800">Rs {f.totalAmount?.toLocaleString()}</td>
                       <td className="px-4 py-3">
                         <div className="text-emerald-600 text-xs font-semibold">Paid: {paid}</div>
@@ -186,7 +207,11 @@ export default function FeesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <button onClick={() => openPrint(f)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Print Challan">
+                          <button
+                            onClick={() => openPrint(f)}
+                            disabled={student?.isFreeship}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-30 disabled:hover:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                            title={student?.isFreeship ? 'Freeship student — challans are not printed' : 'Print Challan'}>
                             <Printer size={16} />
                           </button>
                           {!f.hasBeenCarriedForward && (

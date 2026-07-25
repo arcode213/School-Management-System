@@ -12,6 +12,11 @@ const studentAcademicRecordSchema = new mongoose.Schema(
     promotionStatus: { type: String }, // Details regarding promotion e.g., 'Promoted to Class 6'
     statusDate: { type: Date }, // Date the student left / graduated (set when status becomes Left or Graduated)
     admissionDate: { type: Date, default: Date.now },
+    // Fees waived by the school for this student in THIS session. Freeship is
+    // per-session (not per-student) because a waiver granted one year should not
+    // silently follow the student after promotion. No fee challan is ever
+    // generated or printed for a record flagged here.
+    isFreeship: { type: Boolean, default: false },
     feeStructure: {
       tuitionFee: { type: Number, default: 0 },
       transportFee: { type: Number, default: 0 }

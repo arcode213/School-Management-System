@@ -16,10 +16,12 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
     
     if (type === 'students') {
       headers = [
-        'fullName', 'fatherName', 'fatherOccupation', 'dateOfBirth', 'placeOfBirth', 'gender', 
-        'cast', 'religion', 'nationality', 'motherTongue', 'cnic', 'fatherCnic', 
-        'phone', 'fatherContact', 'motherContact', 'emergencyContact', 
-        'class', 'section', 'lastSchool', 'rollNumber', 'admissionDate', 'status', 'previousDues', 'address'
+        'fullName', 'fatherName', 'fatherOccupation', 'dateOfBirth', 'placeOfBirth', 'gender',
+        'cast', 'religion', 'nationality', 'motherTongue', 'cnic', 'fatherCnic',
+        'phone', 'fatherContact', 'motherContact', 'emergencyContact',
+        'class', 'section', 'lastSchool', 'rollNumber', 'admissionDate', 'status',
+        'isFreeship', 'previousDues', 'previousDuesFrom', 'previousDuesTo',
+        'previousAnnualFee', 'address'
       ];
       fileName = 'students_template.xlsx';
     } else if (type === 'employees') {
@@ -58,7 +60,9 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
     setLoading(true);
     try {
       const data = await file.arrayBuffer();
-      const workbook = xlsx.read(data, { type: 'array' });
+      // cellDates: true makes date-formatted cells arrive as real Dates instead of
+      // Excel serial numbers (a raw 45678 would otherwise be cast to 1970).
+      const workbook = xlsx.read(data, { type: 'array', cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
       const parsedData = xlsx.utils.sheet_to_json(sheet, { defval: '' });
@@ -152,6 +156,34 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
             </div>
           </div>
           
+          {type === 'students' && (
+            <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1.5">
+              <p className="font-semibold text-slate-700">Fee columns</p>
+              <p>
+                <code className="bg-white border px-1 rounded">isFreeship</code> — enter <strong>Yes</strong> for
+                students whose fees the school has waived. No challan is generated or printed for them. Leave blank for
+                paying students.
+              </p>
+              <p>
+                <code className="bg-white border px-1 rounded">previousDues</code> — outstanding <strong>monthly</strong>{' '}
+                fee the student already owes, with{' '}
+                <code className="bg-white border px-1 rounded">previousDuesFrom</code> /{' '}
+                <code className="bg-white border px-1 rounded">previousDuesTo</code> giving the months it covers. This
+                amount is carried into the next challan as <em>Previous Arrears</em>.
+              </p>
+              <p>
+                <code className="bg-white border px-1 rounded">previousAnnualFee</code> — unpaid{' '}
+                <strong>annual</strong> fee from before. Tracked separately and printed on its own{' '}
+                <em>Previous Annual Fee</em> line, so it is never mixed into the monthly arrears. No date range needed.
+              </p>
+              <p className="text-slate-500">
+                Dates accept a real date cell, <code className="bg-white border px-1 rounded">2026-01-15</code>,{' '}
+                <code className="bg-white border px-1 rounded">January 2026</code> or{' '}
+                <code className="bg-white border px-1 rounded">2026-01</code>.
+              </p>
+            </div>
+          )}
+
           <div className="mt-4 flex items-start gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg text-xs">
             <AlertCircle size={14} className="shrink-0 mt-0.5" />
             <p>Make sure the header names exactly match the template. Invalid data may cause the entire import to fail.</p>

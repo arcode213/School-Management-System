@@ -166,9 +166,44 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
                 <input id="std-statusDate" type="date" {...register('statusDate')} className={input()} />
               </Field>
             )}
-            <Field label="Previous Dues (Arrears)">
+          </Section>
+
+          {/* Fee status & opening arrears */}
+          <Section title="Fee Status & Opening Arrears">
+            {/* Freeship — editable at any time, since a waiver can be granted or
+                revoked mid-session. */}
+            <div className="col-span-2">
+              <label htmlFor="std-isFreeship"
+                className="flex items-start gap-3 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-amber-100/70 transition">
+                <input id="std-isFreeship" type="checkbox" {...register('isFreeship')} className="mt-0.5 flex-shrink-0" />
+                <span>
+                  <span className="block text-sm font-medium text-amber-900">Freeship student — fees waived by the school</span>
+                  <span className="block text-xs text-amber-700 mt-0.5">
+                    No fee challan will be generated or printed for this student while this is ticked.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <Field label="Dues Period From">
+              <input id="std-previousDuesFrom" type="date" {...register('previousDuesFrom')} className={input()} disabled={isEdit} />
+            </Field>
+            <Field label="Dues Period To">
+              <input id="std-previousDuesTo" type="date" {...register('previousDuesTo')} className={input()} disabled={isEdit} />
+            </Field>
+            <Field label="Previous Dues Amount (Rs.)">
               <input id="std-previousDues" type="number" min="0" {...register('previousDues', { valueAsNumber: true })} className={input()} placeholder="e.g. 1500" disabled={isEdit} />
             </Field>
+            <Field label="Previous Annual Fees (Rs.)">
+              <input id="std-previousAnnualFee" type="number" min="0" {...register('previousAnnualFee', { valueAsNumber: true })} className={input()} placeholder="e.g. 3000" disabled={isEdit} />
+            </Field>
+            <div className="col-span-2">
+              <p className="text-xs text-slate-400 leading-snug">
+                {isEdit
+                  ? 'Opening balances are set at admission. Adjust the existing arrears challan from Fee Management instead.'
+                  : 'Leave amounts blank or 0 if nothing is owed. Monthly dues print as “Arrears (January - March)” using the period above; unpaid annual fee prints on its own “Previous Annual Fee” line.'}
+              </p>
+            </div>
           </Section>
 
           {/* Address */}

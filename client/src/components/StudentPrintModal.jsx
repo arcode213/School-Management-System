@@ -14,6 +14,7 @@ const COLUMNS = [
   { key: 'rollNumber',   label: 'Roll No',        get: s => s.rollNumber },
   { key: 'gender',       label: 'Gender',         get: s => s.gender },
   { key: 'status',       label: 'Status',         get: s => s.status },
+  { key: 'isFreeship',   label: 'Freeship',       get: s => (s.isFreeship ? 'Yes' : 'No') },
   { key: 'phone',        label: 'Phone',          get: s => s.phone },
   { key: 'fatherContact',label: 'Father Contact', get: s => s.fatherContact },
   { key: 'dateOfBirth',  label: 'Date of Birth',  get: s => s.dateOfBirth?.substring(0, 10) },
@@ -45,6 +46,8 @@ export default function StudentPrintModal({ open, onClose, filters }) {
     if (filters.class) parts.push(`Class ${filters.class}`);
     if (filters.section) parts.push(`Section ${filters.section}`);
     if (filters.status) parts.push(filters.status);
+    if (filters.freeship === 'yes') parts.push('Freeship only');
+    else if (filters.freeship === 'no') parts.push('Paying only');
     if (filters.search) parts.push(`Search: "${filters.search}"`);
     return parts.length ? parts.join(' • ') : 'All Students';
   };

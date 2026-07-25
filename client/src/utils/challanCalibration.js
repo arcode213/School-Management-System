@@ -30,15 +30,20 @@ export const DEFAULT_CALIBRATION = {
     dueDate:     { x: 13.0, y: 56.6, align: 'left' },
     month:       { x: 35.0, y: 56.6, align: 'left' },
 
-    // Fee summary block — current month, arrears and total. Each label/amount
-    // is an independently draggable element so the user can align them onto
-    // whatever the pre-printed challan expects.
+    // Fee summary block. Five possible lines, printed in this order and only when
+    // they apply: current month fee, previous arrears, current annual fee, previous
+    // annual fee, then the total. Each label/amount is an independently draggable
+    // element so the user can align them onto whatever the pre-printed challan expects.
     sumCurrentLabel:  { x: 6.0,  y: 64.5, align: 'left' },
     sumCurrentAmount: { x: 46.0, y: 64.5, align: 'right' },
     sumArrearsLabel:  { x: 6.0,  y: 69.0, align: 'left' },
     sumArrearsAmount: { x: 46.0, y: 69.0, align: 'right' },
-    sumTotalLabel:    { x: 6.0,  y: 73.5, align: 'left' },
-    sumTotalAmount:   { x: 46.0, y: 73.5, align: 'right' },
+    sumAnnualLabel:   { x: 6.0,  y: 73.5, align: 'left' },
+    sumAnnualAmount:  { x: 46.0, y: 73.5, align: 'right' },
+    sumPrevAnnualLabel:  { x: 6.0,  y: 78.0, align: 'left' },
+    sumPrevAnnualAmount: { x: 46.0, y: 78.0, align: 'right' },
+    sumTotalLabel:    { x: 6.0,  y: 82.5, align: 'left' },
+    sumTotalAmount:   { x: 46.0, y: 82.5, align: 'right' },
   },
 
   tableMap: {

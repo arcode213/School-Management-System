@@ -42,6 +42,7 @@ export default function StudentsPage() {
   const [filterSection, setFilterSection] = useState('');
   const [filterStatus, setFilterStatus] = useState('Active');
   const [filterGender, setFilterGender] = useState('');
+  const [filterFreeship, setFilterFreeship] = useState('');
   const [page, setPage] = useState(1);
 
   // Modal
@@ -54,7 +55,8 @@ export default function StudentsPage() {
     setLoading(true);
     try {
       const { data } = await getStudents({
-        search, class: filterClass, section: filterSection, status: filterStatus, gender: filterGender, page, limit: 10,
+        search, class: filterClass, section: filterSection, status: filterStatus,
+        gender: filterGender, freeship: filterFreeship, page, limit: 10,
       });
       setStudents(data.students);
       setPagination(data.pagination);
@@ -63,7 +65,7 @@ export default function StudentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterClass, filterSection, filterStatus, filterGender, page]);
+  }, [search, filterClass, filterSection, filterStatus, filterGender, filterFreeship, page]);
 
   useEffect(() => { 
     if (currentCampus && currentSession) fetchStudents(); 
@@ -101,6 +103,7 @@ export default function StudentsPage() {
     { label: 'Section',           get: s => s.section },
     { label: 'Roll No',           get: s => s.rollNumber },
     { label: 'Status',            get: s => s.status },
+    { label: 'Freeship',          get: s => (s.isFreeship ? 'Yes' : 'No') },
     { label: 'Gender',            get: s => s.gender },
     { label: 'Date of Birth',     get: s => date10(s.dateOfBirth) },
     { label: 'Place of Birth',    get: s => s.placeOfBirth },
@@ -127,7 +130,8 @@ export default function StudentsPage() {
       // Pull all matching records, not the paginated slice held in `students`.
       const { data } = await getStudents({
         search, class: filterClass, section: filterSection,
-        status: filterStatus, gender: filterGender, page: 1, limit: 100000,
+        status: filterStatus, gender: filterGender, freeship: filterFreeship,
+        page: 1, limit: 100000,
       });
       const all = data.students || [];
       if (all.length === 0) { toast.error('No students match the current filters'); return; }
@@ -217,9 +221,17 @@ export default function StudentsPage() {
             <option value="Female">Girls</option>
             <option value="Other">Other</option>
           </select>
+          {/* Freeship filter */}
+          <select id="filter-freeship" value={filterFreeship}
+            onChange={e => { setFilterFreeship(e.target.value); setPage(1); }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Fee: All</option>
+            <option value="yes">Freeship only</option>
+            <option value="no">Paying only</option>
+          </select>
           {/* Clear */}
-          {(search || filterClass || filterSection || filterStatus || filterGender) && (
-            <button onClick={() => { setSearch(''); setFilterClass(''); setFilterSection(''); setFilterStatus('Active'); setFilterGender(''); setPage(1); }}
+          {(search || filterClass || filterSection || filterStatus || filterGender || filterFreeship) && (
+            <button onClick={() => { setSearch(''); setFilterClass(''); setFilterSection(''); setFilterStatus('Active'); setFilterGender(''); setFilterFreeship(''); setPage(1); }}
               className="text-xs text-red-500 hover:text-red-700 px-3 py-2 border border-red-200 rounded-lg transition">
               Clear filters
             </button>
@@ -256,7 +268,15 @@ export default function StudentsPage() {
                 {students.map(s => (
                   <tr key={s._id} className="hover:bg-slate-50 transition group">
                     <td className="px-4 py-3 font-mono text-xs text-blue-600 font-medium">{s.studentId}</td>
-                    <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">{s.fullName}</td>
+                    <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">
+                      {s.fullName}
+                      {s.isFreeship && (
+                        <span className="ml-2 align-middle inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700"
+                          title="Fees waived — no challan is generated or printed">
+                          FREESHIP
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{s.fatherName || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">Class {s.class}</td>
                     <td className="px-4 py-3 text-slate-600">{s.section || '—'}</td>
@@ -340,7 +360,7 @@ export default function StudentsPage() {
       <StudentPrintModal
         open={printOpen}
         onClose={() => setPrintOpen(false)}
-        filters={{ search, class: filterClass, section: filterSection, status: filterStatus, gender: filterGender }}
+        filters={{ search, class: filterClass, section: filterSection, status: filterStatus, gender: filterGender, freeship: filterFreeship }}
       />
     </div>
   );

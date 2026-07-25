@@ -5,12 +5,64 @@ const FeeRecord = require('../models/FeeRecord');
 const FeeStructure = require('../models/FeeStructure');
 const StudentFeeOverride = require('../models/StudentFeeOverride');
 const { getNextSeqNumber, formatSeqId, generateSequentialId } = require('../utils/sequentialId');
-
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const { buildArrearsPeriod } = require('../utils/feeMonths');
 
 // Helper: auto-generate a collision-safe studentId (derived from the max
 // existing suffix, so it survives hard-deleted records).
 const generateStudentId = (session) => generateSequentialId(Student, 'studentId', 'SMS', session);
+
+// Spreadsheet-friendly boolean. An imported column may hold a real boolean, 1/0,
+// or free text like "Yes" / "Freeship", so accept all of them.
+const parseBoolean = (v) => {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'number') return v === 1;
+  if (typeof v !== 'string') return false;
+  return ['yes', 'y', 'true', '1', 'freeship', 'free'].includes(v.trim().toLowerCase());
+};
+
+// Empty/blank roll numbers must become undefined, not '', or the partial unique
+// index (which only covers string values) treats every blank as the same roll
+// number and rejects the second student.
+const cleanRoll = (v) => (v === '' || v === null || v === undefined ? undefined : String(v));
+
+// Build the synthetic "opening arrears" challan for a student admitted or imported
+// with a pre-existing balance. `from`/`to` describe the months the MONTHLY balance
+// covers and drive the range printed on the challan; the annual amount is a one-off
+// with no month range of its own. Returns null when nothing is owed on either side.
+const buildOpeningArrears = ({
+  challanNo, student, academicRecord, campus, academicSession, amount, from, to, annualAmount,
+}) => {
+  const monthlyDues = Number(amount) > 0 ? Number(amount) : 0;
+  const annualDues = Number(annualAmount) > 0 ? Number(annualAmount) : 0;
+  if (monthlyDues <= 0 && annualDues <= 0) return null;
+
+  const period = buildArrearsPeriod(from, to);
+
+  // The "Previous Arrears" fallback label only makes sense when monthly arrears
+  // exist. For an annual-fee-only opening balance, use the plain month instead.
+  const dueMonthRange =
+    monthlyDues <= 0 && period.dueMonthRange === 'Previous Arrears' ? period.feeMonth : period.dueMonthRange;
+
+  return new FeeRecord({
+    challanNo,
+    student,
+    studentAcademicRecord: academicRecord,
+    campus,
+    academicSession,
+    feeMonth: period.feeMonth,
+    feeYear: period.feeYear,
+    dueMonthRange,
+    tuitionFee: 0,
+    examFee: 0,
+    transportFee: 0,
+    miscFee: 0,
+    annualFee: 0,
+    previousDues: monthlyDues,
+    previousAnnualDues: annualDues,
+    isOpeningBalance: true,
+    dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
+  });
+};
 
 // @desc    Add a new student
 // @route   POST /api/students
@@ -24,7 +76,11 @@ const addStudent = async (req, res) => {
       throw new Error('Campus and Academic Session context are required');
     }
 
-    const { class: className, section, rollNumber, status, statusDate, feeStructure, previousDues, ...personalDetails } = req.body;
+    const {
+      class: className, section, rollNumber, status, statusDate, feeStructure,
+      previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee, isFreeship,
+      ...personalDetails
+    } = req.body;
 
     const studentId = await generateStudentId(session);
 
@@ -36,9 +92,6 @@ const addStudent = async (req, res) => {
     });
     await student.save({ session });
 
-    // Normalize roll number (empty/null becomes undefined so it's not indexed as a duplicate string)
-    const cleanRollNumber = (rollNumber === '' || rollNumber === null || rollNumber === undefined) ? undefined : rollNumber;
-
     // Create academic record
     const academicRecord = new StudentAcademicRecord({
       student: student._id,
@@ -46,40 +99,42 @@ const addStudent = async (req, res) => {
       academicSession: currentSession,
       className: className || 'Unassigned',
       section,
-      rollNumber: cleanRollNumber,
+      rollNumber: cleanRoll(rollNumber),
       status: status || 'Active',
       statusDate: (status === 'Left' || status === 'Graduated') ? (statusDate ? new Date(statusDate) : new Date()) : undefined,
+      isFreeship: parseBoolean(isFreeship),
       feeStructure,
       admissionDate: personalDetails.admissionDate
     });
     await academicRecord.save({ session });
 
-    // Handle previous dues
-    if (previousDues && Number(previousDues) > 0) {
-      const arrearsRecord = new FeeRecord({
-        challanNo: `ARR-${studentId}-${Date.now()}`,
-        student: student._id,
-        studentAcademicRecord: academicRecord._id,
-        campus: currentCampus,
-        academicSession: currentSession,
-        feeMonth: MONTHS[new Date().getMonth()],
-        feeYear: new Date().getFullYear(),
-        dueMonthRange: 'Previous Arrears',
-        tuitionFee: 0,
-        examFee: 0,
-        transportFee: 0,
-        miscFee: 0,
-        previousDues: Number(previousDues),
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 10))
-      });
-      await arrearsRecord.save({ session });
-    }
+    // Handle previous dues. Recorded even for Freeship students — a waiver stops
+    // future challans, it does not erase money already owed.
+    const arrearsRecord = buildOpeningArrears({
+      challanNo: `ARR-${studentId}-${Date.now()}`,
+      student: student._id,
+      academicRecord: academicRecord._id,
+      campus: currentCampus,
+      academicSession: currentSession,
+      amount: previousDues,
+      from: previousDuesFrom,
+      to: previousDuesTo,
+      annualAmount: previousAnnualFee,
+    });
+    if (arrearsRecord) await arrearsRecord.save({ session });
 
     await session.commitTransaction();
     session.endSession();
 
     // Format response
-    const result = { ...student.toJSON(), class: academicRecord.className, section: academicRecord.section, rollNumber: academicRecord.rollNumber, status: academicRecord.status };
+    const result = {
+      ...student.toJSON(),
+      class: academicRecord.className,
+      section: academicRecord.section,
+      rollNumber: academicRecord.rollNumber,
+      status: academicRecord.status,
+      isFreeship: academicRecord.isFreeship,
+    };
     res.status(201).json(result);
   } catch (err) {
     await session.abortTransaction();
@@ -94,7 +149,7 @@ const addStudent = async (req, res) => {
 const getStudents = async (req, res) => {
   try {
     const { currentCampus, currentSession } = req;
-    const { class: cls, section, status, search, gender, page = 1, limit = 10 } = req.query;
+    const { class: cls, section, status, search, gender, freeship, page = 1, limit = 10 } = req.query;
 
     const matchPipeline = {
       isDeleted: false
@@ -105,6 +160,11 @@ const getStudents = async (req, res) => {
     if (cls) matchPipeline.className = cls;
     if (section) matchPipeline.section = section;
     if (status) matchPipeline.status = status;
+
+    // Freeship filter. Records created before this field existed have no
+    // `isFreeship` key at all, so "paying students" must match missing OR false.
+    if (freeship === 'yes') matchPipeline.isFreeship = true;
+    else if (freeship === 'no') matchPipeline.isFreeship = { $ne: true };
 
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -127,14 +187,16 @@ const getStudents = async (req, res) => {
       pipeline.push({ $match: { 'studentData.gender': gender } });
     }
 
-    if (search) {
+    // Escape regex metacharacters so a stray '(' or '+' in the query can't throw.
+    if (search && search.trim()) {
+      const rx = { $regex: search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
       pipeline.push({
         $match: {
           $or: [
-            { 'studentData.fullName': { $regex: search, $options: 'i' } },
-            { 'studentData.studentId': { $regex: search, $options: 'i' } },
-            { 'studentData.fatherName': { $regex: search, $options: 'i' } },
-            { rollNumber: { $regex: search, $options: 'i' } }
+            { 'studentData.fullName': rx },
+            { 'studentData.studentId': rx },
+            { 'studentData.fatherName': rx },
+            { rollNumber: rx }
           ]
         }
       });
@@ -162,7 +224,8 @@ const getStudents = async (req, res) => {
       section: r.section,
       rollNumber: r.rollNumber,
       status: r.status,
-      statusDate: r.statusDate
+      statusDate: r.statusDate,
+      isFreeship: !!r.isFreeship
     }));
 
     res.json({
@@ -206,6 +269,7 @@ const getStudent = async (req, res) => {
       result.status = current.status;
       result.statusDate = current.statusDate;
       result.academicRecordId = current._id;
+      result.isFreeship = !!current.isFreeship;
 
       // Effective monthly fee = class fee structure with any per-student
       // override applied (mirrors the fee/challan generation logic).
@@ -226,9 +290,12 @@ const getStudent = async (req, res) => {
         miscFee,
         admissionFee: struct?.admissionFee || 0,
         examFee: struct?.examFee || 0,
-        monthlyTotal: tuitionFee + transportFee + miscFee,
+        // A Freeship student is billed nothing, so the effective payable is zero
+        // regardless of what the class structure says.
+        monthlyTotal: current.isFreeship ? 0 : tuitionFee + transportFee + miscFee,
         hasStructure: !!struct,
         hasOverride: !!override,
+        isFreeship: !!current.isFreeship,
       };
     }
 
@@ -246,7 +313,13 @@ const updateStudent = async (req, res) => {
 
   try {
     const { currentCampus, currentSession } = req;
-    const { class: className, section, rollNumber, status, statusDate, feeStructure, academicRecordId, ...personalDetails } = req.body;
+    // previousDues* are admission-time only (they created a one-off arrears
+    // challan); strip them so they can never leak into the Student document.
+    const {
+      class: className, section, rollNumber, status, statusDate, feeStructure, academicRecordId,
+      isFreeship, previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee,
+      ...personalDetails
+    } = req.body;
 
     const student = await Student.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
@@ -258,6 +331,9 @@ const updateStudent = async (req, res) => {
     let academicRecord;
     const updatePayload = { className, section, status, feeStructure };
     const unsetPayload = {};
+
+    // Freeship can be granted or revoked at any time during the session.
+    if (isFreeship !== undefined) updatePayload.isFreeship = parseBoolean(isFreeship);
 
     if (rollNumber === '' || rollNumber === null || rollNumber === undefined) {
       unsetPayload.rollNumber = '';
@@ -303,6 +379,7 @@ const updateStudent = async (req, res) => {
       result.rollNumber = academicRecord.rollNumber;
       result.status = academicRecord.status;
       result.statusDate = academicRecord.statusDate;
+      result.isFreeship = !!academicRecord.isFreeship;
     }
 
     res.json(result);
@@ -385,7 +462,11 @@ const bulkAddStudents = async (req, res) => {
 
     for (let i = 0; i < studentsData.length; i++) {
       const studentObj = studentsData[i];
-      const { class: className, section, rollNumber, status, statusDate, feeStructure, previousDues, ...personalDetails } = studentObj;
+      const {
+        class: className, section, rollNumber, status, statusDate, feeStructure,
+        previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee, isFreeship,
+        ...personalDetails
+      } = studentObj;
 
       const studentId = formatSeqId('SMS', nextSeq++);
 
@@ -404,35 +485,36 @@ const bulkAddStudents = async (req, res) => {
         academicSession: currentSession,
         className: className || 'Unassigned',
         section,
-        rollNumber,
+        rollNumber: cleanRoll(rollNumber),
         status: status || 'Active',
         statusDate: (status === 'Left' || status === 'Graduated') ? (statusDate ? new Date(statusDate) : new Date()) : undefined,
+        isFreeship: parseBoolean(isFreeship),
         feeStructure,
         admissionDate: personalDetails.admissionDate || Date.now()
       });
       await academicRecord.save({ session });
 
-      if (previousDues && Number(previousDues) > 0) {
-        const arrearsRecord = new FeeRecord({
-          challanNo: `ARR-${studentId}-${Date.now()}-${i}`,
-          student: student._id,
-          studentAcademicRecord: academicRecord._id,
-          campus: currentCampus,
-          academicSession: currentSession,
-          feeMonth: MONTHS[new Date().getMonth()],
-          feeYear: new Date().getFullYear(),
-          dueMonthRange: 'Previous Arrears',
-          tuitionFee: 0,
-          examFee: 0,
-          transportFee: 0,
-          miscFee: 0,
-          previousDues: Number(previousDues),
-          dueDate: new Date(new Date().setDate(new Date().getDate() + 10))
-        });
-        await arrearsRecord.save({ session });
-      }
+      const arrearsRecord = buildOpeningArrears({
+        challanNo: `ARR-${studentId}-${Date.now()}-${i}`,
+        student: student._id,
+        academicRecord: academicRecord._id,
+        campus: currentCampus,
+        academicSession: currentSession,
+        amount: previousDues,
+        from: previousDuesFrom,
+        to: previousDuesTo,
+        annualAmount: previousAnnualFee,
+      });
+      if (arrearsRecord) await arrearsRecord.save({ session });
 
-      addedStudents.push({ ...student.toJSON(), class: academicRecord.className, section: academicRecord.section, rollNumber: academicRecord.rollNumber, status: academicRecord.status });
+      addedStudents.push({
+        ...student.toJSON(),
+        class: academicRecord.className,
+        section: academicRecord.section,
+        rollNumber: academicRecord.rollNumber,
+        status: academicRecord.status,
+        isFreeship: academicRecord.isFreeship,
+      });
     }
 
     await session.commitTransaction();
