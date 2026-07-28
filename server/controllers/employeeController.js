@@ -2,6 +2,7 @@ const Employee = require('../models/Employee');
 const SalaryRecord = require('../models/SalaryRecord');
 const mongoose = require('mongoose');
 const { getNextSeqNumber, formatSeqId, generateSequentialId } = require('../utils/sequentialId');
+const { normalizeEmployeeRow } = require('../utils/importNormalizer');
 
 // Collision-safe employeeId (derived from the max existing suffix, so it
 // survives hard-deleted records instead of drifting like a document count).
@@ -190,23 +191,36 @@ const bulkAddEmployees = async (req, res) => {
 
     const addedEmployees = [];
 
+    // The client uploads in batches, so `i` restarts at 0 each request. The
+    // offset lets an error name the row as it appears in the user's file.
+    const rowOffset = Number(req.body.rowOffset) || 0;
+
     // Pre-calculate the starting sequence number (max existing suffix + 1),
     // then increment locally for each imported record.
     let nextSeq = await getNextSeqNumber(Employee, 'employeeId', 'EMP', session);
 
     for (let i = 0; i < employeesData.length; i++) {
-      const employeeObj = employeesData[i];
+      // +2 = 1-based rows, plus the header row.
+      const rowNumber = rowOffset + i + 2;
+      // Loose spreadsheet headers are mapped onto schema fields and blank cells
+      // dropped, so optional columns can be left empty.
+      const employeeObj = normalizeEmployeeRow(employeesData[i]);
 
       const employeeId = formatSeqId('EMP', nextSeq++);
 
-      const employee = new Employee({
-        ...employeeObj,
-        employeeId,
-        campus: currentCampus
-      });
-      await employee.save({ session });
+      try {
+        const employee = new Employee({
+          ...employeeObj,
+          employeeId,
+          campus: currentCampus
+        });
+        await employee.save({ session });
 
-      addedEmployees.push(employee);
+        addedEmployees.push(employee);
+      } catch (rowErr) {
+        rowErr.message = `Row ${rowNumber} (${employeeObj.fullName || 'no name'}): ${rowErr.message}`;
+        throw rowErr;
+      }
     }
 
     await session.commitTransaction();
@@ -216,8 +230,11 @@ const bulkAddEmployees = async (req, res) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    if (err.code === 11000) return res.status(400).json({ message: 'Duplicate entry', field: Object.keys(err.keyValue)[0] });
-    res.status(500).json({ message: err.message });
+    if (err.code === 11000) {
+      const field = err.keyValue ? Object.keys(err.keyValue)[0] : 'value';
+      return res.status(400).json({ message: `${err.message || 'Duplicate entry'} — duplicate ${field}`, field });
+    }
+    res.status(400).json({ message: err.message });
   }
 };
 

@@ -33,7 +33,12 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json());
+// Excel imports POST the whole parsed sheet as JSON. The body-parser default of
+// 100kb is blown by a few hundred rows, which surfaces as a 413
+// "request entity too large". The client also chunks the import, so this ceiling
+// is only a safety net.
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // Global Context Middleware
 app.use(contextMiddleware);

@@ -4,10 +4,16 @@ import toast from 'react-hot-toast';
 import * as xlsx from 'xlsx';
 import api from '../api/axios';
 
+// Rows are sent in batches instead of one giant JSON body. A single request with
+// a full sheet exceeded the server's body limit (413 "request entity too large"),
+// and on serverless hosting the platform caps the body regardless of that limit.
+const CHUNK_SIZE = 100;
+
 export default function ImportExcelModal({ open, onClose, onImportSuccess, type }) {
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  
+  const [progress, setProgress] = useState(null);
+
   if (!open) return null;
 
   const downloadTemplate = () => {
@@ -65,7 +71,13 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
       const workbook = xlsx.read(data, { type: 'array', cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      const parsedData = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+      const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+
+      // Excel files routinely carry trailing rows that look empty but still have
+      // cells attached. Sending those makes the server reject the batch over a
+      // row the user never filled in.
+      const isBlank = (v) => v === null || v === undefined || String(v).trim() === '';
+      const parsedData = rows.filter((row) => Object.values(row).some((v) => !isBlank(v)));
 
       if (parsedData.length === 0) {
         toast.error('The file is empty.');
@@ -77,10 +89,36 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
       // NOT be prefixed with '/api' (doing so produced '/api/api/...' -> 404).
       const endpoint = type === 'students' ? '/students/bulk' : '/employees/bulk';
       const payloadKey = type === 'students' ? 'students' : 'employees';
-      
-      const res = await api.post(endpoint, { [payloadKey]: parsedData });
-      
-      toast.success(res.data.message || 'Imported successfully!');
+      const label = type === 'students' ? 'students' : 'employees';
+
+      const total = parsedData.length;
+      let imported = 0;
+      setProgress({ done: 0, total });
+
+      // Each batch is committed in its own transaction server-side, so a failure
+      // part-way through keeps everything already imported.
+      for (let i = 0; i < total; i += CHUNK_SIZE) {
+        const chunk = parsedData.slice(i, i + CHUNK_SIZE);
+        try {
+          // rowOffset lets the server report failures using the row number as it
+          // appears in the user's file, not the row's index inside this batch.
+          await api.post(endpoint, { [payloadKey]: chunk, rowOffset: i });
+        } catch (err) {
+          console.error(err);
+          const reason = err.response?.data?.message || 'Failed to import data';
+          if (imported > 0) {
+            toast.error(`Imported ${imported} of ${total} rows, then stopped. ${reason}`);
+            onImportSuccess();
+          } else {
+            toast.error(reason);
+          }
+          return;
+        }
+        imported += chunk.length;
+        setProgress({ done: imported, total });
+      }
+
+      toast.success(`${imported} ${label} imported successfully`);
       onImportSuccess();
       onClose();
     } catch (err) {
@@ -88,6 +126,7 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
       toast.error(err.response?.data?.message || 'Failed to import data');
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   };
 
@@ -200,7 +239,17 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
         {loading && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">
             <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mb-3" />
-            <p className="text-sm font-medium text-slate-700">Processing File...</p>
+            <p className="text-sm font-medium text-slate-700">
+              {progress ? `Importing ${progress.done} of ${progress.total} rows...` : 'Processing File...'}
+            </p>
+            {progress && progress.total > 0 && (
+              <div className="mt-3 w-48 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 transition-all duration-300"
+                  style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

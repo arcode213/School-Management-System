@@ -6,6 +6,7 @@ const FeeStructure = require('../models/FeeStructure');
 const StudentFeeOverride = require('../models/StudentFeeOverride');
 const { getNextSeqNumber, formatSeqId, generateSequentialId } = require('../utils/sequentialId');
 const { buildArrearsPeriod } = require('../utils/feeMonths');
+const { normalizeStudentRow } = require('../utils/importNormalizer');
 
 // Helper: auto-generate a collision-safe studentId (derived from the max
 // existing suffix, so it survives hard-deleted records).
@@ -456,65 +457,87 @@ const bulkAddStudents = async (req, res) => {
 
     const addedStudents = [];
 
+    // The client uploads in batches, so `i` restarts at 0 each request. The
+    // offset lets an error name the row as it appears in the user's file.
+    const rowOffset = Number(req.body.rowOffset) || 0;
+
     // Pre-calculate the starting sequence number (max existing suffix + 1),
     // then increment locally for each imported record.
     let nextSeq = await getNextSeqNumber(Student, 'studentId', 'SMS', session);
 
     for (let i = 0; i < studentsData.length; i++) {
-      const studentObj = studentsData[i];
+      // +2 = 1-based rows, plus the header row.
+      const rowNumber = rowOffset + i + 2;
+      // Loose spreadsheet headers ("studentName", "previous dues") are mapped
+      // onto schema fields and blank cells dropped before anything is saved.
+      const studentObj = normalizeStudentRow(studentsData[i]);
       const {
         class: className, section, rollNumber, status, statusDate, feeStructure,
         previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee, isFreeship,
         ...personalDetails
       } = studentObj;
 
+      if (!personalDetails.fullName) {
+        throw new Error(
+          `Row ${rowNumber}: student name is missing. Check that your file has a name column ` +
+          `(e.g. "fullName" or "studentName") and that the row is not empty.`
+        );
+      }
+
       const studentId = formatSeqId('SMS', nextSeq++);
 
-      // Create personal record
-      const student = new Student({
-        ...personalDetails,
-        studentId,
-        currentCampus
-      });
-      await student.save({ session });
+      try {
+        // Create personal record
+        const student = new Student({
+          ...personalDetails,
+          studentId,
+          currentCampus
+        });
+        await student.save({ session });
 
-      // Create academic record
-      const academicRecord = new StudentAcademicRecord({
-        student: student._id,
-        campus: currentCampus,
-        academicSession: currentSession,
-        className: className || 'Unassigned',
-        section,
-        rollNumber: cleanRoll(rollNumber),
-        status: status || 'Active',
-        statusDate: (status === 'Left' || status === 'Graduated') ? (statusDate ? new Date(statusDate) : new Date()) : undefined,
-        isFreeship: parseBoolean(isFreeship),
-        feeStructure,
-        admissionDate: personalDetails.admissionDate || Date.now()
-      });
-      await academicRecord.save({ session });
+        // Create academic record
+        const academicRecord = new StudentAcademicRecord({
+          student: student._id,
+          campus: currentCampus,
+          academicSession: currentSession,
+          className: className || 'Unassigned',
+          section,
+          rollNumber: cleanRoll(rollNumber),
+          status: status || 'Active',
+          statusDate: (status === 'Left' || status === 'Graduated') ? (statusDate ? new Date(statusDate) : new Date()) : undefined,
+          isFreeship: parseBoolean(isFreeship),
+          feeStructure,
+          admissionDate: personalDetails.admissionDate || Date.now()
+        });
+        await academicRecord.save({ session });
 
-      const arrearsRecord = buildOpeningArrears({
-        challanNo: `ARR-${studentId}-${Date.now()}-${i}`,
-        student: student._id,
-        academicRecord: academicRecord._id,
-        campus: currentCampus,
-        academicSession: currentSession,
-        amount: previousDues,
-        from: previousDuesFrom,
-        to: previousDuesTo,
-        annualAmount: previousAnnualFee,
-      });
-      if (arrearsRecord) await arrearsRecord.save({ session });
+        const arrearsRecord = buildOpeningArrears({
+          challanNo: `ARR-${studentId}-${Date.now()}-${i}`,
+          student: student._id,
+          academicRecord: academicRecord._id,
+          campus: currentCampus,
+          academicSession: currentSession,
+          amount: previousDues,
+          from: previousDuesFrom,
+          to: previousDuesTo,
+          annualAmount: previousAnnualFee,
+        });
+        if (arrearsRecord) await arrearsRecord.save({ session });
 
-      addedStudents.push({
-        ...student.toJSON(),
-        class: academicRecord.className,
-        section: academicRecord.section,
-        rollNumber: academicRecord.rollNumber,
-        status: academicRecord.status,
-        isFreeship: academicRecord.isFreeship,
-      });
+        addedStudents.push({
+          ...student.toJSON(),
+          class: academicRecord.className,
+          section: academicRecord.section,
+          rollNumber: academicRecord.rollNumber,
+          status: academicRecord.status,
+          isFreeship: academicRecord.isFreeship,
+        });
+      } catch (rowErr) {
+        // Duplicates keep their 11000 code so the caller can still special-case
+        // them; everything else gets the row number folded into the message.
+        rowErr.message = `Row ${rowNumber} (${personalDetails.fullName}): ${rowErr.message}`;
+        throw rowErr;
+      }
     }
 
     await session.commitTransaction();
@@ -524,8 +547,11 @@ const bulkAddStudents = async (req, res) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    if (err.code === 11000) return res.status(400).json({ message: 'Duplicate entry', field: Object.keys(err.keyValue)[0] });
-    res.status(500).json({ message: err.message });
+    if (err.code === 11000) {
+      const field = err.keyValue ? Object.keys(err.keyValue)[0] : 'value';
+      return res.status(400).json({ message: `${err.message || 'Duplicate entry'} — duplicate ${field}`, field });
+    }
+    res.status(400).json({ message: err.message });
   }
 };
 
