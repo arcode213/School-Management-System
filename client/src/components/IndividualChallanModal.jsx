@@ -59,6 +59,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
       setSelectedStudent({
         _id: feeRecord.student?._id || feeRecord.student,
         fullName: feeRecord.studentInfo?.fullName || feeRecord.student?.fullName,
+        fatherName: feeRecord.studentInfo?.fatherName || feeRecord.student?.fatherName,
         class: feeRecord.studentInfo?.class,
         section: feeRecord.studentInfo?.section,
         isFreeship: feeRecord.studentInfo?.isFreeship,
@@ -213,6 +214,9 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
               <span className="font-semibold text-slate-800">
                 {selectedStudent?.fullName} {selectedStudent?.class ? `(Class ${selectedStudent.class}${selectedStudent.section ? ' ' + selectedStudent.section : ''})` : ''}
               </span>
+              {selectedStudent?.fatherName && (
+                <span className="block text-xs text-slate-500">s/o {selectedStudent.fatherName}</span>
+              )}
             </div>
           ) : selectedStudent ? (
             <div className={`rounded-xl p-3 border text-sm ${blockedByFreeship ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-100'}`}>
@@ -222,6 +226,9 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
                   <span className="font-semibold text-slate-800">
                     {selectedStudent.fullName} (Class {selectedStudent.class}{selectedStudent.section ? ' ' + selectedStudent.section : ''})
                   </span>
+                  {selectedStudent.fatherName && (
+                    <span className="block text-xs text-slate-500">s/o {selectedStudent.fatherName}</span>
+                  )}
                 </div>
                 <button type="button" onClick={() => setSelectedStudent(null)} className="text-xs text-blue-600 hover:underline">Change</button>
               </div>
@@ -264,6 +271,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
                           </span>
                         )}
                       </div>
+                      {s.fatherName && <div className="text-xs text-slate-500">s/o {s.fatherName}</div>}
                       <div className="text-xs text-slate-500">{s.studentId} • Class {s.class}{s.section ? ' ' + s.section : ''}</div>
                     </button>
                   ))}

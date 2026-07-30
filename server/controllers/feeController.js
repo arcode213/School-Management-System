@@ -541,6 +541,9 @@ const updateFee = async (req, res) => {
 
     // Payment fields
     if (req.body.amountPaid !== undefined) fee.amountPaid = req.body.amountPaid;
+    // How much of that total is earmarked for the annual fee (see the FeeRecord
+    // pre-save allocation rule). Sent as a running total, like amountPaid.
+    if (req.body.annualPaid !== undefined) fee.annualPaid = Number(req.body.annualPaid) || 0;
     if (req.body.paymentMethod) fee.paymentMethod = req.body.paymentMethod;
     if (req.body.paymentDate) fee.paymentDate = req.body.paymentDate;
     if (req.body.remarks !== undefined) fee.remarks = req.body.remarks;

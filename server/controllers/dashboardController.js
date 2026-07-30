@@ -232,7 +232,7 @@ const getRecentPayments = async (req, res) => {
     const payments = await FeeRecord.find(feeFilter)
       .sort({ updatedAt: -1 })
       .limit(5)
-      .populate('student', 'fullName studentId') // Cannot populate class/section here directly from Student, need AcademicRecord
+      .populate('student', 'fullName fatherName studentId') // Cannot populate class/section here directly from Student, need AcademicRecord
       .populate('studentAcademicRecord', 'className section');
 
     // Format response to match existing frontend

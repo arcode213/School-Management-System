@@ -59,6 +59,16 @@ const feeRecordSchema = new mongoose.Schema(
     amountPaid: { type: Number, default: 0 },
     balance: { type: Number, default: 0 },
 
+    // Share of `amountPaid` deliberately put against the ANNUAL bucket by the
+    // cashier (the payment screen collects the monthly and annual amounts
+    // separately). Without this, the default rule below settles months first and
+    // a parent could never pay the annual fee while months were still open.
+    //
+    // A default of 0 is safe here (unlike the derived balances below): a legacy
+    // record has no explicit allocation, and 0 reproduces exactly the old
+    // monthly-first behaviour.
+    annualPaid: { type: Number, default: 0 },
+
     // Outstanding split per bucket (see the pre-save hook for the allocation rule,
     // and the note above on why these carry no default).
     monthlyBalance: { type: Number },
@@ -107,13 +117,30 @@ feeRecordSchema.pre('save', function (next) {
   this.totalAmount = this.monthlyTotal + this.annualTotal;
   this.balance = this.totalAmount - this.amountPaid;
 
-  // ALLOCATION RULE: a payment settles the monthly side first and the annual fee
-  // last. The monthly fee is what the school chases every month, and fixing the
-  // order is what keeps paidUpToMonth meaningful — annual-fee money must never be
-  // counted as having settled a month.
-  const monthlyPaid = Math.min(Math.max(this.amountPaid, 0), Math.max(this.monthlyTotal, 0));
-  this.monthlyBalance = Math.max(0, this.monthlyTotal - monthlyPaid);
-  this.annualBalance = Math.max(0, this.annualTotal - (this.amountPaid - monthlyPaid));
+  // ALLOCATION RULE
+  // 1. Whatever the cashier explicitly put against the annual fee (`annualPaid`)
+  //    is honoured first — capped by what the annual bucket actually owes, so a
+  //    stale earmark can never swallow money the months are owed.
+  // 2. The remainder settles the monthly side, oldest month first.
+  // 3. Anything still left over spills onto the annual fee.
+  //
+  // Steps 2-3 alone are the old behaviour, which is what a record with no
+  // earmark (every pre-existing challan) still gets. Keeping annual money out of
+  // step 2 is what keeps paidUpToMonth meaningful — an annual fee belongs to no
+  // month, so it must never be counted as having settled one.
+  const paid = Math.max(this.amountPaid, 0);
+  const monthlyDue = Math.max(this.monthlyTotal, 0);
+  const annualDue = Math.max(this.annualTotal, 0);
+
+  const earmarked = Math.min(Math.max(this.annualPaid || 0, 0), annualDue, paid);
+  const monthlyPaid = Math.min(paid - earmarked, monthlyDue);
+  const annualPaid = Math.min(annualDue, earmarked + (paid - earmarked - monthlyPaid));
+
+  // Store the allocation back so the record always states where its money went —
+  // the payment screen reads this to show what the annual fee still owes.
+  this.annualPaid = annualPaid;
+  this.monthlyBalance = Math.max(0, monthlyDue - monthlyPaid);
+  this.annualBalance = Math.max(0, annualDue - annualPaid);
 
   if (this.amountPaid >= this.totalAmount && this.totalAmount > 0) {
     this.status = 'Paid';

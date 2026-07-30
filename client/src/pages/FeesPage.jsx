@@ -176,6 +176,7 @@ export default function FeesPage() {
                             </span>
                           )}
                         </div>
+                        {student?.fatherName && <div className="text-xs text-slate-500">s/o {student.fatherName}</div>}
                         <div className="text-xs text-slate-500">Class {student?.class} {student?.section}</div>
                       </td>
                       <td className="px-4 py-3 text-slate-600 font-medium">{f.dueMonthRange}</td>

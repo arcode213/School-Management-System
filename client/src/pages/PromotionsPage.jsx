@@ -153,6 +153,7 @@ export default function PromotionsPage() {
                   <tr key={s._id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-800">{s.fullName}</div>
+                      {s.fatherName && <div className="text-xs text-slate-500">s/o {s.fatherName}</div>}
                       <div className="text-xs text-slate-500">{s.studentId}</div>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{s.class} {s.section && `(${s.section})`}</td>

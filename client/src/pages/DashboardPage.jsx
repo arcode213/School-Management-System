@@ -320,7 +320,12 @@ export default function DashboardPage() {
                 <tbody className="divide-y divide-slate-50">
                   {recent.map((r) => (
                     <tr key={r._id} className="hover:bg-slate-50 transition">
-                      <td className="py-2.5 font-medium text-slate-700">{r.student?.fullName || '—'}</td>
+                      <td className="py-2.5 font-medium text-slate-700">
+                        {r.student?.fullName || '—'}
+                        {r.student?.fatherName && (
+                          <span className="block text-xs font-normal text-slate-400">s/o {r.student.fatherName}</span>
+                        )}
+                      </td>
                       <td className="py-2.5 text-slate-500">{r.student?.class || '—'}</td>
                       <td className="py-2.5 text-slate-500">{r.feeMonth} {r.feeYear}</td>
                       <td className="py-2.5 text-right font-semibold text-slate-700">Rs. {r.amountPaid?.toLocaleString()}</td>

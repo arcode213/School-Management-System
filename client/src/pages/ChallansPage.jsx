@@ -127,7 +127,12 @@ export default function ChallansPage() {
               {fees.map(f => (
                 <tr key={f._id} className="hover:bg-slate-50 transition">
                   <td className="px-4 py-3 font-mono text-xs">{f.challanNo}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800">{f.studentInfo?.fullName}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800">
+                    {f.studentInfo?.fullName}
+                    {f.studentInfo?.fatherName && (
+                      <span className="block text-xs font-normal text-slate-500">s/o {f.studentInfo.fatherName}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{f.studentInfo?.class}</td>
                   <td className="px-4 py-3 font-medium text-slate-700">Rs. {(f.balance ?? 0).toLocaleString()}</td>
                   <td className="px-4 py-3">
