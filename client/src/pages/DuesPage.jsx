@@ -11,6 +11,15 @@ const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, c => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ));
 
+// A challan tracks its outstanding amount in two independent buckets: the recurring
+// monthly fee (plus any monthly arrears) and the annual fee (plus any annual
+// arrears). Challans written before that split existed carry neither figure, so the
+// whole balance is treated as monthly — which is exactly what it was.
+const monthlyDueOf = (d) =>
+  d.monthlyBalance === undefined || d.monthlyBalance === null ? (d.balance || 0) : d.monthlyBalance;
+const annualDueOf = (d) =>
+  d.annualBalance === undefined || d.annualBalance === null ? 0 : d.annualBalance;
+
 export default function DuesPage() {
   const { currentCampus, currentSession, campuses, sessions } = useAppContext();
   const [dues, setDues] = useState([]);
@@ -47,15 +56,20 @@ export default function DuesPage() {
     });
   }, [dues, filterClass, filterMonth, search]);
 
-  const totalOutstanding = filteredDues.reduce((acc, curr) => acc + (curr.balance || 0), 0);
+  const totals = useMemo(() => filteredDues.reduce((acc, d) => ({
+    monthly: acc.monthly + monthlyDueOf(d),
+    annual: acc.annual + annualDueOf(d),
+    all: acc.all + (d.balance || 0),
+  }), { monthly: 0, annual: 0, all: 0 }), [filteredDues]);
 
   const exportCSV = () => {
-    const headers = ['Challan No', 'Student ID', 'Student Name', 'Father Name', 'Class', 'Month', 'Total Fee', 'Paid', 'Discount', 'Remaining Due'];
+    const headers = ['Challan No', 'Student ID', 'Student Name', 'Father Name', 'Class', 'Month', 'Total Fee', 'Paid', 'Discount', 'Monthly Due', 'Annual Due', 'Total Due'];
     const rows = filteredDues.map(d => {
       const remaining = d.balance || 0;
       return [
         d.challanNo, d.student?.studentId, d.student?.fullName, d.student?.fatherName, `${d.student?.class} ${d.student?.section || ''}`,
-        `${d.dueMonthRange || d.feeMonth} ${d.feeYear}`, d.totalAmount, d.amountPaid || 0, d.discount || 0, remaining
+        `${d.dueMonthRange || d.feeMonth} ${d.feeYear}`, d.totalAmount, d.amountPaid || 0, d.discount || 0,
+        monthlyDueOf(d), annualDueOf(d), remaining
       ];
     });
     const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ''}"`).join(',')).join('\n');
@@ -90,6 +104,8 @@ export default function DuesPage() {
           <td>${escapeHtml(`${d.dueMonthRange || d.feeMonth} ${d.feeYear}`)}</td>
           <td class="r">${(d.totalAmount || 0).toLocaleString()}</td>
           <td class="r">${paidDisc.toLocaleString()}</td>
+          <td class="r">${monthlyDueOf(d).toLocaleString()}</td>
+          <td class="r">${annualDueOf(d).toLocaleString()}</td>
           <td class="r due">${remaining.toLocaleString()}</td>
         </tr>`;
     }).join('');
@@ -140,14 +156,18 @@ export default function DuesPage() {
               <th>Month</th>
               <th class="r">Total Fee</th>
               <th class="r">Paid/Disc</th>
-              <th class="r">Remaining Due</th>
+              <th class="r">Monthly Due</th>
+              <th class="r">Annual Due</th>
+              <th class="r">Total Due</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
           <tfoot>
             <tr>
               <td colspan="8" class="r">Total Outstanding</td>
-              <td class="r due">Rs. ${totalOutstanding.toLocaleString()}</td>
+              <td class="r">Rs. ${totals.monthly.toLocaleString()}</td>
+              <td class="r">Rs. ${totals.annual.toLocaleString()}</td>
+              <td class="r due">Rs. ${totals.all.toLocaleString()}</td>
             </tr>
           </tfoot>
         </table>
@@ -184,12 +204,22 @@ export default function DuesPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="bg-red-50 border border-red-100 rounded-2xl p-5 flex items-center justify-between shadow-sm col-span-1 md:col-span-3">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <p className="text-slate-500 text-sm font-semibold mb-1">Monthly Dues</p>
+          <h2 className="text-2xl font-bold text-slate-800">Rs. {totals.monthly.toLocaleString()}</h2>
+          <p className="text-xs text-slate-400 mt-1">Tuition, transport &amp; misc — including arrears</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <p className="text-indigo-600 text-sm font-semibold mb-1">Annual Dues</p>
+          <h2 className="text-2xl font-bold text-indigo-700">Rs. {totals.annual.toLocaleString()}</h2>
+          <p className="text-xs text-slate-400 mt-1">Annual fee only — current and carried forward</p>
+        </div>
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-5 flex items-center justify-between shadow-sm">
           <div>
-            <p className="text-red-600 text-sm font-semibold mb-1">Total Outstanding Amount</p>
-            <h2 className="text-3xl font-bold text-red-700">Rs. {totalOutstanding.toLocaleString()}</h2>
+            <p className="text-red-600 text-sm font-semibold mb-1">Total Outstanding</p>
+            <h2 className="text-2xl font-bold text-red-700">Rs. {totals.all.toLocaleString()}</h2>
           </div>
-          <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center shrink-0">
             <AlertCircle size={24} />
           </div>
         </div>
@@ -226,12 +256,16 @@ export default function DuesPage() {
                   <th className="text-left px-4 py-3">Month</th>
                   <th className="text-right px-4 py-3">Total Fee</th>
                   <th className="text-right px-4 py-3">Paid/Disc</th>
-                  <th className="text-right px-4 py-3">Remaining Due</th>
+                  <th className="text-right px-4 py-3">Monthly Due</th>
+                  <th className="text-right px-4 py-3">Annual Due</th>
+                  <th className="text-right px-4 py-3">Total Due</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredDues.map(d => {
                   const remaining = d.balance || 0;
+                  const monthlyDue = monthlyDueOf(d);
+                  const annualDue = annualDueOf(d);
                   return (
                     <tr key={d._id} className="hover:bg-slate-50 transition">
                       <td className="px-4 py-3 font-mono text-xs text-slate-500">{d.challanNo}</td>
@@ -244,6 +278,12 @@ export default function DuesPage() {
                       <td className="px-4 py-3 text-slate-600">{d.dueMonthRange || d.feeMonth} {d.feeYear}</td>
                       <td className="px-4 py-3 text-right">Rs. {d.totalAmount.toLocaleString()}</td>
                       <td className="px-4 py-3 text-right text-slate-400">Rs. {((d.amountPaid || 0) + (d.discount || 0)).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right text-slate-700">
+                        {monthlyDue > 0 ? `Rs. ${monthlyDue.toLocaleString()}` : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right text-indigo-600 font-medium">
+                        {annualDue > 0 ? `Rs. ${annualDue.toLocaleString()}` : <span className="text-slate-300">—</span>}
+                      </td>
                       <td className="px-4 py-3 text-right font-bold text-red-600">Rs. {remaining.toLocaleString()}</td>
                     </tr>
                   );

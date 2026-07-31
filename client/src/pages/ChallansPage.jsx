@@ -40,8 +40,14 @@ export default function ChallansPage() {
   const fetchFees = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch up to 100 unpaid/partial fees for the selected criteria to print
-      const { data } = await getFees({ feeMonth: filterMonth, class: filterClass, limit: 100 });
+      // Fetch up to 100 unpaid/partial fees for the selected criteria to print.
+      // `excludeOpening` keeps out the opening-balance records created when a
+      // student is imported or admitted with dues already owed — those record what
+      // is outstanding, they are not challans the school issued, so they must never
+      // appear here or be printed as one.
+      const { data } = await getFees({
+        feeMonth: filterMonth, class: filterClass, limit: 100, excludeOpening: true,
+      });
       // Keep only unpaid/partial challans, and never print for Freeship students —
       // their fees are waived. (One can only appear here if the waiver was granted
       // after the challan had already been generated.)

@@ -44,6 +44,12 @@ const buildOpeningArrears = ({
   const dueMonthRange =
     monthlyDues <= 0 && period.dueMonthRange === 'Previous Arrears' ? period.feeMonth : period.dueMonthRange;
 
+  // An opening balance states the full amount owed for its own range, so the months
+  // its monthly arrears cover ARE that range (unlike a normal challan, where the
+  // arrears stop the month before the one being billed).
+  const arrearsFromMonth = monthlyDues > 0 ? (period.startMonth || period.endMonth) : undefined;
+  const arrearsToMonth = monthlyDues > 0 ? period.endMonth : undefined;
+
   return new FeeRecord({
     challanNo,
     student,
@@ -60,6 +66,8 @@ const buildOpeningArrears = ({
     annualFee: 0,
     previousDues: monthlyDues,
     previousAnnualDues: annualDues,
+    arrearsFromMonth,
+    arrearsToMonth,
     isOpeningBalance: true,
     dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
   });

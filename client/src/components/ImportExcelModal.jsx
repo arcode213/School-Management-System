@@ -9,6 +9,27 @@ import api from '../api/axios';
 // and on serverless hosting the platform caps the body regardless of that limit.
 const CHUNK_SIZE = 100;
 
+const pad = (n) => String(n).padStart(2, '0');
+
+// A date cell read with `cellDates: true` comes back as a Date pinned to LOCAL
+// midnight — 01-Apr-2025 in a UTC+5 browser is 2025-03-31T19:00:00Z. Sending that
+// straight to the server (which reads dates in UTC, deliberately, so a date-only
+// value can't drift) landed the row on the WRONG MONTH: an arrears period entered
+// as April - June was stored as March - May.
+//
+// Serialising the Date's LOCAL calendar parts instead sends exactly what the user
+// sees in the cell, with no clock or timezone attached for anything to shift.
+const toCalendarString = (d) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+const normalizeCellDates = (row) => {
+  const out = {};
+  for (const [key, value] of Object.entries(row)) {
+    out[key] = value instanceof Date && !isNaN(value.getTime()) ? toCalendarString(value) : value;
+  }
+  return out;
+};
+
 export default function ImportExcelModal({ open, onClose, onImportSuccess, type }) {
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -77,7 +98,9 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
       // cells attached. Sending those makes the server reject the batch over a
       // row the user never filled in.
       const isBlank = (v) => v === null || v === undefined || String(v).trim() === '';
-      const parsedData = rows.filter((row) => Object.values(row).some((v) => !isBlank(v)));
+      const parsedData = rows
+        .filter((row) => Object.values(row).some((v) => !isBlank(v)))
+        .map(normalizeCellDates);
 
       if (parsedData.length === 0) {
         toast.error('The file is empty.');
@@ -207,8 +230,9 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
                 <code className="bg-white border px-1 rounded">previousDues</code> — outstanding <strong>monthly</strong>{' '}
                 fee the student already owes, with{' '}
                 <code className="bg-white border px-1 rounded">previousDuesFrom</code> /{' '}
-                <code className="bg-white border px-1 rounded">previousDuesTo</code> giving the months it covers. This
-                amount is carried into the next challan as <em>Previous Arrears</em>.
+                <code className="bg-white border px-1 rounded">previousDuesTo</code> giving the months it covers. No
+                challan is created for it — it is recorded as an opening balance, shows in <em>Outstanding Dues</em>,
+                and is carried into the next challan you generate as <em>Previous Arrears</em>.
               </p>
               <p>
                 <code className="bg-white border px-1 rounded">previousAnnualFee</code> — unpaid{' '}

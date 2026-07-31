@@ -1,7 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../api/axios';
 import { toast } from 'react-hot-toast';
 import { useAppContext } from '../context/AppContext';
+
+// Must match RESET_CONFIRMATION on the server, which rejects anything else.
+const RESET_PHRASE = 'DELETE DATA';
+
+// Mirrors RESET_GROUPS / RESET_DEPENDENCIES in systemController. Campuses, academic
+// sessions and user accounts are not offered here — see the note on the server.
+const RESET_GROUPS = [
+  { key: 'students', label: 'Students & academic records', hint: 'Every student, plus their class/section history' },
+  { key: 'fees', label: 'Challans, payments & dues', hint: 'All fee records, including imported opening balances' },
+  { key: 'feeOverrides', label: 'Per-student fee overrides', hint: 'Custom tuition / transport / misc amounts' },
+  { key: 'employees', label: 'Employees', hint: 'All staff records' },
+  { key: 'salaries', label: 'Salary records', hint: 'Posted salary slips' },
+  { key: 'feeStructures', label: 'Class fee structures', hint: 'Per-class fee amounts for each session' },
+];
+
+// Ticking a parent forces its dependents — a challan whose student is gone points
+// at nothing. The server applies the same rule regardless of what the client sends.
+const RESET_DEPENDENCIES = { students: ['fees', 'feeOverrides'], employees: ['salaries'] };
 
 export default function SystemSettingsPage() {
   const { campuses, sessions, setCurrentCampus, setCurrentSession } = useAppContext();
@@ -18,6 +36,24 @@ export default function SystemSettingsPage() {
   // Edit states (null = creating a new record)
   const [editingCampusId, setEditingCampusId] = useState(null);
   const [editingSessionId, setEditingSessionId] = useState(null);
+
+  // Danger zone
+  const [resetPhrase, setResetPhrase] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [resetChecked, setResetChecked] = useState({});
+
+  // Groups pulled in by a ticked parent rather than chosen directly.
+  const resetForced = useMemo(() => {
+    const forced = new Set();
+    for (const [parent, dependents] of Object.entries(RESET_DEPENDENCIES)) {
+      if (resetChecked[parent]) dependents.forEach(d => forced.add(d));
+    }
+    return forced;
+  }, [resetChecked]);
+
+  const resetSelection = RESET_GROUPS
+    .filter(g => resetChecked[g.key] || resetForced.has(g.key))
+    .map(g => g.key);
 
   const fetchData = async () => {
     setLoading(true);
@@ -135,6 +171,31 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const handleResetData = async () => {
+    if (resetPhrase !== RESET_PHRASE || resetSelection.length === 0) return;
+
+    const labels = RESET_GROUPS.filter(g => resetSelection.includes(g.key)).map(g => `  • ${g.label}`);
+    if (!window.confirm(
+      'This permanently deletes:\n\n' + labels.join('\n') +
+      '\n\nCampuses, academic sessions and login accounts are kept.\n\n' +
+      'There is no undo. Continue?'
+    )) return;
+
+    setResetting(true);
+    try {
+      const { data } = await api.post('/system/reset-data', { confirm: RESET_PHRASE, groups: resetSelection });
+      toast.success(data.message || 'Selected data deleted');
+      setResetPhrase('');
+      setResetChecked({});
+      // Every page in the app is showing data that no longer exists.
+      setTimeout(() => window.location.reload(), 1200);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete data');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto animate-fade-in">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">System Settings</h1>
@@ -153,10 +214,98 @@ export default function SystemSettingsPage() {
         >
           Academic Sessions
         </button>
+        <button
+          className={`py-2 px-4 font-semibold ${activeTab === 'danger' ? 'text-red-600 border-b-2 border-red-600' : 'text-gray-500 hover:text-red-600'}`}
+          onClick={() => setActiveTab('danger')}
+        >
+          Danger Zone
+        </button>
       </div>
 
       {loading ? (
         <div className="flex justify-center p-8"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
+      ) : activeTab === 'danger' ? (
+        <div className="max-w-2xl">
+          <div className="bg-white border-2 border-red-200 rounded-xl overflow-hidden shadow">
+            <div className="bg-red-50 border-b border-red-200 px-6 py-4">
+              <h2 className="text-lg font-bold text-red-800">Delete Data</h2>
+              <p className="text-sm text-red-700 mt-0.5">
+                Tick only what you want removed. This cannot be undone — take a database backup first.
+              </p>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="space-y-2">
+                {RESET_GROUPS.map(group => {
+                  const isForced = resetForced.has(group.key);
+                  const isChecked = !!resetChecked[group.key] || isForced;
+                  const forcedBy = RESET_GROUPS.find(
+                    g => (RESET_DEPENDENCIES[g.key] || []).includes(group.key) && resetChecked[g.key]
+                  );
+                  return (
+                    <label
+                      key={group.key}
+                      htmlFor={`reset-${group.key}`}
+                      className={`flex items-start gap-3 p-3 border rounded-lg transition ${
+                        isChecked ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:bg-gray-50'
+                      } ${isForced ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <input
+                        id={`reset-${group.key}`}
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={isForced}
+                        onChange={e => setResetChecked(prev => ({ ...prev, [group.key]: e.target.checked }))}
+                        className="mt-0.5 flex-shrink-0"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-gray-800">
+                          {group.label}
+                          {isForced && forcedBy && (
+                            <span className="ml-2 text-xs font-normal text-red-700">
+                              — included with “{forcedBy.label}”
+                            </span>
+                          )}
+                        </span>
+                        <span className="block text-xs text-gray-500 mt-0.5">{group.hint}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded p-2.5">
+                <strong className="text-gray-700">Always kept:</strong> campuses, academic sessions, and user accounts
+                &amp; logins.
+              </p>
+
+              <div className="pt-2 border-t border-gray-100">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type <code className="bg-gray-100 border px-1.5 py-0.5 rounded text-red-700 font-bold">{RESET_PHRASE}</code> to enable the button
+                </label>
+                <input
+                  type="text"
+                  value={resetPhrase}
+                  onChange={e => setResetPhrase(e.target.value)}
+                  placeholder={RESET_PHRASE}
+                  autoComplete="off"
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+
+              <button
+                onClick={handleResetData}
+                disabled={resetPhrase !== RESET_PHRASE || resetSelection.length === 0 || resetting}
+                className="w-full bg-red-600 text-white font-bold py-2.5 px-4 rounded hover:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {resetting
+                  ? 'Deleting...'
+                  : resetSelection.length === 0
+                    ? 'Select what to delete'
+                    : `Delete ${resetSelection.length} selected type${resetSelection.length === 1 ? '' : 's'} permanently`}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : activeTab === 'campuses' ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1 bg-white p-6 rounded-xl shadow border border-gray-100">

@@ -29,6 +29,21 @@ const feeRecordSchema = new mongoose.Schema(
     // Previous MONTHLY dues rolled into this challan
     previousDues: { type: Number, default: 0 },
 
+    // The exact first and last month `previousDues` accounts for, recorded when the
+    // challan is generated from the challans actually rolled into it.
+    //
+    // The printed "Arrears (April - June)" label used to be GUESSED on the client as
+    // [range start .. month before feeMonth]. That guess is wrong whenever the
+    // arrears do not run right up to the current month — dues carried over from an
+    // earlier session, or an imported opening balance that ends before the month
+    // being billed — and it silently claimed months that were never charged (or
+    // dropped months that were). Stating the period explicitly removes the guess.
+    //
+    // No default: challans written before this existed leave both undefined and the
+    // client falls back to the old inference for them.
+    arrearsFromMonth: { type: String },
+    arrearsToMonth: { type: String },
+
     // ─── Annual fee ────────────────────────────────────────────────────────────
     // Tracked as its own bucket, separate from the recurring monthly charges, so
     // the challan can print "Current Annual Fee" and "Previous Annual Fee" as

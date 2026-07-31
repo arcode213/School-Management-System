@@ -15,24 +15,36 @@ const normalize = (fee) => {
     (fee.tuitionFee || 0) + (fee.examFee || 0) + (fee.transportFee || 0) +
     (fee.miscFee || 0) + (fee.lateFine || 0) - (fee.discount || 0);
 
-  // Arrears = dues carried in from earlier unpaid months. Normally they run from
-  // the challan's start month up to the month BEFORE the current fee month, since
-  // feeMonth's own charges are billed on the "current" line
-  // (e.g. current "April" -> arrears "February - March").
+  // Arrears = dues carried in from earlier unpaid months. The months they cover are
+  // recorded on the challan when it is generated (arrearsFromMonth/arrearsToMonth),
+  // so the printed period is exactly the period that was billed.
   //
-  // An arrears-only challan (opening balance from admission/import: no current
-  // charges at all) is the exception — there is no current line to exclude, so the
-  // arrears cover the WHOLE labelled range including feeMonth. Without this the
-  // period printed for an imported balance is short by one month.
+  // Challans created before those fields existed fall back to the old inference:
+  // the arrears run from the range's start month up to the month BEFORE the current
+  // fee month, since feeMonth's own charges are billed on the "current" line
+  // (e.g. current "April" -> arrears "February - March"). An arrears-only challan
+  // (an opening balance from admission/import, with no current charges at all) is
+  // the exception — there is no current line to exclude, so its arrears cover the
+  // whole labelled range including feeMonth.
   const arrearsAmount = fee.previousDues || 0;
   const arrearsOnly = currentAmount === 0 && arrearsAmount > 0;
   let arrearsLabel = 'Arrears';
-  if (arrearsAmount > 0 && MONTHS.includes(fee.feeMonth)) {
-    const start = parseStartMonth(fee.dueMonthRange, fee.feeMonth);
-    const end = arrearsOnly ? fee.feeMonth : monthBefore(fee.feeMonth);
-    if (start && (arrearsOnly || start !== fee.feeMonth)) {
-      arrearsLabel = `Arrears (${start === end ? start : `${start} - ${end}`})`;
+  if (arrearsAmount > 0) {
+    let start = null;
+    let end = null;
+
+    if (MONTHS.includes(fee.arrearsFromMonth)) {
+      start = fee.arrearsFromMonth;
+      end = MONTHS.includes(fee.arrearsToMonth) ? fee.arrearsToMonth : start;
+    } else if (MONTHS.includes(fee.feeMonth)) {
+      const inferredStart = parseStartMonth(fee.dueMonthRange, fee.feeMonth);
+      if (inferredStart && (arrearsOnly || inferredStart !== fee.feeMonth)) {
+        start = inferredStart;
+        end = arrearsOnly ? fee.feeMonth : monthBefore(fee.feeMonth);
+      }
     }
+
+    if (start) arrearsLabel = `Arrears (${start === end ? start : `${start} - ${end}`})`;
   }
 
   // Annual fee is its own bucket, kept apart from the recurring monthly charges so

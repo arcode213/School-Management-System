@@ -3,7 +3,8 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/authMiddleware');
 const {
   getCampuses, createCampus, updateCampus, deleteCampus,
-  getSessions, createSession, updateSession, deleteSession
+  getSessions, createSession, updateSession, deleteSession,
+  resetData
 } = require('../controllers/systemController');
 
 router.use(protect);
@@ -23,5 +24,9 @@ router.route('/sessions')
 router.route('/sessions/:id')
   .put(authorize('Admin'), updateSession)
   .delete(authorize('Admin'), deleteSession);
+
+// Irreversible bulk delete of all student/fee/employee/salary data. Admin only,
+// and the request body must carry the exact confirmation phrase.
+router.post('/reset-data', authorize('Admin'), resetData);
 
 module.exports = router;

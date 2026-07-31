@@ -103,33 +103,75 @@ const parseFlexibleDate = (value) => {
 // them in UTC stops "2026-01-01" from sliding into December on a server west of UTC.
 const monthYearOf = (date) => ({ month: MONTHS[date.getUTCMonth()], year: date.getUTCFullYear() });
 
-// Turn a from/to date pair into the (feeMonth, feeYear, dueMonthRange) an opening
-// arrears challan should carry. The range is what the parent sees printed as
-// "Arrears (January - March)". With no usable dates it falls back to the legacy
-// behaviour: stamped with the current month and labelled "Previous Arrears".
+// A cell holding nothing but a month name ("April", "Apr", "june"). Such a value
+// carries no year, so parseFlexibleDate rejects it — but it is a perfectly clear
+// way to state an arrears period, so buildArrearsPeriod handles it separately.
+const monthNameIndex = (value) => {
+  if (value === null || value === undefined) return -1;
+  const text = String(value).trim();
+  if (!/^[A-Za-z]{3,}$/.test(text)) return -1;
+  return MONTHS.findIndex(m => m.toLowerCase().startsWith(text.toLowerCase().substring(0, 3)));
+};
+
+// Turn a from/to pair into the period an opening arrears challan should carry:
+// its (feeMonth, feeYear), the dueMonthRange label, and the exact first/last month
+// the amount accounts for. The range is what the parent sees printed as
+// "Arrears (January - March)". With nothing usable on either end it falls back to
+// the legacy behaviour: stamped with the current month, labelled "Previous Arrears".
 const buildArrearsPeriod = (from, to) => {
   const fromDate = parseFlexibleDate(from);
   const toDate = parseFlexibleDate(to);
 
-  // The range END anchors the record's feeMonth/feeYear, since that is the last
-  // month the outstanding amount accounts for.
-  const end = toDate || fromDate;
-  if (!end) {
+  // Bare month names are only considered where a real date was not supplied.
+  const fromMonthIdx = fromDate ? -1 : monthNameIndex(from);
+  const toMonthIdx = toDate ? -1 : monthNameIndex(to);
+
+  if (!fromDate && !toDate && fromMonthIdx < 0 && toMonthIdx < 0) {
     const now = new Date();
-    return { feeMonth: MONTHS[now.getMonth()], feeYear: now.getFullYear(), dueMonthRange: 'Previous Arrears' };
+    return {
+      feeMonth: MONTHS[now.getMonth()],
+      feeYear: now.getFullYear(),
+      dueMonthRange: 'Previous Arrears',
+      startMonth: null,
+      endMonth: MONTHS[now.getMonth()],
+    };
   }
 
-  const { month: endMonth, year: endYear } = monthYearOf(end);
-  const start = fromDate ? monthYearOf(fromDate) : null;
+  // Any bare month name is anchored to the year of whichever end did supply a real
+  // date, falling back to the current year when neither did.
+  const anchor = toDate || fromDate;
+  const anchorYear = anchor ? monthYearOf(anchor).year : new Date().getFullYear();
+
+  const resolve = (date, monthIdx) => {
+    if (date) return monthYearOf(date);
+    if (monthIdx >= 0) return { month: MONTHS[monthIdx], year: anchorYear };
+    return null;
+  };
+
+  let start = resolve(fromDate, fromMonthIdx);
+  // The range END anchors the record's feeMonth/feeYear, since that is the last
+  // month the outstanding amount accounts for. With only a start given, the period
+  // is that single month.
+  const end = resolve(toDate, toMonthIdx) || start;
+
+  // "November" - "February" written as bare month names means the range wrapped the
+  // calendar year, so the start belongs to the year before the end.
+  if (start && absMonth(start.month, start.year) > absMonth(end.month, end.year)) {
+    start = { month: start.month, year: start.year - 1 };
+  }
 
   return {
-    feeMonth: endMonth,
-    feeYear: endYear,
-    dueMonthRange: start ? buildDueMonthRange(start.month, endMonth) : endMonth,
+    feeMonth: end.month,
+    feeYear: end.year,
+    dueMonthRange: start ? buildDueMonthRange(start.month, end.month) : end.month,
+    // The exact months the arrears cover, printed verbatim on the challan instead
+    // of being re-derived (and mis-derived) from the range label.
+    startMonth: start ? start.month : null,
+    endMonth: end.month,
   };
 };
 
 module.exports = {
   MONTHS, parseStartMonth, buildDueMonthRange, absMonth, monthAfter, computePaidUpToMonth,
-  parseFlexibleDate, buildArrearsPeriod,
+  parseFlexibleDate, buildArrearsPeriod, monthNameIndex,
 };

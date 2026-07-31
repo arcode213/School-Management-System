@@ -45,6 +45,14 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
   let displayStartMonth = '';
   let globalDisplayStartAbs = Infinity;
 
+  // The LAST month the carried-over dues account for. A challan's unpaid monthly
+  // balance covers everything up to and including its own feeMonth, so the latest
+  // such feeMonth is where the arrears period ends. Tracked explicitly rather than
+  // assumed to be "the month before the one being billed", which is only true when
+  // the dues run right up to the current month.
+  let displayEndMonth = '';
+  let globalDisplayEndAbs = -Infinity;
+
   let currentSessionStartMonth = '';
   let globalCurrentSessionStartAbs = Infinity;
 
@@ -79,6 +87,16 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     return { abs: absMonth(candidate, startYear), month: candidate };
   };
 
+  // The last month a challan's unpaid monthly balance accounts for.
+  const trackUnpaidEnd = (challan) => {
+    if (monthlyOutstanding(challan) <= 0) return;
+    const endAbs = absMonth(challan.feeMonth, challan.feeYear);
+    if (endAbs > globalDisplayEndAbs) {
+      globalDisplayEndAbs = endAbs;
+      displayEndMonth = challan.feeMonth;
+    }
+  };
+
   // Roll over lump-sum dues without calculating gap months
   for (const challan of lumpSumChallans) {
     totalDue += monthlyOutstanding(challan);
@@ -91,6 +109,7 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
       globalDisplayStartAbs = start.abs;
       displayStartMonth = start.month;
     }
+    trackUnpaidEnd(challan);
   }
 
   // Process current session challans
@@ -107,6 +126,8 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     const rangeStartYear = rangeStartIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
     const challanFeeAbs = absMonth(challan.feeMonth, challan.feeYear);
     for (let m = absMonth(rangeStart, rangeStartYear); m <= challanFeeAbs; m++) coveredMonths.add(m);
+
+    trackUnpaidEnd(challan);
 
     const start = unpaidStartAbs(challan);
     if (!start) continue;
@@ -134,15 +155,36 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     }
     // Skipped months are recurring monthly charges, so they land in the monthly bucket.
     totalDue += gapMonths * (monthlyRecurring || 0);
+
+    // Billing a skipped month extends the arrears period up to the month before the
+    // one being generated now.
+    if (gapMonths > 0 && currentAbs - 1 > globalDisplayEndAbs) {
+      globalDisplayEndAbs = currentAbs - 1;
+      displayEndMonth = MONTHS[((currentAbs - 1) % 12 + 12) % 12];
+    }
+  }
+
+  // Guard against a malformed legacy range whose recorded start sits after its end.
+  if (displayStartMonth && displayEndMonth && globalDisplayStartAbs > globalDisplayEndAbs) {
+    displayEndMonth = displayStartMonth;
   }
 
   return {
     previousDues: totalDue,
     previousAnnualDues: totalAnnualDue,
     startMonth: displayStartMonth,
+    endMonth: displayEndMonth,
     gapMonths,
     challansToCarryForward,
   };
+};
+
+// The months to stamp on a new challan as the period its arrears cover. Recorded
+// only when there IS a monthly arrears amount — an annual-only carry-over belongs
+// to no month, and a challan with nothing carried over has no arrears line at all.
+const arrearsPeriod = (previousDues, startMonth, endMonth) => {
+  if (!(previousDues > 0) || !startMonth) return { from: undefined, to: undefined };
+  return { from: startMonth, to: endMonth || startMonth };
 };
 
 // Helper to generate unique challan number
@@ -209,9 +251,10 @@ const addFee = async (req, res) => {
     // The annual fee is deliberately excluded from the recurring rate — it is a
     // one-off, so it must not be used to price skipped months.
     const monthlyRecurring = (tuitionFee || 0) + (transportFee || 0) + (miscFee || 0);
-    const { previousDues, previousAnnualDues, startMonth, challansToCarryForward } =
+    const { previousDues, previousAnnualDues, startMonth, endMonth, challansToCarryForward } =
       await getPreviousDues(student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
     const dueMonthRange = buildDueMonthRange(startMonth, feeMonth);
+    const arrears = arrearsPeriod(previousDues, startMonth, endMonth);
 
     const challanNo = await generateChallanNo(currentCampus, feeYear, session);
 
@@ -231,6 +274,8 @@ const addFee = async (req, res) => {
       annualFee: annualFee || 0,
       previousDues,
       previousAnnualDues,
+      arrearsFromMonth: arrears.from,
+      arrearsToMonth: arrears.to,
       dueDate: dueDate || new Date(new Date().setDate(new Date().getDate() + 10)) // Default +10 days
     });
 
@@ -342,9 +387,10 @@ const addBulkFees = async (req, res) => {
       // Calculate previous dues and carry forward. Skipped months are billed at
       // the recurring monthly rate (tuition + transport + misc) for this student.
       const monthlyRecurring = tFee + tTrans + tMisc;
-      const { previousDues, previousAnnualDues, startMonth, challansToCarryForward } =
+      const { previousDues, previousAnnualDues, startMonth, endMonth, challansToCarryForward } =
         await getPreviousDues(record.student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
       const dueMonthRange = buildDueMonthRange(startMonth, feeMonth);
+      const arrears = arrearsPeriod(previousDues, startMonth, endMonth);
 
       const challanNo = await generateChallanNo(currentCampus, feeYear, session);
 
@@ -364,6 +410,8 @@ const addBulkFees = async (req, res) => {
         annualFee: annualCharge,
         previousDues,
         previousAnnualDues,
+        arrearsFromMonth: arrears.from,
+        arrearsToMonth: arrears.to,
         dueDate: dueDate || new Date(new Date().setDate(new Date().getDate() + 10))
       });
 
@@ -411,9 +459,15 @@ const addBulkFees = async (req, res) => {
 const getFees = async (req, res) => {
   try {
     const { currentCampus, currentSession } = req;
-    const { feeMonth, feeYear, status, class: studentClass, challanNo, search, page = 1, limit = 15 } = req.query;
+    const {
+      feeMonth, feeYear, status, class: studentClass, challanNo, search,
+      excludeOpening, page = 1, limit = 15,
+    } = req.query;
 
     const matchStage = { isDeleted: false };
+    // Opening balances are a record of dues brought in at admission/import, not a
+    // challan the school issued — the printing screen asks for them to be left out.
+    if (excludeOpening === 'true') matchStage.isOpeningBalance = { $ne: true };
     if (currentCampus) matchStage.campus = new mongoose.Types.ObjectId(currentCampus);
     if (currentSession) matchStage.academicSession = new mongoose.Types.ObjectId(currentSession);
     if (feeMonth) matchStage.feeMonth = feeMonth;
@@ -572,6 +626,13 @@ const updateFee = async (req, res) => {
       fee.dueMonthRange = isSpan ? buildDueMonthRange(startMonth, req.body.feeMonth) : req.body.feeMonth;
     }
     if (req.body.feeYear) fee.feeYear = Number(req.body.feeYear);
+
+    // Zeroing the arrears out by hand must take the printed period with it, or the
+    // challan keeps claiming months it no longer bills for.
+    if (!(fee.previousDues > 0)) {
+      fee.arrearsFromMonth = undefined;
+      fee.arrearsToMonth = undefined;
+    }
 
     await fee.save(); // triggers pre-save hook for status & balance
 

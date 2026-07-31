@@ -175,6 +175,12 @@ export default function FeesPage() {
                               FREESHIP
                             </span>
                           )}
+                          {f.isOpeningBalance && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-600"
+                              title="Dues brought in when the student was imported or admitted — not a challan. It is carried into the next challan you generate.">
+                              OPENING BALANCE
+                            </span>
+                          )}
                         </div>
                         {student?.fatherName && <div className="text-xs text-slate-500">s/o {student.fatherName}</div>}
                         <div className="text-xs text-slate-500">Class {student?.class} {student?.section}</div>
@@ -210,9 +216,13 @@ export default function FeesPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => openPrint(f)}
-                            disabled={student?.isFreeship}
+                            disabled={student?.isFreeship || f.isOpeningBalance}
                             className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-30 disabled:hover:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                            title={student?.isFreeship ? 'Freeship student — challans are not printed' : 'Print Challan'}>
+                            title={
+                              student?.isFreeship ? 'Freeship student — challans are not printed'
+                                : f.isOpeningBalance ? 'Opening balance — not a challan, so it cannot be printed'
+                                : 'Print Challan'
+                            }>
                             <Printer size={16} />
                           </button>
                           {!f.hasBeenCarriedForward && (
