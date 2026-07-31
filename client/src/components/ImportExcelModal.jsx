@@ -11,16 +11,55 @@ const CHUNK_SIZE = 100;
 
 const pad = (n) => String(n).padStart(2, '0');
 
-// A date cell read with `cellDates: true` comes back as a Date pinned to LOCAL
-// midnight — 01-Apr-2025 in a UTC+5 browser is 2025-03-31T19:00:00Z. Sending that
-// straight to the server (which reads dates in UTC, deliberately, so a date-only
-// value can't drift) landed the row on the WRONG MONTH: an arrears period entered
-// as April - June was stored as March - May.
+// Date cells must never travel as JS Dates. `cellDates: true` builds them from a
+// LOCAL 1899-12-30 epoch, and in any zone whose historic LMT offset carried a
+// seconds component (Asia/Karachi was +04:28:12) every date lands a few seconds
+// SHORT of local midnight: a cell showing "May-26" arrives as
+// 2026-04-30T23:59:48 local. Reading its calendar parts then moved the row back a
+// day — and since arrears periods are always the 1st of a month, back a whole
+// MONTH. An arrears period entered as April - May imported as March - April.
 //
-// Serialising the Date's LOCAL calendar parts instead sends exactly what the user
-// sees in the cell, with no clock or timezone attached for anything to shift.
-const toCalendarString = (d) =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+// So date cells are converted from their Excel serial with SSF.parse_date_code,
+// which is pure integer arithmetic with no clock or timezone involved at all, and
+// sent as a plain "YYYY-MM-DD" string — exactly what the user sees in the cell.
+const serialToCalendarString = (serial) => {
+  const d = xlsx.SSF.parse_date_code(serial);
+  return d ? `${d.y}-${pad(d.m)}-${pad(d.d)}` : null;
+};
+
+// Fallback for a Date that reaches us from somewhere else (a CSV, a pre-parsed
+// cell). Snap to the nearest local midnight first so the same seconds-level drift
+// cannot round the day down.
+const toCalendarString = (d) => {
+  const msIntoDay =
+    d.getHours() * 3600000 + d.getMinutes() * 60000 + d.getSeconds() * 1000 + d.getMilliseconds();
+  const snapped = new Date(d.getTime() + (msIntoDay >= 43200000 ? 86400000 - msIntoDay : -msIntoDay));
+  return `${snapped.getFullYear()}-${pad(snapped.getMonth() + 1)}-${pad(snapped.getDate())}`;
+};
+
+// Rewrite every date-formatted numeric cell into a "YYYY-MM-DD" text cell before
+// sheet_to_json runs. Done on the sheet rather than on the parsed rows because
+// only the cell still knows its number format — by the time it is a row value, a
+// date serial is indistinguishable from an ordinary number (46143 vs a fee of
+// 46143), which is why the serials cannot simply be passed through raw.
+const stringifyDateCells = (sheet) => {
+  if (!sheet || !sheet['!ref']) return;
+  const range = xlsx.utils.decode_range(sheet['!ref']);
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = sheet[xlsx.utils.encode_cell({ r, c })];
+      // v >= 1 skips time-only values, whose format is also reported as a date but
+      // which carry no calendar day to speak of.
+      if (!cell || cell.t !== 'n' || !cell.z || !xlsx.SSF.is_date(cell.z) || cell.v < 1) continue;
+      const text = serialToCalendarString(cell.v);
+      if (!text) continue;
+      cell.t = 's';
+      cell.v = text;
+      cell.w = text;
+      delete cell.z;
+    }
+  }
+};
 
 const normalizeCellDates = (row) => {
   const out = {};
@@ -87,11 +126,13 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
     setLoading(true);
     try {
       const data = await file.arrayBuffer();
-      // cellDates: true makes date-formatted cells arrive as real Dates instead of
-      // Excel serial numbers (a raw 45678 would otherwise be cast to 1970).
-      const workbook = xlsx.read(data, { type: 'array', cellDates: true });
+      // cellNF keeps each cell's number format, which is the only way to tell a
+      // date serial from an ordinary number. cellDates is deliberately OFF — see
+      // stringifyDateCells for why its Dates cannot be trusted.
+      const workbook = xlsx.read(data, { type: 'array', cellNF: true });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
+      stringifyDateCells(sheet);
       const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
 
       // Excel files routinely carry trailing rows that look empty but still have
