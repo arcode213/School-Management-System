@@ -28,6 +28,11 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
   const monthlyDue = Math.max(0, monthlyDueRaw - newDiscount);
   const totalDue = monthlyDue + annualDue;
   const hasAnnual = annualDue > 0;
+  // Annual fee rolled in from an earlier challan — this session's own unpaid annual
+  // fee (tracked as a share of annualFee) plus anything left from a prior session.
+  const carriedAnnual = feeRecord
+    ? (feeRecord.annualCarriedForward || 0) + (feeRecord.previousAnnualDues || 0)
+    : 0;
 
   // ─── Month-based payment helper ──────────────────────────────────
   // A multi-month challan (e.g. "April - June") can be paid a few months at a
@@ -244,7 +249,10 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
               />
               <p className="text-[11px] text-slate-500 mt-1">
                 Outstanding annual fee Rs. {annualDue.toLocaleString()}
-                {(feeRecord.previousAnnualDues || 0) > 0 && ` (includes Rs. ${(feeRecord.previousAnnualDues || 0).toLocaleString()} carried forward)`}.
+                {/* Carried-over annual fee sits in two places: this session's own
+                    unpaid annual fee rides on `annualFee` (annualCarriedForward
+                    records its share), while a prior session's is previousAnnualDues. */}
+                {carriedAnnual > 0 && ` (includes Rs. ${carriedAnnual.toLocaleString()} carried forward)`}.
                 Anything left unpaid carries to the next challan as annual fee dues.
               </p>
             </div>

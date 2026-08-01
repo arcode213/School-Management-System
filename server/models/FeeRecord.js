@@ -49,10 +49,23 @@ const feeRecordSchema = new mongoose.Schema(
     // the challan can print "Current Annual Fee" and "Previous Annual Fee" as
     // distinct lines and each can carry forward on its own.
     //
-    // Annual fee charged ON this challan (opt-in per challan at generation time).
+    // Annual fee charged ON this challan (opt-in per challan at generation time),
+    // PLUS any annual fee still unpaid from an earlier challan of the SAME academic
+    // session. An unpaid annual fee does not become "previous" just because the next
+    // month came around — it is still THIS session's annual fee, so it keeps printing
+    // on the "Annual Fee" line until it is paid or the session itself ends.
     annualFee: { type: Number, default: 0 },
-    // Unpaid annual fee rolled in from earlier challans / an opening balance.
+
+    // Unpaid annual fee rolled in from a PRIOR academic session, or from an opening
+    // balance recorded at admission/import. Only this prints as "Previous Annual
+    // Fee" — an annual fee charged in a session that has since ended.
     previousAnnualDues: { type: Number, default: 0 },
+
+    // Informational: the share of `annualFee` above that rolled over from an earlier
+    // challan in this same session rather than being newly charged here. Kept so the
+    // payment screen and reports can still tell a fresh charge from a roll-over even
+    // though the two print on one line.
+    annualCarriedForward: { type: Number, default: 0 },
 
     // Total Amount (monthlyTotal + annualTotal)
     totalAmount: { type: Number, default: 0 },

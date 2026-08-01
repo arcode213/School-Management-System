@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
 const FeeRecord = require('../models/FeeRecord');
 const SalaryRecord = require('../models/SalaryRecord');
+const Expense = require('../models/Expense');
 
-// @desc    Get financial summary report (Fees collected vs Salaries paid)
+// @desc    Get financial summary report (Fees collected vs salaries + other expenses)
 // @route   GET /api/reports/financial
 const getFinancialReport = async (req, res) => {
   try {
@@ -12,23 +13,33 @@ const getFinancialReport = async (req, res) => {
 
     const feeFilter = { feeYear: filterYear, isDeleted: false, status: { $in: ['Paid', 'Partial'] } };
     const salaryFilter = { salaryYear: filterYear, isDeleted: false, status: 'Paid' };
+    const expenseFilter = { isDeleted: false };
 
     if (currentCampus) {
-      feeFilter.campus = new mongoose.Types.ObjectId(currentCampus);
-      salaryFilter.campus = new mongoose.Types.ObjectId(currentCampus);
+      const campId = new mongoose.Types.ObjectId(currentCampus);
+      feeFilter.campus = campId;
+      salaryFilter.campus = campId;
+      expenseFilter.campus = campId;
     }
 
     if (currentSession) {
-      feeFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
-      salaryFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
+      const sessId = new mongoose.Types.ObjectId(currentSession);
+      feeFilter.academicSession = sessId;
+      salaryFilter.academicSession = sessId;
+      expenseFilter.academicSession = sessId;
     }
 
-    // 1. Total Fees Collected (paidAmount)
+    // Set date bounds for custom expenses (Jan 1 to Dec 31 of filtered year)
+    const startDate = new Date(`${filterYear}-01-01T00:00:00.000Z`);
+    const endDate = new Date(`${filterYear}-12-31T23:59:59.999Z`);
+    expenseFilter.date = { $gte: startDate, $lte: endDate };
+
+    // 1. Total Fees Collected (amountPaid)
     const feesResult = await FeeRecord.aggregate([
       { $match: feeFilter },
       { $group: {
           _id: '$feeMonth',
-          collected: { $sum: '$amountPaid' }, // Note: changed from paidAmount to amountPaid to match FeeRecord schema
+          collected: { $sum: '$amountPaid' },
           discounts: { $sum: '$discount' }
       } }
     ]);
@@ -42,18 +53,30 @@ const getFinancialReport = async (req, res) => {
       } }
     ]);
 
+    // 3. Custom Expenses
+    const expensesResult = await Expense.aggregate([
+      { $match: expenseFilter },
+      { $group: {
+          _id: { $month: '$date' },
+          amount: { $sum: '$amount' }
+      } }
+    ]);
+
     // Merge into a 12-month array
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     
     let totalRevenue = 0;
     let totalExpense = 0;
     
-    const monthlyData = MONTHS.map(month => {
+    const monthlyData = MONTHS.map((month, idx) => {
       const feeMatch = feesResult.find(f => f._id === month);
       const salMatch = salariesResult.find(s => s._id === month);
+      const expMatch = expensesResult.find(e => e._id === (idx + 1));
       
       const revenue = feeMatch ? feeMatch.collected : 0;
-      const expense = salMatch ? salMatch.paid : 0;
+      const salaryExpense = salMatch ? salMatch.paid : 0;
+      const customExpense = expMatch ? expMatch.amount : 0;
+      const expense = salaryExpense + customExpense;
       
       totalRevenue += revenue;
       totalExpense += expense;

@@ -4,7 +4,7 @@ import { getClasses } from '../api/students';
 import { useAppContext } from '../context/AppContext';
 import { useReactToPrint } from 'react-to-print';
 import toast from 'react-hot-toast';
-import { Printer, FileText, SlidersHorizontal } from 'lucide-react';
+import { Printer, FileText, SlidersHorizontal, Layers, Landmark } from 'lucide-react';
 import ChallanOverlay from '../components/ChallanOverlay';
 import ChallanPrintPreview from '../components/ChallanPrintPreview';
 import { loadCalibration } from '../utils/challanCalibration';
@@ -27,7 +27,7 @@ export default function ChallansPage() {
   const [previewId, setPreviewId] = useState(null);
   const printRef = useRef();
 
-  // Re-read saved alignment whenever the preview dialog closes (it may have changed it).
+  // Re-read saved alignment whenever the preview dialog closes
   useEffect(() => { if (!previewId) setCalib(loadCalibration()); }, [previewId]);
 
   const handlePrint = useReactToPrint({
@@ -40,17 +40,9 @@ export default function ChallansPage() {
   const fetchFees = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch up to 100 unpaid/partial fees for the selected criteria to print.
-      // `excludeOpening` keeps out the opening-balance records created when a
-      // student is imported or admitted with dues already owed — those record what
-      // is outstanding, they are not challans the school issued, so they must never
-      // appear here or be printed as one.
       const { data } = await getFees({
         feeMonth: filterMonth, class: filterClass, limit: 100, excludeOpening: true,
       });
-      // Keep only unpaid/partial challans, and never print for Freeship students —
-      // their fees are waived. (One can only appear here if the waiver was granted
-      // after the challan had already been generated.)
       const printable = data.fees.filter(f => f.status !== 'Paid' && !f.studentInfo?.isFreeship);
       setFees(printable);
     } catch {
@@ -78,87 +70,138 @@ export default function ChallansPage() {
     setTimeout(handlePrint, 100);
   };
 
+  const fmtRs = (n) => `Rs. ${Number(n || 0).toLocaleString()}`;
+  const totalPrintValue = fees.reduce((sum, f) => sum + (f.balance || 0), 0);
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Print Challans</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Generate printable fee vouchers</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight uppercase">Print Challans</h1>
+          <p className="text-slate-400 text-xs font-semibold mt-1 uppercase tracking-wider">Generate and align printable student fee vouchers</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2.5">
           <button onClick={() => fees[0] ? setPreviewId(fees[0]._id) : toast.error('No challans to align')}
-            className="flex items-center gap-2 text-sm bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl px-4 py-2 transition shadow-sm font-medium">
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-4 py-2.5 transition"
+          >
             <SlidersHorizontal size={14} /> Preview & Align
           </button>
           <button onClick={printAll} disabled={fees.length === 0}
-            className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 transition shadow-sm font-medium disabled:opacity-50">
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl px-4 py-2.5 transition shadow-lg shadow-blue-500/25 active:scale-95 disabled:opacity-50"
+          >
             <Printer size={14} /> Print All ({fees.length})
           </button>
         </div>
       </div>
 
+      {/* Screen Analytics Banner */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+          <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
+            <Layers className="text-white w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Vouchers in Queue</p>
+            <p className="text-2xl font-extrabold text-blue-400 mt-0.5 tracking-tight">{fees.length} printable</p>
+            <p className="text-slate-500 text-xs mt-1 font-medium">Unpaid and active vouchers</p>
+          </div>
+        </div>
+
+        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+          <div className="bg-gradient-to-tr from-emerald-600/80 to-emerald-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
+            <Landmark className="text-white w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Queue Value</p>
+            <p className="text-2xl font-extrabold text-emerald-400 mt-0.5 tracking-tight">{fmtRs(totalPrintValue)}</p>
+            <p className="text-slate-500 text-xs mt-1 font-medium">Outstanding sum in active queue</p>
+          </div>
+        </div>
+
+        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+          <div className="bg-gradient-to-tr from-purple-600/80 to-purple-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
+            <Printer className="text-white w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Print Limit status</p>
+            <p className="text-2xl font-extrabold text-purple-400 mt-0.5 tracking-tight">
+              {fees.length >= 100 ? 'Queue Capped' : 'Uncapped'}
+            </p>
+            <p className="text-slate-500 text-xs mt-1 font-medium">
+              {fees.length >= 100 ? 'Vite printing queue set at 100 limit' : 'All filtered vouchers load correctly'}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex gap-3">
-        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="border rounded-lg px-3 py-2 text-sm flex-1">
-          {MONTHS.map(m => <option key={m}>{m}</option>)}
+      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex gap-3">
+        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer flex-1">
+          {MONTHS.map(m => <option key={m} className="bg-slate-900">{m}</option>)}
         </select>
-        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="border rounded-lg px-3 py-2 text-sm flex-1">
+        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer flex-1">
           <option value="">All Classes</option>
-          {classes.map(c => <option key={c} value={c}>Class {c}</option>)}
+          {classes.map(c => <option key={c} value={c} className="bg-slate-900">Class {c}</option>)}
         </select>
       </div>
 
       {/* List */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
         {loading ? (
-          <div className="p-8 text-center"><div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto" /></div>
+          <div className="p-12 text-center flex flex-col items-center">
+            <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto" />
+            <p className="text-slate-400 text-xs mt-3 uppercase font-bold tracking-wider">Synchronizing print queue...</p>
+          </div>
         ) : fees.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 flex flex-col items-center">
-            <FileText size={40} className="text-slate-300 mb-3" />
-            <p>No unpaid fees found for this criteria.</p>
-            <p className="text-xs mt-1">Freeship students are excluded — their fees are waived.</p>
+          <div className="p-16 text-center text-slate-500 flex flex-col items-center">
+            <FileText size={40} className="text-slate-600 mb-3" />
+            <p className="text-slate-300 font-bold uppercase tracking-wider text-sm">No printable challans found</p>
+            <p className="text-xs text-slate-500 mt-1">Adjust filters or select class. Freeship students are automatically excluded.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase text-xs">
-              <tr>
-                <th className="text-left px-4 py-3">Challan No.</th>
-                <th className="text-left px-4 py-3">Student</th>
-                <th className="text-left px-4 py-3">Class</th>
-                <th className="text-left px-4 py-3">Amount Due</th>
-                <th className="text-left px-4 py-3">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {fees.map(f => (
-                <tr key={f._id} className="hover:bg-slate-50 transition">
-                  <td className="px-4 py-3 font-mono text-xs">{f.challanNo}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800">
-                    {f.studentInfo?.fullName}
-                    {f.studentInfo?.fatherName && (
-                      <span className="block text-xs font-normal text-slate-500">s/o {f.studentInfo.fatherName}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{f.studentInfo?.class}</td>
-                  <td className="px-4 py-3 font-medium text-slate-700">Rs. {(f.balance ?? 0).toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1.5">
-                      <button onClick={() => setPreviewId(f._id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg transition">
-                        <SlidersHorizontal size={12} /> Preview
-                      </button>
-                      <button onClick={() => printSingle(f)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-slate-100 text-slate-700 hover:bg-blue-600 hover:text-white rounded-lg transition">
-                        <Printer size={12} /> Print
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-white/3 border-b border-white/5 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
+                <tr>
+                  <th className="px-5 py-4">Challan No.</th>
+                  <th className="px-5 py-4">Student</th>
+                  <th className="px-5 py-4">Class</th>
+                  <th className="px-5 py-4">Amount Due</th>
+                  <th className="px-5 py-4">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/3 text-slate-300">
+                {fees.map(f => (
+                  <tr key={f._id} className="hover:bg-white/3 transition group">
+                    <td className="px-5 py-4 font-mono font-bold text-blue-400">{f.challanNo}</td>
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="font-bold text-white">{f.studentInfo?.fullName}</div>
+                      {f.studentInfo?.fatherName && (
+                        <div className="text-[10px] text-slate-400 mt-0.5">s/o {f.studentInfo.fatherName}</div>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-slate-300 font-medium">Class {f.studentInfo?.class}</td>
+                    <td className="px-5 py-4 font-black text-white">Rs. {(f.balance ?? 0).toLocaleString()}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
+                        <button onClick={() => setPreviewId(f._id)} className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-xl transition">
+                          <SlidersHorizontal size={12} /> Preview
+                        </button>
+                        <button onClick={() => printSingle(f)} className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-600 hover:text-white text-blue-400 border border-blue-500/20 rounded-xl transition">
+                          <Printer size={12} /> Print
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* Hidden Print Container — values only, overlaid on the pre-printed challan */}
+      {/* Hidden Print Container */}
       <div className="hidden print:block">
         <div ref={printRef}>
           {printData.map((f) => (

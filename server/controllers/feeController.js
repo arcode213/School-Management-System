@@ -24,6 +24,22 @@ const monthlyOutstanding = (c) =>
 const annualOutstanding = (c) =>
   c.annualBalance === undefined || c.annualBalance === null ? 0 : c.annualBalance;
 
+// Split a challan's unpaid annual fee into the part that came from a PRIOR session
+// (its `previousAnnualDues`) and the part the challan charged itself.
+//
+// Money paid against the annual bucket settles the oldest annual dues first, so a
+// payment eats into `previousAnnualDues` before it touches this challan's own
+// annual fee — the same oldest-first rule the monthly side already uses.
+//
+// This split is what keeps an unpaid annual fee labelled "Annual Fee" all session
+// long: only the `prior` share may ever be re-billed as "Previous Annual Fee".
+const splitAnnualOutstanding = (c) => {
+  const outstanding = annualOutstanding(c);
+  if (outstanding <= 0) return { prior: 0, own: 0 };
+  const prior = Math.min(Math.max((c.previousAnnualDues || 0) - (c.annualPaid || 0), 0), outstanding);
+  return { prior, own: outstanding - prior };
+};
+
 // Helper to calculate previous dues
 // `currentFeeMonth`/`currentFeeYear` describe the challan being generated now, and
 // `monthlyRecurring` is the recurring per-month charge (tuition + transport + misc)
@@ -37,10 +53,14 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     status: { $in: ['Unpaid', 'Partial', 'Overdue'] }
   }).session(session);
 
-  // Two running totals: recurring monthly dues and unpaid annual fee. They stay
-  // separate all the way onto the printed challan.
+  // Three running totals, each of which stays its own line on the printed challan:
+  //  - recurring monthly dues,
+  //  - annual fee still owed from a session that has ENDED ("Previous Annual Fee"),
+  //  - annual fee still owed from THIS session, which is simply this session's
+  //    annual fee not yet paid, so it keeps printing as "Annual Fee".
   let totalDue = 0;
   let totalAnnualDue = 0;
+  let currentAnnualCarryForward = 0;
 
   let displayStartMonth = '';
   let globalDisplayStartAbs = Infinity;
@@ -100,6 +120,9 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
   // Roll over lump-sum dues without calculating gap months
   for (const challan of lumpSumChallans) {
     totalDue += monthlyOutstanding(challan);
+    // All of it counts as PREVIOUS annual: these challans either belong to a session
+    // that has ended, or are an opening balance — dues brought in at admission/import,
+    // which by definition predate this session's own billing.
     totalAnnualDue += annualOutstanding(challan);
     challansToCarryForward.push(challan);
 
@@ -115,7 +138,12 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
   // Process current session challans
   for (const challan of currentSessionChallans) {
     totalDue += monthlyOutstanding(challan);
-    totalAnnualDue += annualOutstanding(challan);
+    // The annual fee this challan charged is still THIS session's annual fee while it
+    // goes unpaid, so it rolls forward onto the new challan's "Annual Fee" line. Only
+    // the share it had itself inherited from an earlier session stays "previous".
+    const annual = splitAnnualOutstanding(challan);
+    totalAnnualDue += annual.prior;
+    currentAnnualCarryForward += annual.own;
     challansToCarryForward.push(challan);
 
     // Months this challan has already billed (paid or not) must never be re-billed
@@ -172,6 +200,7 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
   return {
     previousDues: totalDue,
     previousAnnualDues: totalAnnualDue,
+    currentAnnualCarryForward,
     startMonth: displayStartMonth,
     endMonth: displayEndMonth,
     gapMonths,
@@ -251,10 +280,15 @@ const addFee = async (req, res) => {
     // The annual fee is deliberately excluded from the recurring rate — it is a
     // one-off, so it must not be used to price skipped months.
     const monthlyRecurring = (tuitionFee || 0) + (transportFee || 0) + (miscFee || 0);
-    const { previousDues, previousAnnualDues, startMonth, endMonth, challansToCarryForward } =
+    const { previousDues, previousAnnualDues, currentAnnualCarryForward, startMonth, endMonth, challansToCarryForward } =
       await getPreviousDues(student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
     const dueMonthRange = buildDueMonthRange(startMonth, feeMonth);
     const arrears = arrearsPeriod(previousDues, startMonth, endMonth);
+
+    // Unpaid annual fee from an earlier challan of this same session joins the annual
+    // fee charged here, so the parent keeps seeing one "Annual Fee" line for the
+    // session's annual fee instead of it being relabelled "Previous Annual Fee".
+    const annualForThisChallan = (Number(annualFee) || 0) + currentAnnualCarryForward;
 
     const challanNo = await generateChallanNo(currentCampus, feeYear, session);
 
@@ -271,7 +305,8 @@ const addFee = async (req, res) => {
       examFee: examFee || 0,
       transportFee: transportFee || 0,
       miscFee: miscFee || 0,
-      annualFee: annualFee || 0,
+      annualFee: annualForThisChallan,
+      annualCarriedForward: currentAnnualCarryForward,
       previousDues,
       previousAnnualDues,
       arrearsFromMonth: arrears.from,
@@ -387,10 +422,14 @@ const addBulkFees = async (req, res) => {
       // Calculate previous dues and carry forward. Skipped months are billed at
       // the recurring monthly rate (tuition + transport + misc) for this student.
       const monthlyRecurring = tFee + tTrans + tMisc;
-      const { previousDues, previousAnnualDues, startMonth, endMonth, challansToCarryForward } =
+      const { previousDues, previousAnnualDues, currentAnnualCarryForward, startMonth, endMonth, challansToCarryForward } =
         await getPreviousDues(record.student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
       const dueMonthRange = buildDueMonthRange(startMonth, feeMonth);
       const arrears = arrearsPeriod(previousDues, startMonth, endMonth);
+
+      // This session's own unpaid annual fee stays on the "Annual Fee" line (see the
+      // note in addFee); only a prior session's lands in previousAnnualDues.
+      const annualForThisChallan = annualCharge + currentAnnualCarryForward;
 
       const challanNo = await generateChallanNo(currentCampus, feeYear, session);
 
@@ -407,7 +446,8 @@ const addBulkFees = async (req, res) => {
         examFee: 0,
         transportFee: tTrans,
         miscFee: tMisc,
-        annualFee: annualCharge,
+        annualFee: annualForThisChallan,
+        annualCarriedForward: currentAnnualCarryForward,
         previousDues,
         previousAnnualDues,
         arrearsFromMonth: arrears.from,
@@ -609,7 +649,14 @@ const updateFee = async (req, res) => {
     if (req.body.examFee !== undefined) fee.examFee = req.body.examFee;
     if (req.body.transportFee !== undefined) fee.transportFee = req.body.transportFee;
     if (req.body.miscFee !== undefined) fee.miscFee = req.body.miscFee;
-    if (req.body.annualFee !== undefined) fee.annualFee = req.body.annualFee;
+    if (req.body.annualFee !== undefined) {
+      fee.annualFee = req.body.annualFee;
+      // `annualCarriedForward` is the roll-over share OF `annualFee`, so it can never
+      // exceed it. Editing the annual fee down (or to zero) must take the recorded
+      // share down with it, or the record would claim to have carried more than it
+      // now charges.
+      fee.annualCarriedForward = Math.min(fee.annualCarriedForward || 0, Math.max(Number(fee.annualFee) || 0, 0));
+    }
     if (req.body.previousDues !== undefined) fee.previousDues = req.body.previousDues;
     if (req.body.previousAnnualDues !== undefined) fee.previousAnnualDues = req.body.previousAnnualDues;
     if (req.body.dueDate) fee.dueDate = req.body.dueDate;

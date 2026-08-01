@@ -18,6 +18,7 @@ import ChallansPage from './pages/ChallansPage';
 import DuesPage from './pages/DuesPage';
 import ReportsPage from './pages/ReportsPage';
 import UsersPage from './pages/UsersPage';
+import ExpensesPage from './pages/ExpensesPage';
 
 // Placeholder pages (filled in later steps)
 const Unauthorized = () => <div className="text-red-500 p-8"><h1 className="text-2xl font-bold">403 – Unauthorized</h1><p>You don't have permission to view this page.</p></div>;
@@ -42,6 +43,7 @@ function App() {
                 <Route path="/students/:id" element={<StudentProfilePage />} />
                 <Route path="/employees" element={<EmployeesPage />} />
                 <Route path="/employees/:id" element={<EmployeeProfilePage />} />
+                <Route path="/expenses" element={<ExpensesPage />} />
                 <Route path="/fees" element={<FeesPage />} />
                 <Route path="/fee-structures" element={<FeeStructurePage />} />
                 <Route path="/challans" element={<ChallansPage />} />

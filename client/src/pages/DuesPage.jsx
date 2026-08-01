@@ -3,7 +3,7 @@ import { getDues } from '../api/fees';
 import { getClasses } from '../api/students';
 import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
-import { AlertCircle, Download, Search, Printer } from 'lucide-react';
+import { AlertCircle, Download, Search, Printer, Layers, Landmark } from 'lucide-react';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -11,10 +11,6 @@ const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, c => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ));
 
-// A challan tracks its outstanding amount in two independent buckets: the recurring
-// monthly fee (plus any monthly arrears) and the annual fee (plus any annual
-// arrears). Challans written before that split existed carry neither figure, so the
-// whole balance is treated as monthly — which is exactly what it was.
 const monthlyDueOf = (d) =>
   d.monthlyBalance === undefined || d.monthlyBalance === null ? (d.balance || 0) : d.monthlyBalance;
 const annualDueOf = (d) =>
@@ -31,7 +27,6 @@ export default function DuesPage() {
   const [filterMonth, setFilterMonth] = useState('');
   const [search, setSearch] = useState('');
 
-  // Reload whenever the active campus/session changes.
   useEffect(() => {
     if (!currentCampus || !currentSession) return;
     getClasses().then(r => setClasses(r.data)).catch(() => {});
@@ -61,6 +56,19 @@ export default function DuesPage() {
     annual: acc.annual + annualDueOf(d),
     all: acc.all + (d.balance || 0),
   }), { monthly: 0, annual: 0, all: 0 }), [filteredDues]);
+
+  // Dynamic Class-wise Dues Analysis
+  const classDuesAnalysis = useMemo(() => {
+    const map = {};
+    filteredDues.forEach(d => {
+      const cls = d.student?.class || 'Unknown';
+      map[cls] = (map[cls] || 0) + (d.balance || 0);
+    });
+    return Object.entries(map)
+      .map(([className, amount]) => ({ className, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 4); // Display top 4 classes with highest dues
+  }, [filteredDues]);
 
   const exportCSV = () => {
     const headers = ['Challan No', 'Student ID', 'Student Name', 'Father Name', 'Class', 'Month', 'Total Fee', 'Paid', 'Discount', 'Monthly Due', 'Annual Due', 'Total Due'];
@@ -180,111 +188,163 @@ export default function DuesPage() {
     win.document.write(html);
     win.document.close();
     win.focus();
-    // Give the new window a tick to render before invoking the print dialog.
     setTimeout(() => win.print(), 300);
   };
 
+  const fmtRs = (n) => `Rs. ${Number(n || 0).toLocaleString()}`;
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Outstanding Dues</h1>
-          <p className="text-slate-400 text-sm mt-0.5">{filteredDues.length} records found</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight uppercase">Outstanding Dues</h1>
+          <p className="text-slate-400 text-xs font-semibold mt-1 uppercase tracking-wider">{filteredDues.length} matching unpaid invoices</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2.5">
           <button onClick={printReport} disabled={filteredDues.length === 0}
-            className="flex items-center gap-2 text-sm bg-white border border-slate-200 text-slate-700 rounded-xl px-4 py-2 transition shadow-sm font-medium hover:bg-slate-50 disabled:opacity-50">
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-4 py-2.5 transition disabled:opacity-50"
+          >
             <Printer size={14} /> Print Report
           </button>
           <button onClick={exportCSV} disabled={filteredDues.length === 0}
-            className="flex items-center gap-2 text-sm bg-white border border-slate-200 text-slate-700 rounded-xl px-4 py-2 transition shadow-sm font-medium hover:bg-slate-50 disabled:opacity-50">
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-4 py-2.5 transition disabled:opacity-50"
+          >
             <Download size={14} /> Export CSV
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <p className="text-slate-500 text-sm font-semibold mb-1">Monthly Dues</p>
-          <h2 className="text-2xl font-bold text-slate-800">Rs. {totals.monthly.toLocaleString()}</h2>
-          <p className="text-xs text-slate-400 mt-1">Tuition, transport &amp; misc — including arrears</p>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <p className="text-indigo-600 text-sm font-semibold mb-1">Annual Dues</p>
-          <h2 className="text-2xl font-bold text-indigo-700">Rs. {totals.annual.toLocaleString()}</h2>
-          <p className="text-xs text-slate-400 mt-1">Annual fee only — current and carried forward</p>
-        </div>
-        <div className="bg-red-50 border border-red-100 rounded-2xl p-5 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-red-600 text-sm font-semibold mb-1">Total Outstanding</p>
-            <h2 className="text-2xl font-bold text-red-700">Rs. {totals.all.toLocaleString()}</h2>
+      {/* Screen Analytics: Financial Summary Panels */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+          <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
+            <Landmark className="text-white w-5 h-5" />
           </div>
-          <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center shrink-0">
-            <AlertCircle size={24} />
+          <div className="flex-1 min-w-0">
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Monthly Dues</p>
+            <p className="text-2xl font-extrabold text-blue-400 mt-0.5 tracking-tight">{fmtRs(totals.monthly)}</p>
+            <p className="text-slate-500 text-xs mt-1 font-medium">Tuition and transportation limits</p>
+          </div>
+        </div>
+
+        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+          <div className="bg-gradient-to-tr from-purple-600/80 to-purple-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
+            <Layers className="text-white w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Annual Dues</p>
+            <p className="text-2xl font-extrabold text-purple-400 mt-0.5 tracking-tight">{fmtRs(totals.annual)}</p>
+            <p className="text-slate-500 text-xs mt-1 font-medium">Class enrollment annual dues</p>
+          </div>
+        </div>
+
+        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start justify-between shadow-xl">
+          <div className="flex items-start gap-4">
+            <div className="bg-gradient-to-tr from-rose-600/80 to-rose-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
+              <AlertCircle className="text-white w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Total Outstanding</p>
+              <p className="text-2xl font-extrabold text-rose-400 mt-0.5 tracking-tight">{fmtRs(totals.all)}</p>
+              <p className="text-slate-500 text-xs mt-1 font-medium">Cumulative unpaid burden</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search student or receipt..." className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-red-500" />
+      {/* Screen Analytics: Class Dues Breakdown */}
+      {classDuesAnalysis.length > 0 && (
+        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 shadow-xl">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-4">Highest Outstanding Balances by Class</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {classDuesAnalysis.map(cd => {
+              const pct = totals.all > 0 ? Math.round((cd.amount / totals.all) * 100) : 0;
+              return (
+                <div key={cd.className} className="bg-white/3 border border-white/5 rounded-2xl p-4">
+                  <div className="flex justify-between items-center text-xs font-bold mb-2">
+                    <span className="text-slate-300">Class {cd.className}</span>
+                    <span className="text-rose-400">{pct}% share</span>
+                  </div>
+                  <p className="text-sm font-black text-white">{fmtRs(cd.amount)}</p>
+                  <div className="w-full bg-white/5 rounded-full h-1.5 mt-2.5 overflow-hidden">
+                    <div className="bg-rose-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-32">
+      )}
+
+      {/* Filters */}
+      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-48 bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs flex items-center gap-2">
+          <Search size={14} className="text-slate-500" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search student name, ID or receipt..." className="bg-transparent w-full text-white placeholder-slate-500 focus:outline-none font-medium" />
+        </div>
+        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-32">
           <option value="">All Months</option>
-          {MONTHS.map(m => <option key={m}>{m}</option>)}
+          {MONTHS.map(m => <option key={m} className="bg-slate-900">{m}</option>)}
         </select>
-        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-32">
+        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-32">
           <option value="">All Classes</option>
-          {classes.map(c => <option key={c} value={c}>Class {c}</option>)}
+          {classes.map(c => <option key={c} value={c} className="bg-slate-900">Class {c}</option>)}
         </select>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      {/* Table List */}
+      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
         {loading ? (
-          <div className="p-8 text-center"><div className="animate-spin w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full mx-auto" /></div>
+          <div className="p-12 text-center flex flex-col items-center">
+            <div className="animate-spin w-8 h-8 border-4 border-rose-600 border-t-transparent rounded-full mx-auto" />
+            <p className="text-slate-400 text-xs mt-3 uppercase font-bold tracking-wider">Compiling outstanding totals...</p>
+          </div>
         ) : filteredDues.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">No outstanding dues for this criteria.</div>
+          <div className="p-16 text-center text-slate-500 flex flex-col items-center">
+            <AlertCircle size={40} className="text-slate-600 mb-3" />
+            <p className="text-slate-300 font-bold uppercase tracking-wider text-sm">No outstanding dues</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase text-xs">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-white/3 border-b border-white/5 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
                 <tr>
-                  <th className="text-left px-4 py-3">Challan No.</th>
-                  <th className="text-left px-4 py-3">Student</th>
-                  <th className="text-left px-4 py-3">Class</th>
-                  <th className="text-left px-4 py-3">Month</th>
-                  <th className="text-right px-4 py-3">Total Fee</th>
-                  <th className="text-right px-4 py-3">Paid/Disc</th>
-                  <th className="text-right px-4 py-3">Monthly Due</th>
-                  <th className="text-right px-4 py-3">Annual Due</th>
-                  <th className="text-right px-4 py-3">Total Due</th>
+                  <th className="px-5 py-4">Challan No.</th>
+                  <th className="px-5 py-4">Student</th>
+                  <th className="px-5 py-4">Class</th>
+                  <th className="px-5 py-4">Month</th>
+                  <th className="text-right px-5 py-4">Total Fee</th>
+                  <th className="text-right px-5 py-4">Paid/Disc</th>
+                  <th className="text-right px-5 py-4">Monthly Due</th>
+                  <th className="text-right px-5 py-4">Annual Due</th>
+                  <th className="text-right px-5 py-4">Total Due</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-white/3 text-slate-300">
                 {filteredDues.map(d => {
                   const remaining = d.balance || 0;
                   const monthlyDue = monthlyDueOf(d);
                   const annualDue = annualDueOf(d);
                   return (
-                    <tr key={d._id} className="hover:bg-slate-50 transition">
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{d.challanNo}</td>
-                      <td className="px-4 py-3 font-medium text-slate-800">
-                        {d.student?.fullName}
-                        {d.student?.fatherName && <span className="text-slate-500 text-xs block font-normal">s/o {d.student.fatherName}</span>}
-                        <span className="text-slate-400 text-xs block font-normal">{d.student?.studentId}</span>
+                    <tr key={d._id} className="hover:bg-white/3 transition">
+                      <td className="px-5 py-4 font-mono font-bold text-slate-500">{d.challanNo}</td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <div className="font-bold text-white">{d.student?.fullName}</div>
+                        {d.student?.fatherName && <div className="text-[10px] text-slate-400 mt-0.5">s/o {d.student.fatherName}</div>}
+                        <div className="text-[10px] font-mono text-slate-500 mt-0.5">{d.student?.studentId}</div>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{d.student?.class} {d.student?.section || ''}</td>
-                      <td className="px-4 py-3 text-slate-600">{d.dueMonthRange || d.feeMonth} {d.feeYear}</td>
-                      <td className="px-4 py-3 text-right">Rs. {d.totalAmount.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right text-slate-400">Rs. {((d.amountPaid || 0) + (d.discount || 0)).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">
-                        {monthlyDue > 0 ? `Rs. ${monthlyDue.toLocaleString()}` : <span className="text-slate-300">—</span>}
+                      <td className="px-5 py-4 text-slate-300 font-medium">Class {d.student?.class} {d.student?.section || ''}</td>
+                      <td className="px-5 py-4 text-slate-400 font-semibold">{d.dueMonthRange || d.feeMonth} {d.feeYear}</td>
+                      <td className="px-5 py-4 text-right">Rs. {d.totalAmount?.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-right text-slate-500">Rs. {((d.amountPaid || 0) + (d.discount || 0)).toLocaleString()}</td>
+                      <td className="px-5 py-4 text-right font-medium">
+                        {monthlyDue > 0 ? `Rs. ${monthlyDue.toLocaleString()}` : <span className="text-slate-600">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right text-indigo-600 font-medium">
-                        {annualDue > 0 ? `Rs. ${annualDue.toLocaleString()}` : <span className="text-slate-300">—</span>}
+                      <td className="px-5 py-4 text-right font-medium text-indigo-400">
+                        {annualDue > 0 ? `Rs. ${annualDue.toLocaleString()}` : <span className="text-slate-600">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-bold text-red-600">Rs. {remaining.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-right font-black text-rose-400">Rs. {remaining.toLocaleString()}</td>
                     </tr>
                   );
                 })}

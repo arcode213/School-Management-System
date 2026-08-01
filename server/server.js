@@ -53,6 +53,7 @@ app.use('/api/fee-structures', require('./routes/feeStructureRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/system', require('./routes/systemRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/expenses', require('./routes/expenseRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
