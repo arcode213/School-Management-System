@@ -132,11 +132,9 @@
   @keyframes fadeInUp {
     from {
       opacity: 0;
-      transform: translateY(15px);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
     }
   }
 
@@ -157,5 +155,60 @@
 
   .animate-pulse-glow {
     animation: pulseGlow 4s ease-in-out infinite;
+  }
+}
+
+/* Global Glassmorphic Overrides for Screen Elements */
+@media screen {
+  .bg-white {
+    background-color: rgba(17, 24, 39, 0.5) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .bg-slate-50, .bg-gray-50, .bg-slate-100, .bg-gray-100 {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+  }
+
+  .border-slate-100, .border-slate-200, .border-gray-100, .border-gray-200 {
+    border-color: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .divide-slate-50 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(255, 255, 255, 0.04) !important;
+  }
+  .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+  }
+  .divide-gray-100 > :not([hidden]) ~ :not([hidden]), .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  /* Universal text color adjustments for dark theme readability */
+  .text-slate-800, .text-gray-800 {
+    color: #f8fafc !important;
+  }
+  .text-slate-700, .text-gray-700 {
+    color: #f1f5f9 !important;
+  }
+  .text-slate-600, .text-gray-600 {
+    color: #cbd5e1 !important;
+  }
+  .text-slate-500, .text-gray-500 {
+    color: #94a3b8 !important;
+  }
+  .text-slate-400, .text-gray-400 {
+    color: #64748b !important;
+  }
+
+  /* Form inputs text visibility inside white/gray inputs overridden by glass */
+  input, select, textarea {
+    color: #ffffff !important;
+  }
+  option {
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
   }
 }

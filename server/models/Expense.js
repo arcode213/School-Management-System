@@ -13,19 +13,25 @@ const expenseSchema = new mongoose.Schema({
   },
   title: {
     type: String,
-    required: [true, 'Please provide an expense title'],
+    required: [true, 'Please provide a transaction title'],
     trim: true
+  },
+  type: {
+    type: String,
+    required: [true, 'Please specify transaction type'],
+    enum: ['Income', 'Expense'],
+    default: 'Expense'
   },
   category: {
     type: String,
     required: [true, 'Please select a category'],
-    enum: ['Utilities', 'Maintenance', 'Rent', 'Salary', 'Stationery', 'Food', 'Other'],
+    enum: ['Utilities', 'Maintenance', 'Rent', 'Salary', 'Stationery', 'Food', 'Tuition', 'Donation', 'Grant', 'Other'],
     default: 'Other'
   },
   amount: {
     type: Number,
-    required: [true, 'Please specify the expense amount'],
-    min: [0, 'Expense amount cannot be negative']
+    required: [true, 'Please specify the transaction amount'],
+    min: [0, 'Transaction amount cannot be negative']
   },
   date: {
     type: Date,
