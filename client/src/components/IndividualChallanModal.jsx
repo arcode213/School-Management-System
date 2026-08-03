@@ -169,7 +169,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
         });
         toast.success('Challan updated successfully');
       } else {
-        await addFee({
+        const res = await addFee({
           student: selectedStudent._id,
           studentAcademicRecord: selectedStudent.academicRecordId,
           feeMonth: form.feeMonth,
@@ -181,7 +181,9 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
           miscFee: Number(form.miscFee) || 0,
           annualFee: annualCharge,
         });
-        toast.success('Challan generated successfully');
+        // The server drops a duplicate annual fee and says so; surface that rather
+        // than a plain success, or the smaller total looks like a bug.
+        toast.success(res.data?.notice || 'Challan generated successfully');
       }
       onSaved();
       onClose();
@@ -324,7 +326,10 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
               />
               <span>
                 <span className="block text-sm font-medium text-slate-800">Charge the annual fee on this challan</span>
-                <span className="block text-xs text-slate-500 mt-0.5">Prints as its own “Annual Fee” line.</span>
+                <span className="block text-xs text-slate-500 mt-0.5">
+                  Prints as its own “Annual Fee” line.
+                  {!isEdit && ' Charged once per session — if this student was already charged it, it will not be added again.'}
+                </span>
               </span>
             </label>
             {form.chargeAnnualFee && (

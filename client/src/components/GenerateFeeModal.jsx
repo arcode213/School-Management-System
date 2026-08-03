@@ -45,8 +45,10 @@ export default function GenerateFeeModal({ open, onClose, onSaved }) {
     setLoading(true);
     try {
       const { chargeAnnualFee, annualFee, ...rest } = formData;
-      await addBulkFees({ ...rest, annualFee: chargeAnnualFee ? annualAmount : 0 });
-      toast.success('Fees generated successfully!');
+      const res = await addBulkFees({ ...rest, annualFee: chargeAnnualFee ? annualAmount : 0 });
+      // The server reports what it skipped (Freeship, existing challans, students
+      // already charged the annual fee). Show that instead of a generic success.
+      toast.success(res.data?.message || 'Fees generated successfully!');
       onSaved();
       onClose();
     } catch (err) {
@@ -129,7 +131,9 @@ export default function GenerateFeeModal({ open, onClose, onSaved }) {
                   placeholder="e.g. 3000"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Pre-filled from the selected class's Fee Structure. Charged once, on this batch only.
+                  Pre-filled from the selected class's Fee Structure. Charged once per session —
+                  students who were already charged the annual fee (e.g. on an individual challan)
+                  are not charged again; anything they still owe on it carries forward as usual.
                 </p>
               </div>
             )}
