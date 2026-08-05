@@ -5,7 +5,7 @@ const FeeRecord = require('../models/FeeRecord');
 const FeeStructure = require('../models/FeeStructure');
 const StudentFeeOverride = require('../models/StudentFeeOverride');
 const { getNextSeqNumber, formatSeqId, generateSequentialId } = require('../utils/sequentialId');
-const { buildArrearsPeriod } = require('../utils/feeMonths');
+const { buildArrearsPeriod, MONTHS } = require('../utils/feeMonths');
 const { normalizeStudentRow } = require('../utils/importNormalizer');
 
 // Helper: auto-generate a collision-safe studentId (derived from the max
@@ -73,6 +73,55 @@ const buildOpeningArrears = ({
   });
 };
 
+// Records THIS session's annual fee as already charged AND already settled, for a
+// student who paid it before the school started using the system.
+//
+// It is a fully-paid challan rather than a flag because that is what the rest of the
+// fee engine already reads. The generator decides whether to charge the annual fee by
+// looking for a challan of the session carrying one (`findSessionAnnualCharges`), and
+// decides how much is still owed from the unpaid balances. A settled record answers
+// both questions correctly on its own: the student counts as charged, so the fee is
+// never added again, and it owes nothing, so nothing carries forward. Returns null
+// when the amount is 0 or blank — meaning "not paid yet", which leaves the student to
+// be charged normally by Generate Fees.
+const buildPaidAnnualFee = ({ challanNo, student, academicRecord, campus, academicSession, amount }) => {
+  const paid = Number(amount) > 0 ? Number(amount) : 0;
+  if (paid <= 0) return null;
+
+  const now = new Date();
+  const feeMonth = MONTHS[now.getMonth()];
+
+  return new FeeRecord({
+    challanNo,
+    student,
+    studentAcademicRecord: academicRecord,
+    campus,
+    academicSession,
+    feeMonth,
+    feeYear: now.getFullYear(),
+    dueMonthRange: feeMonth,
+    // No monthly charges: an annual fee belongs to no month, and any monthly arrears
+    // are carried by their own opening-balance record.
+    tuitionFee: 0,
+    examFee: 0,
+    transportFee: 0,
+    miscFee: 0,
+    annualFee: paid,
+    previousDues: 0,
+    previousAnnualDues: 0,
+    amountPaid: paid,
+    // Earmarked against the annual bucket so the pre-save allocation puts it there and
+    // not against months (see the allocation rule on FeeRecord).
+    annualPaid: paid,
+    paymentDate: now,
+    // Flagged like the opening-arrears record: it is a statement of what was already
+    // settled before the import, not a voucher, so it is never printed.
+    isOpeningBalance: true,
+    dueDate: now,
+    remarks: 'Annual fee already paid for this session — recorded at import.',
+  });
+};
+
 // @desc    Add a new student
 // @route   POST /api/students
 const addStudent = async (req, res) => {
@@ -87,7 +136,7 @@ const addStudent = async (req, res) => {
 
     const {
       class: className, section, rollNumber, status, statusDate, feeStructure,
-      previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee, isFreeship,
+      previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee, annualFeePaid, isFreeship,
       ...personalDetails
     } = req.body;
 
@@ -131,6 +180,19 @@ const addStudent = async (req, res) => {
       annualAmount: previousAnnualFee,
     });
     if (arrearsRecord) await arrearsRecord.save({ session });
+
+    // Kept as its own record rather than folded into the arrears one above: that
+    // record states what is still OWED, and mixing a settled payment into it would
+    // let the payment allocation spend this money on the unpaid months instead.
+    const paidAnnualRecord = buildPaidAnnualFee({
+      challanNo: `ANP-${studentId}-${Date.now()}`,
+      student: student._id,
+      academicRecord: academicRecord._id,
+      campus: currentCampus,
+      academicSession: currentSession,
+      amount: annualFeePaid,
+    });
+    if (paidAnnualRecord) await paidAnnualRecord.save({ session });
 
     await session.commitTransaction();
     session.endSession();
@@ -326,7 +388,7 @@ const updateStudent = async (req, res) => {
     // challan); strip them so they can never leak into the Student document.
     const {
       class: className, section, rollNumber, status, statusDate, feeStructure, academicRecordId,
-      isFreeship, previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee,
+      isFreeship, previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee, annualFeePaid,
       ...personalDetails
     } = req.body;
 
@@ -481,7 +543,7 @@ const bulkAddStudents = async (req, res) => {
       const studentObj = normalizeStudentRow(studentsData[i]);
       const {
         class: className, section, rollNumber, status, statusDate, feeStructure,
-        previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee, isFreeship,
+        previousDues, previousDuesFrom, previousDuesTo, previousAnnualFee, annualFeePaid, isFreeship,
         ...personalDetails
       } = studentObj;
 
@@ -532,6 +594,16 @@ const bulkAddStudents = async (req, res) => {
         });
         if (arrearsRecord) await arrearsRecord.save({ session });
 
+        const paidAnnualRecord = buildPaidAnnualFee({
+          challanNo: `ANP-${studentId}-${Date.now()}-${i}`,
+          student: student._id,
+          academicRecord: academicRecord._id,
+          campus: currentCampus,
+          academicSession: currentSession,
+          amount: annualFeePaid,
+        });
+        if (paidAnnualRecord) await paidAnnualRecord.save({ session });
+
         addedStudents.push({
           ...student.toJSON(),
           class: academicRecord.className,
@@ -563,4 +635,8 @@ const bulkAddStudents = async (req, res) => {
   }
 };
 
-module.exports = { addStudent, getStudents, getStudent, updateStudent, deleteStudent, getClasses, bulkAddStudents };
+module.exports = {
+  addStudent, getStudents, getStudent, updateStudent, deleteStudent, getClasses, bulkAddStudents,
+  // Exported for tests — builds a document, touches no database.
+  buildPaidAnnualFee,
+};

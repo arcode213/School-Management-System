@@ -79,6 +79,15 @@ const STUDENT_ALIASES = {
     'previousAnnual', 'annualDues', 'previousAnnualDues', 'annualArrears',
     'prevAnnualFee', 'previousAnnualFees',
   ],
+  // THIS session's annual fee, already collected before the school started using the
+  // system. Deliberately distinct from `previousAnnualFee`, which is annual fee still
+  // OWED from an earlier session: this one is settled, prints nowhere, and exists only
+  // so the generator knows the student has had their annual fee for the session and
+  // must not be charged it again.
+  annualFeePaid: [
+    'paidAnnualFee', 'annualPaid', 'annualFeeAlreadyPaid', 'annualFeeReceived',
+    'annualFeePaidAmount', 'sessionAnnualPaid',
+  ],
 };
 
 const EMPLOYEE_ALIASES = {
@@ -107,7 +116,7 @@ const STUDENT_SPEC = {
   // previousDuesFrom/To stay raw: buildArrearsPeriod() parses them itself and
   // understands "January 2026" / "2026-01" as well as real dates.
   dateFields: ['dateOfBirth', 'admissionDate', 'statusDate'],
-  numberFields: ['previousDues', 'previousAnnualFee'],
+  numberFields: ['previousDues', 'previousAnnualFee', 'annualFeePaid'],
   enumFields: {
     gender: GENDERS,
     status: ['Active', 'Left', 'Graduated', 'Failed', 'Promoted'],

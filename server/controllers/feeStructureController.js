@@ -51,7 +51,9 @@ const getOverrides = async (req, res) => {
     if (currentCampus) filter.campus = currentCampus;
     if (currentSession) filter.academicSession = currentSession;
 
-    const overrides = await StudentFeeOverride.find(filter).populate('student', 'fullName studentId');
+    // fatherName is included so the override list and the edit dialog can tell two
+    // students with the same name apart.
+    const overrides = await StudentFeeOverride.find(filter).populate('student', 'fullName studentId fatherName');
     res.json(overrides);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -63,11 +65,31 @@ const getOverrides = async (req, res) => {
 const saveOverride = async (req, res) => {
   try {
     const { currentCampus, currentSession } = req;
-    const { student, customTuitionFee, customTransportFee, customMiscFee, reason } = req.body;
+    const { student, customTuitionFee, customTransportFee, customMiscFee, customAnnualFee, reason } = req.body;
+
+    // A blank input means "no override for this fee, fall back to the class
+    // structure", so it must UNSET the field rather than store null — a stored null
+    // would read back as an override and the generator would bill 0. An explicit 0 is
+    // a real override (fee excused) and is kept.
+    const set = {};
+    const unset = {};
+    if (reason !== undefined) set.reason = reason;
+    for (const [field, value] of Object.entries({
+      customTuitionFee, customTransportFee, customMiscFee, customAnnualFee,
+    })) {
+      if (value === undefined || value === null || value === '') unset[field] = '';
+      else set[field] = Number(value);
+    }
+
+    // Both operators are added only when they have something in them: Mongo rejects an
+    // empty `$set`, which is exactly what an override that clears every fee produces.
+    const update = {};
+    if (Object.keys(set).length > 0) update.$set = set;
+    if (Object.keys(unset).length > 0) update.$unset = unset;
 
     const override = await StudentFeeOverride.findOneAndUpdate(
       { student, campus: currentCampus, academicSession: currentSession },
-      { customTuitionFee, customTransportFee, customMiscFee, reason },
+      update,
       { new: true, upsert: true }
     );
     res.json(override);
@@ -166,6 +188,12 @@ const rolloverFeeStructure = async (req, res) => {
       }
       if (ovr.customMiscFee !== undefined && ovr.customMiscFee !== null) {
         updateData.customMiscFee = ovr.customMiscFee;
+      }
+      // Carried across at face value. The increment applies to tuition only — it is a
+      // monthly raise, and adding it to a one-off annual fee would silently inflate it
+      // by the same amount every year the session is rolled over.
+      if (ovr.customAnnualFee !== undefined && ovr.customAnnualFee !== null) {
+        updateData.customAnnualFee = ovr.customAnnualFee;
       }
 
       await StudentFeeOverride.findOneAndUpdate(

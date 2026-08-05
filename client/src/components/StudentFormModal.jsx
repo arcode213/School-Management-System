@@ -197,12 +197,22 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
             <Field label="Previous Annual Fees (Rs.)">
               <input id="std-previousAnnualFee" type="number" min="0" {...register('previousAnnualFee', { valueAsNumber: true })} className={input()} placeholder="e.g. 3000" disabled={isEdit} />
             </Field>
+            <Field label="Annual Fee Already Paid (Rs.)">
+              <input id="std-annualFeePaid" type="number" min="0" {...register('annualFeePaid', { valueAsNumber: true })} className={input()} placeholder="e.g. 3000" disabled={isEdit} />
+            </Field>
             <div className="col-span-2">
               <p className="text-xs text-slate-400 leading-snug">
                 {isEdit
                   ? 'Opening balances are set at admission. Adjust the existing arrears challan from Fee Management instead.'
                   : 'Leave amounts blank or 0 if nothing is owed. Monthly dues print as “Arrears (January - March)” using the period above; unpaid annual fee prints on its own “Previous Annual Fee” line.'}
               </p>
+              {!isEdit && (
+                <p className="text-xs text-slate-400 leading-snug mt-1">
+                  <strong>Annual Fee Already Paid</strong> is for a student who has already paid this
+                  session's annual fee — it is recorded as settled so Generate Fees will not charge
+                  them again. Leave it blank or 0 if they have not paid.
+                </p>
+              )}
             </div>
           </Section>
 

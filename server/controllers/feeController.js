@@ -3,7 +3,6 @@ const FeeRecord = require('../models/FeeRecord');
 const FeeStructure = require('../models/FeeStructure');
 const StudentFeeOverride = require('../models/StudentFeeOverride');
 const StudentAcademicRecord = require('../models/StudentAcademicRecord');
-const Campus = require('../models/Campus');
 const { MONTHS, parseStartMonth, buildDueMonthRange, absMonth, monthAfter } = require('../utils/feeMonths');
 
 // Client errors carry a statusCode so the handler can answer 400 instead of a
@@ -59,7 +58,6 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
   //  - annual fee still owed from THIS session, which is simply this session's
   //    annual fee not yet paid, so it keeps printing as "Annual Fee".
   let totalDue = 0;
-  let totalAnnualDue = 0;
   let currentAnnualCarryForward = 0;
 
   let displayStartMonth = '';
@@ -117,13 +115,37 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     }
   };
 
+  // Prior-session annual dues, keyed by the session they belong to.
+  //
+  // Monthly dues ADD UP across challans — every month is its own charge. An annual
+  // fee does NOT: one session has ONE annual fee, so several open challans of the
+  // same session are all restating THE SAME debt (each one inherited it from the
+  // last). Adding them would bill it two or three times over.
+  //
+  // That is why every annual figure below is combined with Math.max instead of a
+  // sum: the largest outstanding amount seen for a session IS that session's annual
+  // debt, no matter how many challans happen to be restating it.
+  const priorAnnualBySession = new Map();
+  const notePriorAnnual = (sessionKey, amount) => {
+    if (!(amount > 0)) return;
+    priorAnnualBySession.set(sessionKey, Math.max(priorAnnualBySession.get(sessionKey) || 0, amount));
+  };
+
+  // The prior-session annual debt that a CURRENT-session challan already absorbed
+  // into its own `previousAnnualDues` when it was generated.
+  let carriedPriorAnnual = 0;
+
   // Roll over lump-sum dues without calculating gap months
   for (const challan of lumpSumChallans) {
     totalDue += monthlyOutstanding(challan);
     // All of it counts as PREVIOUS annual: these challans either belong to a session
     // that has ended, or are an opening balance — dues brought in at admission/import,
     // which by definition predate this session's own billing.
-    totalAnnualDue += annualOutstanding(challan);
+    //
+    // Grouped by session so two genuinely different past sessions each contribute
+    // their own annual fee, while several challans of ONE past session contribute it
+    // only once.
+    notePriorAnnual(challan.academicSession.toString(), annualOutstanding(challan));
     challansToCarryForward.push(challan);
 
     // For the UI label, track the absolute earliest month across ANY session
@@ -141,9 +163,13 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     // The annual fee this challan charged is still THIS session's annual fee while it
     // goes unpaid, so it rolls forward onto the new challan's "Annual Fee" line. Only
     // the share it had itself inherited from an earlier session stays "previous".
+    //
+    // Both halves are combined with Math.max, not added — see the note above
+    // `priorAnnualBySession`. A student with April and May both still open is
+    // looking at ONE unpaid annual fee restated twice, not two annual fees.
     const annual = splitAnnualOutstanding(challan);
-    totalAnnualDue += annual.prior;
-    currentAnnualCarryForward += annual.own;
+    carriedPriorAnnual = Math.max(carriedPriorAnnual, annual.prior);
+    currentAnnualCarryForward = Math.max(currentAnnualCarryForward, annual.own);
     challansToCarryForward.push(challan);
 
     // Months this challan has already billed (paid or not) must never be re-billed
@@ -197,6 +223,15 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     displayEndMonth = displayStartMonth;
   }
 
+  // Prior-session annual dues reach us by two routes: still-open challans of the past
+  // sessions themselves, and the amount a current-session challan already folded into
+  // its `previousAnnualDues`. In a healthy carry-forward chain only ONE of those is
+  // ever non-zero — once a past challan is rolled forward it is flagged and stops
+  // being read. They are combined with max rather than added so that a chain broken
+  // by a deleted challan restates the debt instead of doubling it.
+  const lumpSumAnnual = [...priorAnnualBySession.values()].reduce((sum, v) => sum + v, 0);
+  const totalAnnualDue = Math.max(lumpSumAnnual, carriedPriorAnnual);
+
   return {
     previousDues: totalDue,
     previousAnnualDues: totalAnnualDue,
@@ -216,19 +251,19 @@ const arrearsPeriod = (previousDues, startMonth, endMonth) => {
   return { from: startMonth, to: endMonth || startMonth };
 };
 
-// Which of the given students have ALREADY been charged an annual fee in this
-// academic session — on any challan of the session, paid or not.
+// Returns a Map of studentId -> the annual fee AMOUNT established for this academic
+// session, holding an entry only for students who have already been charged it.
 //
 // The annual fee is a ONCE-PER-SESSION charge. A student who received it on an
 // earlier challan (typically an individual one issued mid-session) must not be
-// charged it a second time when the whole class is billed months later. Without
-// this the two paths compounded: the batch added its own annual fee on top of the
-// unpaid one already rolling forward, so the parent was billed twice for it — and
-// a student who had already PAID was billed for it all over again.
+// charged it a second time when the whole class is billed months later.
 //
-// Only the NEW charge is suppressed. Anything still unpaid keeps rolling forward
-// through `currentAnnualCarryForward` exactly as before, so the amount owed never
-// changes — it just stops growing.
+// The amount is read from the EARLIEST challan of the session that charged the fee
+// FRESH — `annualFee` minus the share it merely inherited from the challan before
+// it. That first charge is, by definition, this session's annual fee, so it doubles
+// as a ceiling: any later challan claiming a larger annual amount is restating the
+// same debt more than once, and `resolveAnnualForChallan` clamps it back down rather
+// than passing the inflation on to the next challan.
 //
 // Matching on `annualFee > 0` covers the whole carry-forward chain: a rolled-over
 // annual fee keeps sitting on `annualFee` (that is what keeps it printing as
@@ -237,42 +272,107 @@ const arrearsPeriod = (previousDues, startMonth, endMonth) => {
 // considered — that is a PRIOR session's annual fee, or an opening balance brought
 // in at admission, and neither has any bearing on whether THIS session's annual fee
 // has been charged yet.
-const findAnnualAlreadyCharged = async (studentIds, currentSession, session) => {
+const findSessionAnnualCharges = async (studentIds, currentSession, session) => {
   const charged = await FeeRecord.find({
     student: { $in: studentIds },
     academicSession: currentSession,
     isDeleted: false,
     annualFee: { $gt: 0 },
   })
-    .select('student')
+    .select('student annualFee annualCarriedForward')
+    .sort({ createdAt: 1 })
     .session(session);
 
-  return new Set(charged.map(c => c.student.toString()));
+  const established = new Map();
+  for (const c of charged) {
+    const key = c.student.toString();
+    if (established.has(key)) continue; // earliest challan wins
+    const fresh = Math.max((c.annualFee || 0) - (c.annualCarriedForward || 0), 0);
+    // A pure roll-over as the earliest record means its parent was deleted; fall back
+    // to the whole amount rather than recording a ceiling of zero.
+    established.set(key, fresh > 0 ? fresh : (c.annualFee || 0));
+  }
+  return established;
 };
 
-// Helper to generate unique challan number
-const generateChallanNo = async (campusId, year, session) => {
-  const campus = await Campus.findById(campusId).session(session);
-  // Strip non-alphanumerics so a campus name like "Al-Falah" can't inject a stray
-  // dash into the challan number (which previously broke the sequence parsing).
-  const cleanName = campus && campus.name ? campus.name.replace(/[^a-zA-Z0-9]/g, '') : '';
-  const prefix = cleanName ? cleanName.substring(0, 3).toUpperCase() : 'SCH';
+// A per-student override is "set" only when it holds a real number. An explicit 0 IS
+// an override — a student the school has excused the annual fee for — so it must be
+// honoured rather than treated as "nothing configured".
+const overrideValue = (value) =>
+  value === undefined || value === null || Number.isNaN(Number(value)) ? null : Math.max(Number(value), 0);
 
-  // Find latest challan for this campus and year
-  const latest = await FeeRecord.findOne({ challanNo: new RegExp(`^${prefix}-${year}-`) })
-    .sort({ createdAt: -1 })
-    .session(session);
+// How much annual fee to charge a given student, most specific source winning:
+//
+//   1. their per-student annual fee override, if one is set
+//   2. the amount sent with this request (the Generate screen pre-fills it from the
+//      class fee structure, and the user may edit it before generating)
+//   3. the class fee structure's annual fee
+//
+// This mirrors the precedence the monthly fees already use, so an "Annual Fee" set in
+// Fee Management is picked up automatically and never has to be typed per student.
+const resolveAnnualAmount = (studentOverride, classStructure, requestedAmount) => {
+  const custom = overrideValue(studentOverride && studentOverride.customAnnualFee);
+  if (custom !== null) return custom;
+  if (requestedAmount > 0) return requestedAmount;
+  return Math.max(Number(classStructure && classStructure.annualFee) || 0, 0);
+};
 
-  let seq = 1;
-  if (latest) {
-    // The sequence is always the LAST dash-separated segment. Reading it
-    // positionally (parts[2]) broke whenever the prefix or year contained a dash.
-    const lastSeg = latest.challanNo.split('-').pop();
-    const parsed = parseInt(lastSeg, 10);
-    if (!isNaN(parsed)) seq = parsed + 1;
+// The annual fee to put on a challan being generated now.
+//
+// `established` is undefined when this session has not charged the student the annual
+// fee yet — only then is a NEW charge added. Otherwise the challan restates whatever
+// that one charge still owes, capped by the charge itself. This is what makes the fee
+// payable exactly once per session: it can be carried forward indefinitely, but the
+// amount can never grow past what was originally billed.
+const resolveAnnualForChallan = (established, requestedCharge, carriedForward) => {
+  if (established === undefined) {
+    return { annualFee: requestedCharge + carriedForward, annualCarriedForward: carriedForward, suppressed: false };
   }
+  const carried = Math.min(carriedForward, established);
+  return { annualFee: carried, annualCarriedForward: carried, suppressed: requestedCharge > 0 };
+};
 
-  return `${prefix}-${year}-${seq.toString().padStart(4, '0')}`;
+// Short, human-readable challan number: MONTH - SEQUENCE, e.g. "APR-001".
+//
+// Seven characters, which is the point — this is read aloud, written on receipts and
+// typed into the search box all day. The old format spelled out the campus and the
+// year ("SCH-2026-0001") and neither earned its space: the challan already records
+// which campus and session it belongs to, and every screen is filtered to one campus
+// anyway, so repeating that in the number told staff nothing they did not know.
+//
+// JAN, FEB, MAR ... — the first three letters are distinct for all twelve months.
+const challanPrefix = (feeMonth) => String(feeMonth || '').substring(0, 3).toUpperCase() || 'GEN';
+
+// The counter runs per month and NEVER resets: April 2026 runs APR-001 up to APR-350,
+// and April 2027 carries on at APR-351. That is what keeps the number this short while
+// still satisfying the unique index on `challanNo` — restarting each year would make
+// 2027's APR-001 collide with 2026's.
+//
+// One sequence covers all campuses, so numbers interleave between them rather than
+// each campus counting from 001. That is the price of dropping the campus letter; the
+// numbers stay unique, and a challan's campus is still recorded on the record itself.
+const generateChallanNo = async (feeMonth, session) => {
+  const prefix = challanPrefix(feeMonth);
+
+  // Highest sequence issued so far for this month. Read as the MAX numeric suffix
+  // rather than "the most recently created challan": creation order is not sequence
+  // order once records are edited or back-dated, and two challans saved in the same
+  // millisecond made the old `sort({ createdAt: -1 })` a coin flip.
+  //
+  // Soft-deleted challans are deliberately still counted, so a deleted number is
+  // never handed out a second time.
+  const query = FeeRecord.aggregate([
+    { $match: { challanNo: { $regex: `^${prefix}-\\d+$` } } },
+    { $project: { seq: { $toInt: { $arrayElemAt: [{ $split: ['$challanNo', '-'] }, -1] } } } },
+    { $sort: { seq: -1 } },
+    { $limit: 1 },
+  ]);
+  if (session) query.session(session);
+  const [top] = await query;
+
+  const seq = (top?.seq || 0) + 1;
+  // padStart only pads — once a month passes 999 the number simply grows to 1000.
+  return `${prefix}-${String(seq).padStart(3, '0')}`;
 };
 
 // @desc    Record a single fee payment
@@ -289,7 +389,7 @@ const addFee = async (req, res) => {
 
     const {
       student, studentAcademicRecord, feeMonth, feeYear, dueDate,
-      tuitionFee, examFee, transportFee, miscFee, annualFee,
+      tuitionFee, examFee, transportFee, miscFee, annualFee, chargeAnnualFee,
     } = req.body;
 
     // Always load the academic record — it is needed both to link the challan and
@@ -308,20 +408,32 @@ const addFee = async (req, res) => {
     const exists = await FeeRecord.findOne({ student, feeMonth, feeYear, isDeleted: false }).session(session);
     if (exists) throw badRequest(`Challan for ${feeMonth} ${feeYear} already exists for this student.`);
 
-    // The annual fee is charged once per session (see findAnnualAlreadyCharged).
-    // If this student already carries it on another challan of this session, the
-    // requested amount is dropped rather than the whole challan being rejected —
-    // everything else on it is still owed. Whatever the annual fee still owes keeps
-    // carrying forward untouched.
-    let annualRequested = Number(annualFee) || 0;
-    let annualSuppressed = false;
-    if (annualRequested > 0) {
-      const alreadyCharged = await findAnnualAlreadyCharged([student], currentSession, session);
-      if (alreadyCharged.has(String(student))) {
-        annualSuppressed = true;
-        annualRequested = 0;
-      }
+    // Resolve the annual fee the same way the class batch does, so an amount set in
+    // Fee Management is picked up automatically here too and never has to be typed:
+    // the student's own annual fee override wins, then the amount sent with the
+    // request, then their class fee structure.
+    const requestedAnnual = Math.max(Number(annualFee) || 0, 0);
+    const chargeAnnual = chargeAnnualFee === undefined ? requestedAnnual > 0 : !!chargeAnnualFee;
+
+    let annualRequested = 0;
+    if (chargeAnnual) {
+      const [classStructure, studentOverride] = await Promise.all([
+        FeeStructure.findOne({
+          campus: currentCampus, academicSession: currentSession, className: academicRecord.className,
+        }).session(session),
+        StudentFeeOverride.findOne({
+          student, campus: currentCampus, academicSession: currentSession, isActive: true,
+        }).session(session),
+      ]);
+      annualRequested = resolveAnnualAmount(studentOverride, classStructure, requestedAnnual);
     }
+
+    // The annual fee is charged once per session. If this student already carries it
+    // on another challan of this session, the requested amount is dropped rather than
+    // the whole challan being rejected — everything else on it is still owed, and
+    // whatever the annual fee still owes keeps carrying forward untouched.
+    const annualCharges = await findSessionAnnualCharges([student], currentSession, session);
+    const establishedAnnual = annualCharges.get(String(student));
 
     // Handle Previous Dues. For a manually-entered challan we treat the current
     // month's recurring charges (tuition + transport + misc) as the per-month
@@ -337,9 +449,10 @@ const addFee = async (req, res) => {
     // Unpaid annual fee from an earlier challan of this same session joins the annual
     // fee charged here, so the parent keeps seeing one "Annual Fee" line for the
     // session's annual fee instead of it being relabelled "Previous Annual Fee".
-    const annualForThisChallan = annualRequested + currentAnnualCarryForward;
+    const annual = resolveAnnualForChallan(establishedAnnual, annualRequested, currentAnnualCarryForward);
+    const annualSuppressed = annual.suppressed;
 
-    const challanNo = await generateChallanNo(currentCampus, feeYear, session);
+    const challanNo = await generateChallanNo(feeMonth, session);
 
     const fee = new FeeRecord({
       challanNo,
@@ -354,8 +467,8 @@ const addFee = async (req, res) => {
       examFee: examFee || 0,
       transportFee: transportFee || 0,
       miscFee: miscFee || 0,
-      annualFee: annualForThisChallan,
-      annualCarriedForward: currentAnnualCarryForward,
+      annualFee: annual.annualFee,
+      annualCarriedForward: annual.annualCarriedForward,
       previousDues,
       previousAnnualDues,
       arrearsFromMonth: arrears.from,
@@ -406,16 +519,24 @@ const addBulkFees = async (req, res) => {
       throw badRequest('Campus and Academic Session context are required');
     }
 
-    // `annualFee` is opt-in per run: the Generate modal only sends an amount when the
-    // "also charge annual fee" box is ticked, so any month's batch can include it.
-    const { class: studentClass, section, feeMonth, feeYear, dueDate, annualFee } = req.body;
-    const annualCharge = Number(annualFee) > 0 ? Number(annualFee) : 0;
-    
-    const filter = { 
-      campus: currentCampus, 
-      academicSession: currentSession, 
-      isDeleted: false, 
-      status: 'Active' 
+    // The annual fee is opt-in per run. `chargeAnnualFee` is the switch; `annualFee`
+    // is only the amount the Generate screen pre-filled from the class fee structure,
+    // and each student's real amount is resolved below (an override can beat it).
+    //
+    // The flag has to be separate from the amount: a batch where every student takes
+    // their annual fee from a fee structure or an override sends no amount at all, and
+    // the old "amount > 0 means charge it" test would have skipped the whole batch.
+    // Requests without the flag fall back to that old test so nothing already
+    // integrated against this endpoint breaks.
+    const { class: studentClass, section, feeMonth, feeYear, dueDate, annualFee, chargeAnnualFee } = req.body;
+    const requestedAnnual = Math.max(Number(annualFee) || 0, 0);
+    const chargeAnnual = chargeAnnualFee === undefined ? requestedAnnual > 0 : !!chargeAnnualFee;
+
+    const filter = {
+      campus: currentCampus,
+      academicSession: currentSession,
+      isDeleted: false,
+      status: 'Active'
     };
     if (studentClass) filter.className = studentClass;
     if (section) filter.section = section;
@@ -437,12 +558,15 @@ const addBulkFees = async (req, res) => {
 
     // Students in this batch who already carry this session's annual fee — from an
     // individual challan issued earlier in the year, or an earlier batch that also
-    // had the box ticked. They keep whatever they already owe; the batch's annual
-    // fee is added only to the rest. Resolved in ONE query up front rather than per
-    // student inside the loop.
-    const annualAlreadyCharged = annualCharge > 0
-      ? await findAnnualAlreadyCharged(academicRecords.map(r => r.student), currentSession, session)
-      : new Set();
+    // had the box ticked — mapped to the amount that was charged. They keep whatever
+    // they already owe; the batch's annual fee is added only to the rest. Resolved in
+    // ONE query up front rather than per student inside the loop.
+    //
+    // Always resolved, even when this batch is not charging an annual fee, because
+    // the recorded amount also caps what may be carried forward.
+    const annualCharges = await findSessionAnnualCharges(
+      academicRecords.map(r => r.student), currentSession, session
+    );
 
     let createdCount = 0;
     let skippedFreeship = 0;
@@ -502,16 +626,20 @@ const addBulkFees = async (req, res) => {
       // yet this session. For everyone else the line still shows whatever their annual
       // fee still owes — carried forward, not re-charged — so a student who paid it on
       // an individual challan gets no annual line at all.
+      // Each student's own amount: their annual fee override if they have one,
+      // otherwise the amount sent with the batch, otherwise their class fee structure.
+      const studentAnnual = chargeAnnual ? resolveAnnualAmount(stuOverride, baseStruct, requestedAnnual) : 0;
+
       const studentKey = record.student.toString();
-      const alreadyHasAnnual = annualAlreadyCharged.has(studentKey);
-      if (annualCharge > 0 && alreadyHasAnnual) skippedAnnual++;
+      const annual = resolveAnnualForChallan(
+        annualCharges.get(studentKey), studentAnnual, currentAnnualCarryForward
+      );
+      if (annual.suppressed) skippedAnnual++;
       // Guard the case of a student holding two academic records in this session:
       // once this batch charges them, the second record must not charge them again.
-      if (annualCharge > 0) annualAlreadyCharged.add(studentKey);
+      if (studentAnnual > 0 && !annualCharges.has(studentKey)) annualCharges.set(studentKey, studentAnnual);
 
-      const annualForThisChallan = (alreadyHasAnnual ? 0 : annualCharge) + currentAnnualCarryForward;
-
-      const challanNo = await generateChallanNo(currentCampus, feeYear, session);
+      const challanNo = await generateChallanNo(feeMonth, session);
 
       const fee = new FeeRecord({
         challanNo,
@@ -526,8 +654,8 @@ const addBulkFees = async (req, res) => {
         examFee: 0,
         transportFee: tTrans,
         miscFee: tMisc,
-        annualFee: annualForThisChallan,
-        annualCarriedForward: currentAnnualCarryForward,
+        annualFee: annual.annualFee,
+        annualCarriedForward: annual.annualCarriedForward,
         previousDues,
         previousAnnualDues,
         arrearsFromMonth: arrears.from,
@@ -830,5 +958,7 @@ const getFee = async (req, res) => {
 };
 
 module.exports = {
-  addFee, addBulkFees, getFees, getStudentFees, getDues, updateFee, deleteFee, getFee
+  addFee, addBulkFees, getFees, getStudentFees, getDues, updateFee, deleteFee, getFee,
+  // Exported for tests — pure helpers with no database access.
+  challanPrefix, resolveAnnualForChallan, resolveAnnualAmount,
 };

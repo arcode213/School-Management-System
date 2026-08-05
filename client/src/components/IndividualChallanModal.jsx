@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { addFee, updateFee, getFeeStructures, getFeeOverrides } from '../api/fees';
 import { getStudents } from '../api/students';
 import toast from 'react-hot-toast';
@@ -28,6 +28,8 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
 
   const [form, setForm] = useState(blankForm());
   const [loading, setLoading] = useState(false);
+  // Only true once the user overtypes the auto-detected annual fee.
+  const [annualEdited, setAnnualEdited] = useState(false);
 
   // Student selection (create mode only)
   const [query, setQuery] = useState('');
@@ -70,6 +72,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
       setQuery('');
       setResults([]);
     }
+    setAnnualEdited(false);
   }, [open, feeRecord, isEdit]);
 
   // Load class fee structures + student overrides once the modal opens in
@@ -84,6 +87,9 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
       .catch(() => {});
   }, [open, isEdit]);
 
+  const pick = (custom, base) =>
+    custom !== undefined && custom !== null ? Number(custom) : Number(base || 0);
+
   // Fill the recurring fee fields from the student's class fee structure,
   // letting any per-student override win — mirrors the bulk fee generator so
   // individual and monthly challans stay consistent.
@@ -93,18 +99,40 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
     const override = feeOverrides.find(
       o => String(o.student?._id || o.student) === String(student._id)
     );
-    const pick = (custom, base) =>
-      custom !== undefined && custom !== null ? Number(custom) : Number(base || 0);
 
     setForm(f => ({
       ...f,
       tuitionFee: pick(override?.customTuitionFee, struct?.tuitionFee),
       transportFee: pick(override?.customTransportFee, struct?.transportFee),
       miscFee: pick(override?.customMiscFee, struct?.miscFee),
-      // Pre-fill the class default, but leave it unticked — the user opts in.
-      annualFee: Number(struct?.annualFee || 0),
     }));
   };
+
+  // The annual fee configured for this student — their own annual fee override if
+  // they have one, otherwise their class's annual fee from Fee Structures.
+  //
+  // DERIVED rather than copied into the form when the student is picked: the
+  // structures and overrides load asynchronously, so a copy taken at selection time
+  // was 0 whenever the user picked a student before they arrived, and the amount then
+  // had to be typed in by hand.
+  const autoAnnualFee = useMemo(() => {
+    if (isEdit || !selectedStudent) return 0;
+    const struct = feeStructures.find(s => s.className === selectedStudent.class);
+    const override = feeOverrides.find(
+      o => String(o.student?._id || o.student) === String(selectedStudent._id)
+    );
+    return pick(override?.customAnnualFee, struct?.annualFee);
+  }, [isEdit, selectedStudent, feeStructures, feeOverrides]);
+
+  // True when this student's amount comes from their own override rather than the
+  // class default — worth saying so on screen, since it explains a differing figure.
+  const hasAnnualOverride = useMemo(() => {
+    if (isEdit || !selectedStudent) return false;
+    const override = feeOverrides.find(
+      o => String(o.student?._id || o.student) === String(selectedStudent._id)
+    );
+    return override?.customAnnualFee !== undefined && override?.customAnnualFee !== null;
+  }, [isEdit, selectedStudent, feeOverrides]);
 
   // Debounced student search
   const runSearch = useCallback(async (q) => {
@@ -134,7 +162,10 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
   // the server rejects it too.
   const blockedByFreeship = !isEdit && !!selectedStudent?.isFreeship;
 
-  const annualCharge = form.chargeAnnualFee ? (Number(form.annualFee) || 0) : 0;
+  // In create mode the amount comes from Fee Structures unless the user overtyped it;
+  // in edit mode it is whatever the challan already carries.
+  const annualBase = isEdit || annualEdited ? (Number(form.annualFee) || 0) : autoAnnualFee;
+  const annualCharge = form.chargeAnnualFee ? annualBase : 0;
 
   const currentTotal =
     (Number(form.tuitionFee) || 0) + (Number(form.examFee) || 0) +
@@ -179,7 +210,11 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
           examFee: Number(form.examFee) || 0,
           transportFee: Number(form.transportFee) || 0,
           miscFee: Number(form.miscFee) || 0,
-          annualFee: annualCharge,
+          // Sending 0 for an un-edited amount lets the server resolve it from this
+          // student's annual fee override, then their class fee structure — the same
+          // resolution the class batch uses, so both paths always agree.
+          chargeAnnualFee: form.chargeAnnualFee,
+          annualFee: form.chargeAnnualFee && annualEdited ? annualCharge : 0,
         });
         // The server drops a duplicate annual fee and says so; surface that rather
         // than a plain success, or the smaller total looks like a bug.
@@ -328,15 +363,64 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
                 <span className="block text-sm font-medium text-slate-800">Charge the annual fee on this challan</span>
                 <span className="block text-xs text-slate-500 mt-0.5">
                   Prints as its own “Annual Fee” line.
-                  {!isEdit && ' Charged once per session — if this student was already charged it, it will not be added again.'}
+                  {!isEdit && ' The amount is taken from Fee Structures automatically. Charged once per session — if this student was already charged it, it will not be added again.'}
                 </span>
               </span>
             </label>
             {form.chargeAnnualFee && (
               <div className="mt-3 pl-7">
-                <label className="block text-xs font-medium text-slate-600 mb-1">Annual Fee Amount (Rs.)</label>
-                <input type="number" min="0" value={form.annualFee} onChange={e => setNum('annualFee', e.target.value)}
-                  className="w-full text-sm border rounded-lg px-3 py-2 bg-white" placeholder="e.g. 3000" />
+                {/* Create mode shows the amount already resolved for this student, so
+                    nothing has to be typed or looked up. Edit mode keeps a plain input:
+                    it is changing what the challan already carries, not picking a new
+                    amount from Fee Structures. */}
+                {!isEdit && !annualEdited ? (
+                  <div className="flex items-center justify-between gap-3 bg-white border border-indigo-200 rounded-lg px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Annual Fee</p>
+                      <p className="text-lg font-bold text-indigo-700 leading-tight">
+                        Rs. {autoAnnualFee.toLocaleString()}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {!selectedStudent
+                          ? 'Select a student to load their annual fee'
+                          : hasAnnualOverride
+                            ? "This student's custom annual fee"
+                            : `From Fee Structures${selectedStudent.class ? ` — Class ${selectedStudent.class}` : ''}`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setAnnualEdited(true); setNum('annualFee', autoAnnualFee); }}
+                      className="flex-shrink-0 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-slate-600">Annual Fee Amount (Rs.)</label>
+                      {!isEdit && (
+                        <button
+                          type="button"
+                          onClick={() => { setAnnualEdited(false); setNum('annualFee', 0); }}
+                          className="text-xs font-medium text-slate-500 hover:text-slate-700 hover:underline"
+                        >
+                          Use Fee Structures
+                        </button>
+                      )}
+                    </div>
+                    <input type="number" min="0" value={form.annualFee} onChange={e => setNum('annualFee', e.target.value)}
+                      className="w-full text-sm border rounded-lg px-3 py-2 bg-white" placeholder="e.g. 3000" />
+                  </>
+                )}
+
+                {!isEdit && !annualEdited && selectedStudent && autoAnnualFee === 0 && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-2">
+                    No annual fee is set for Class {selectedStudent.class} in Fee Structures, and this
+                    student has no annual fee override. Use “Change” to enter an amount.
+                  </p>
+                )}
               </div>
             )}
           </div>

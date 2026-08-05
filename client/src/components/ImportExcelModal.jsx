@@ -87,7 +87,7 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
         'phone', 'fatherContact', 'motherContact', 'emergencyContact',
         'class', 'section', 'lastSchool', 'rollNumber', 'admissionDate', 'status',
         'isFreeship', 'previousDues', 'previousDuesFrom', 'previousDuesTo',
-        'previousAnnualFee', 'address'
+        'previousAnnualFee', 'annualFeePaid', 'address'
       ];
       fileName = 'students_template.xlsx';
     } else if (type === 'employees') {
@@ -279,6 +279,13 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
                 <code className="bg-white border px-1 rounded">previousAnnualFee</code> — unpaid{' '}
                 <strong>annual</strong> fee from before. Tracked separately and printed on its own{' '}
                 <em>Previous Annual Fee</em> line, so it is never mixed into the monthly arrears. No date range needed.
+              </p>
+              <p>
+                <code className="bg-white border px-1 rounded">annualFeePaid</code> — for students who have{' '}
+                <strong>already paid this session's annual fee</strong>. Enter the amount they paid and it is
+                recorded as settled, so <em>Generate Fees</em> will not charge them the annual fee again this
+                session. Enter <strong>0</strong> or leave it blank for students who have not paid — their annual
+                fee stays at zero until you charge it from <em>Generate Fees</em>.
               </p>
               <p className="text-slate-500">
                 Dates accept a real date cell, <code className="bg-white border px-1 rounded">2026-01-15</code>,{' '}
