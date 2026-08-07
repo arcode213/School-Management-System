@@ -92,36 +92,36 @@ export default function PromotionsPage() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight uppercase">Academic Promotions</h1>
-        <p className="text-slate-400 text-xs font-semibold mt-1 uppercase tracking-wider">Carry active students into the next academic term or class levels</p>
+        <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Academic Promotions</h1>
+        <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">Carry active students into the next academic term or class levels</p>
       </div>
 
       {/* Configuration Panel */}
-      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 p-5 rounded-3xl flex flex-wrap gap-5 items-end shadow-xl">
+      <div className="card card-lg p-5 flex flex-wrap gap-5 items-end">
         <div className="flex-1 min-w-48">
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Source Class (Current Session)</label>
-          <select value={sourceClass} onChange={e => setSourceClass(e.target.value)} className="w-full text-xs font-semibold bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-            <option value="" className="bg-slate-900">Select Class</option>
-            {classes.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+          <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Source Class (Current Session)</label>
+          <select value={sourceClass} onChange={e => setSourceClass(e.target.value)} className="w-full text-xs font-semibold bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer">
+            <option value="" className="bg-surface-2">Select Class</option>
+            {classes.map(c => <option key={c} value={c} className="bg-surface-2">{c}</option>)}
           </select>
         </div>
         
         <div className="flex-1 min-w-48">
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Academic Session</label>
-          <select value={targetSession} onChange={e => setTargetSession(e.target.value)} className="w-full text-xs font-semibold bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-            <option value="" className="bg-slate-900">Select Target Session</option>
+          <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Target Academic Session</label>
+          <select value={targetSession} onChange={e => setTargetSession(e.target.value)} className="w-full text-xs font-semibold bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer">
+            <option value="" className="bg-surface-2">Select Target Session</option>
             {sessions.filter(s => s._id !== currentSession).map(s => (
-              <option key={s._id} value={s._id} className="bg-slate-900">{s.name} {s.isActive ? '(Active)' : ''}</option>
+              <option key={s._id} value={s._id} className="bg-surface-2">{s.name} {s.isActive ? '(Active)' : ''}</option>
             ))}
           </select>
         </div>
 
         <div className="flex-1 min-w-48">
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Default Target Class (Optional)</label>
-          <input type="text" value={targetClass} onChange={e => setTargetClass(e.target.value)} placeholder="e.g. 6" className="w-full text-xs bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Default Target Class (Optional)</label>
+          <input type="text" value={targetClass} onChange={e => setTargetClass(e.target.value)} placeholder="e.g. 6" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand" />
         </div>
 
-        <button onClick={loadStudents} disabled={loading} className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl px-5 py-3 transition shadow-lg shadow-blue-500/25 active:scale-95 disabled:opacity-50">
+        <button onClick={loadStudents} disabled={loading} className="btn btn-primary py-3 disabled:opacity-50">
           {loading ? <RefreshCw size={14} className="animate-spin" /> : <Users size={14} />}
           Load Students
         </button>
@@ -130,39 +130,39 @@ export default function PromotionsPage() {
       {/* Screen Analytics: Promotion Preview Breakdown */}
       {totalInQueue > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex items-center justify-between shadow-xl">
+          <div className="card card-lg p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total in Queue</p>
-              <h3 className="text-xl font-extrabold text-white mt-0.5">{totalInQueue}</h3>
+              <p className="text-[10px] font-bold uppercase tracking-wider t-muted">Total in Queue</p>
+              <h3 className="text-xl font-extrabold t-body mt-0.5">{totalInQueue}</h3>
             </div>
-            <div className="w-10 h-10 bg-slate-800 border border-white/5 rounded-xl flex items-center justify-center text-slate-400">
+            <div className="w-10 h-10 bg-surface-3 border border-line rounded-xl flex items-center justify-center t-muted">
               <Users size={16} />
             </div>
           </div>
-          <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex items-center justify-between shadow-xl">
+          <div className="card card-lg p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Set to Promote</p>
-              <h3 className="text-xl font-extrabold text-emerald-400 mt-0.5">{countPromoted}</h3>
+              <p className="text-[10px] font-bold uppercase tracking-wider t-muted">Set to Promote</p>
+              <h3 className="text-xl font-extrabold t-ok mt-0.5">{countPromoted}</h3>
             </div>
-            <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400">
+            <div className="w-10 h-10 bg-ok-soft border border-ok-border rounded-xl flex items-center justify-center t-ok">
               <span className="text-xs font-bold">{Math.round((countPromoted / totalInQueue) * 100)}%</span>
             </div>
           </div>
-          <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex items-center justify-between shadow-xl">
+          <div className="card card-lg p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Set to Repeat</p>
-              <h3 className="text-xl font-extrabold text-amber-400 mt-0.5">{countRepeated}</h3>
+              <p className="text-[10px] font-bold uppercase tracking-wider t-muted">Set to Repeat</p>
+              <h3 className="text-xl font-extrabold t-warn mt-0.5">{countRepeated}</h3>
             </div>
-            <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 bg-warn-soft border border-warn-border rounded-xl flex items-center justify-center t-warn">
               <span className="text-xs font-bold">{Math.round((countRepeated / totalInQueue) * 100)}%</span>
             </div>
           </div>
-          <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex items-center justify-between shadow-xl">
+          <div className="card card-lg p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Set to Graduate</p>
-              <h3 className="text-xl font-extrabold text-blue-400 mt-0.5">{countGraduated}</h3>
+              <p className="text-[10px] font-bold uppercase tracking-wider t-muted">Set to Graduate</p>
+              <h3 className="text-xl font-extrabold t-brand mt-0.5">{countGraduated}</h3>
             </div>
-            <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400">
+            <div className="w-10 h-10 bg-brand-soft border border-brand-border rounded-xl flex items-center justify-center t-brand">
               <span className="text-xs font-bold">{Math.round((countGraduated / totalInQueue) * 100)}%</span>
             </div>
           </div>
@@ -171,20 +171,20 @@ export default function PromotionsPage() {
 
       {/* Promotion List */}
       {students.length > 0 && (
-        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-          <div className="p-4 border-b border-white/5 bg-white/3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
-              <AlertCircle size={14} className="text-amber-500" />
+        <div className="card card-lg overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-line bg-surface-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider t-muted">
+              <AlertCircle size={14} className="t-warn" />
               Verify {students.length} student records before remapping
             </div>
-            <button onClick={submitPromotions} disabled={loading} className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-tr from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 rounded-xl px-4 py-2.5 transition shadow-lg shadow-emerald-500/25 active:scale-95 disabled:opacity-50">
+            <button onClick={submitPromotions} disabled={loading} className="btn btn-primary disabled:opacity-50">
               <Layers size={14} /> Commit Promotions
             </button>
           </div>
           
           <div className="overflow-x-auto max-h-[60vh]">
             <table className="w-full text-xs text-left">
-              <thead className="bg-white/3 border-b border-white/5 text-slate-400 uppercase text-[10px] font-bold tracking-wider sticky top-0 z-10">
+              <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider sticky top-0 z-10">
                 <tr>
                   <th className="px-5 py-4">Student</th>
                   <th className="px-5 py-4">Current Class</th>
@@ -193,20 +193,20 @@ export default function PromotionsPage() {
                   <th className="px-5 py-4">Target Section</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/3 text-slate-300">
+              <tbody className="divide-y divide-line t-muted">
                 {students.map(s => (
-                  <tr key={s._id} className="hover:bg-white/3 transition">
+                  <tr key={s._id} className="hover:bg-surface-2 transition">
                     <td className="px-5 py-4">
-                      <div className="font-bold text-white">{s.fullName}</div>
-                      {s.fatherName && <div className="text-[10px] text-slate-400 mt-0.5">s/o {s.fatherName}</div>}
-                      <div className="text-[10px] font-mono text-slate-500 mt-0.5">{s.studentId}</div>
+                      <div className="font-bold t-body">{s.fullName}</div>
+                      {s.fatherName && <div className="text-[10px] t-muted mt-0.5">s/o {s.fatherName}</div>}
+                      <div className="text-[10px] font-mono t-faint mt-0.5">{s.studentId}</div>
                     </td>
-                    <td className="px-5 py-4 text-slate-300 font-semibold">Class {s.class} {s.section && `(${s.section})`}</td>
+                    <td className="px-5 py-4 t-muted font-semibold">Class {s.class} {s.section && `(${s.section})`}</td>
                     <td className="px-5 py-4">
                       <select 
                         value={promotions[s._id]?.promotionStatus || 'Promoted'} 
                         onChange={e => handlePromotionChange(s._id, 'promotionStatus', e.target.value)}
-                        className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-semibold uppercase tracking-wider"
+                        className="bg-surface-2 border border-line rounded-xl px-3 py-1.5 text-xs t-body outline-none focus:ring-1 focus:ring-brand cursor-pointer font-semibold uppercase tracking-wider"
                       >
                         <option value="Promoted">Promoted</option>
                         <option value="Failed">Failed (Repeat)</option>
@@ -219,7 +219,7 @@ export default function PromotionsPage() {
                         value={promotions[s._id]?.targetClass || ''} 
                         onChange={e => handlePromotionChange(s._id, 'targetClass', e.target.value)}
                         disabled={promotions[s._id]?.promotionStatus === 'Graduated'}
-                        className="w-20 bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-center disabled:opacity-30"
+                        className="w-20 bg-surface-2 border border-line rounded-xl px-3 py-1.5 text-xs font-bold t-body focus:outline-none focus:ring-2 focus:ring-brand text-center disabled:opacity-30"
                       />
                     </td>
                     <td className="px-5 py-4">
@@ -228,7 +228,7 @@ export default function PromotionsPage() {
                         value={promotions[s._id]?.targetSection || ''} 
                         onChange={e => handlePromotionChange(s._id, 'targetSection', e.target.value)}
                         disabled={promotions[s._id]?.promotionStatus === 'Graduated'}
-                        className="w-16 bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-center disabled:opacity-30"
+                        className="w-16 bg-surface-2 border border-line rounded-xl px-3 py-1.5 text-xs font-bold t-body focus:outline-none focus:ring-2 focus:ring-brand text-center disabled:opacity-30"
                       />
                     </td>
                   </tr>

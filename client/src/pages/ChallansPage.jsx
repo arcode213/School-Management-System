@@ -78,17 +78,17 @@ export default function ChallansPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight uppercase">Print Challans</h1>
-          <p className="text-slate-400 text-xs font-semibold mt-1 uppercase tracking-wider">Generate and align printable student fee vouchers</p>
+          <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Print Challans</h1>
+          <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">Generate and align printable student fee vouchers</p>
         </div>
         <div className="flex items-center gap-2.5">
           <button onClick={() => fees[0] ? setPreviewId(fees[0]._id) : toast.error('No challans to align')}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-4 py-2.5 transition"
+            className="btn btn-ghost"
           >
             <SlidersHorizontal size={14} /> Preview & Align
           </button>
           <button onClick={printAll} disabled={fees.length === 0}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl px-4 py-2.5 transition shadow-lg shadow-blue-500/25 active:scale-95 disabled:opacity-50"
+            className="btn btn-primary disabled:opacity-50"
           >
             <Printer size={14} /> Print All ({fees.length})
           </button>
@@ -97,38 +97,38 @@ export default function ChallansPage() {
 
       {/* Screen Analytics Banner */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+        <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
-            <Layers className="text-white w-5 h-5" />
+            <Layers className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Vouchers in Queue</p>
-            <p className="text-2xl font-extrabold text-blue-400 mt-0.5 tracking-tight">{fees.length} printable</p>
-            <p className="text-slate-500 text-xs mt-1 font-medium">Unpaid and active vouchers</p>
+            <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Vouchers in Queue</p>
+            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">{fees.length} printable</p>
+            <p className="t-faint text-xs mt-1 font-medium">Unpaid and active vouchers</p>
           </div>
         </div>
 
-        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+        <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-emerald-600/80 to-emerald-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
-            <Landmark className="text-white w-5 h-5" />
+            <Landmark className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Queue Value</p>
-            <p className="text-2xl font-extrabold text-emerald-400 mt-0.5 tracking-tight">{fmtRs(totalPrintValue)}</p>
-            <p className="text-slate-500 text-xs mt-1 font-medium">Outstanding sum in active queue</p>
+            <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Queue Value</p>
+            <p className="text-2xl font-extrabold t-ok mt-0.5 tracking-tight">{fmtRs(totalPrintValue)}</p>
+            <p className="t-faint text-xs mt-1 font-medium">Outstanding sum in active queue</p>
           </div>
         </div>
 
-        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+        <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-purple-600/80 to-purple-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
-            <Printer className="text-white w-5 h-5" />
+            <Printer className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Print Limit status</p>
-            <p className="text-2xl font-extrabold text-purple-400 mt-0.5 tracking-tight">
+            <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Print Limit status</p>
+            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">
               {fees.length >= 100 ? 'Queue Capped' : 'Uncapped'}
             </p>
-            <p className="text-slate-500 text-xs mt-1 font-medium">
+            <p className="t-faint text-xs mt-1 font-medium">
               {fees.length >= 100 ? 'Vite printing queue set at 100 limit' : 'All filtered vouchers load correctly'}
             </p>
           </div>
@@ -136,33 +136,33 @@ export default function ChallansPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex gap-3">
-        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer flex-1">
-          {MONTHS.map(m => <option key={m} className="bg-slate-900">{m}</option>)}
+      <div className="card card-lg p-4 flex gap-3">
+        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer flex-1">
+          {MONTHS.map(m => <option key={m} className="bg-surface-2">{m}</option>)}
         </select>
-        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer flex-1">
+        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer flex-1">
           <option value="">All Classes</option>
-          {classes.map(c => <option key={c} value={c} className="bg-slate-900">Class {c}</option>)}
+          {classes.map(c => <option key={c} value={c} className="bg-surface-2">Class {c}</option>)}
         </select>
       </div>
 
       {/* List */}
-      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="card card-lg overflow-hidden">
         {loading ? (
           <div className="p-12 text-center flex flex-col items-center">
-            <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto" />
-            <p className="text-slate-400 text-xs mt-3 uppercase font-bold tracking-wider">Synchronizing print queue...</p>
+            <div className="animate-spin w-8 h-8 border-4 border-brand border-t-transparent rounded-full mx-auto" />
+            <p className="t-muted text-xs mt-3 uppercase font-bold tracking-wider">Synchronizing print queue...</p>
           </div>
         ) : fees.length === 0 ? (
-          <div className="p-16 text-center text-slate-500 flex flex-col items-center">
-            <FileText size={40} className="text-slate-600 mb-3" />
-            <p className="text-slate-300 font-bold uppercase tracking-wider text-sm">No printable challans found</p>
-            <p className="text-xs text-slate-500 mt-1">Adjust filters or select class. Freeship students are automatically excluded.</p>
+          <div className="p-16 text-center t-faint flex flex-col items-center">
+            <FileText size={40} className="t-muted mb-3" />
+            <p className="t-muted font-bold uppercase tracking-wider text-sm">No printable challans found</p>
+            <p className="text-xs t-faint mt-1">Adjust filters or select class. Freeship students are automatically excluded.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-white/3 border-b border-white/5 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
+              <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
                 <tr>
                   <th className="px-5 py-4">Challan No.</th>
                   <th className="px-5 py-4">Student</th>
@@ -171,24 +171,24 @@ export default function ChallansPage() {
                   <th className="px-5 py-4">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/3 text-slate-300">
+              <tbody className="divide-y divide-line t-muted">
                 {fees.map(f => (
-                  <tr key={f._id} className="hover:bg-white/3 transition group">
-                    <td className="px-5 py-4 font-mono font-bold text-blue-400">{f.challanNo}</td>
+                  <tr key={f._id} className="hover:bg-surface-2 transition group">
+                    <td className="px-5 py-4 font-mono font-bold t-brand">{f.challanNo}</td>
                     <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="font-bold text-white">{f.studentInfo?.fullName}</div>
+                      <div className="font-bold t-body">{f.studentInfo?.fullName}</div>
                       {f.studentInfo?.fatherName && (
-                        <div className="text-[10px] text-slate-400 mt-0.5">s/o {f.studentInfo.fatherName}</div>
+                        <div className="text-[10px] t-muted mt-0.5">s/o {f.studentInfo.fatherName}</div>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-slate-300 font-medium">Class {f.studentInfo?.class}</td>
-                    <td className="px-5 py-4 font-black text-white">Rs. {(f.balance ?? 0).toLocaleString()}</td>
+                    <td className="px-5 py-4 t-muted font-medium">Class {f.studentInfo?.class}</td>
+                    <td className="px-5 py-4 font-black t-body">Rs. {(f.balance ?? 0).toLocaleString()}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
-                        <button onClick={() => setPreviewId(f._id)} className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-xl transition">
+                        <button onClick={() => setPreviewId(f._id)} className="btn btn-ghost gap-1 px-3 py-1.5 text-[10px]">
                           <SlidersHorizontal size={12} /> Preview
                         </button>
-                        <button onClick={() => printSingle(f)} className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-600 hover:text-white text-blue-400 border border-blue-500/20 rounded-xl transition">
+                        <button onClick={() => printSingle(f)} className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-brand-soft hover:bg-brand hover:t-body t-brand border border-brand-border rounded-xl transition">
                           <Printer size={12} /> Print
                         </button>
                       </div>

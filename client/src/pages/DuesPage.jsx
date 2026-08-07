@@ -198,17 +198,17 @@ export default function DuesPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight uppercase">Outstanding Dues</h1>
-          <p className="text-slate-400 text-xs font-semibold mt-1 uppercase tracking-wider">{filteredDues.length} matching unpaid invoices</p>
+          <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Outstanding Dues</h1>
+          <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">{filteredDues.length} matching unpaid invoices</p>
         </div>
         <div className="flex items-center gap-2.5">
           <button onClick={printReport} disabled={filteredDues.length === 0}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-4 py-2.5 transition disabled:opacity-50"
+            className="btn btn-ghost disabled:opacity-50"
           >
             <Printer size={14} /> Print Report
           </button>
           <button onClick={exportCSV} disabled={filteredDues.length === 0}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-4 py-2.5 transition disabled:opacity-50"
+            className="btn btn-ghost disabled:opacity-50"
           >
             <Download size={14} /> Export CSV
           </button>
@@ -217,37 +217,37 @@ export default function DuesPage() {
 
       {/* Screen Analytics: Financial Summary Panels */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+        <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
-            <Landmark className="text-white w-5 h-5" />
+            <Landmark className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Monthly Dues</p>
-            <p className="text-2xl font-extrabold text-blue-400 mt-0.5 tracking-tight">{fmtRs(totals.monthly)}</p>
-            <p className="text-slate-500 text-xs mt-1 font-medium">Tuition and transportation limits</p>
+            <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Monthly Dues</p>
+            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">{fmtRs(totals.monthly)}</p>
+            <p className="t-faint text-xs mt-1 font-medium">Tuition and transportation limits</p>
           </div>
         </div>
 
-        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start gap-4 shadow-xl">
+        <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-purple-600/80 to-purple-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
-            <Layers className="text-white w-5 h-5" />
+            <Layers className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Annual Dues</p>
-            <p className="text-2xl font-extrabold text-purple-400 mt-0.5 tracking-tight">{fmtRs(totals.annual)}</p>
-            <p className="text-slate-500 text-xs mt-1 font-medium">Class enrollment annual dues</p>
+            <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Annual Dues</p>
+            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">{fmtRs(totals.annual)}</p>
+            <p className="t-faint text-xs mt-1 font-medium">Class enrollment annual dues</p>
           </div>
         </div>
 
-        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-start justify-between shadow-xl">
+        <div className="card card-lg p-5 flex items-start justify-between">
           <div className="flex items-start gap-4">
             <div className="bg-gradient-to-tr from-rose-600/80 to-rose-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
-              <AlertCircle className="text-white w-5 h-5" />
+              <AlertCircle className="t-body w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Total Outstanding</p>
-              <p className="text-2xl font-extrabold text-rose-400 mt-0.5 tracking-tight">{fmtRs(totals.all)}</p>
-              <p className="text-slate-500 text-xs mt-1 font-medium">Cumulative unpaid burden</p>
+              <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Total Outstanding</p>
+              <p className="text-2xl font-extrabold t-bad mt-0.5 tracking-tight">{fmtRs(totals.all)}</p>
+              <p className="t-faint text-xs mt-1 font-medium">Cumulative unpaid burden</p>
             </div>
           </div>
         </div>
@@ -255,19 +255,19 @@ export default function DuesPage() {
 
       {/* Screen Analytics: Class Dues Breakdown */}
       {classDuesAnalysis.length > 0 && (
-        <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 shadow-xl">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-4">Highest Outstanding Balances by Class</h2>
+        <div className="card card-lg p-5">
+          <h2 className="text-xs font-bold uppercase tracking-wider t-muted mb-4">Highest Outstanding Balances by Class</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {classDuesAnalysis.map(cd => {
               const pct = totals.all > 0 ? Math.round((cd.amount / totals.all) * 100) : 0;
               return (
-                <div key={cd.className} className="bg-white/3 border border-white/5 rounded-2xl p-4">
+                <div key={cd.className} className="bg-surface-2 border border-line rounded-2xl p-4">
                   <div className="flex justify-between items-center text-xs font-bold mb-2">
-                    <span className="text-slate-300">Class {cd.className}</span>
-                    <span className="text-rose-400">{pct}% share</span>
+                    <span className="t-muted">Class {cd.className}</span>
+                    <span className="t-bad">{pct}% share</span>
                   </div>
-                  <p className="text-sm font-black text-white">{fmtRs(cd.amount)}</p>
-                  <div className="w-full bg-white/5 rounded-full h-1.5 mt-2.5 overflow-hidden">
+                  <p className="text-sm font-black t-body">{fmtRs(cd.amount)}</p>
+                  <div className="w-full bg-surface-2 rounded-full h-1.5 mt-2.5 overflow-hidden">
                     <div className="bg-rose-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
@@ -278,37 +278,37 @@ export default function DuesPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48 bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs flex items-center gap-2">
-          <Search size={14} className="text-slate-500" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search student name, ID or receipt..." className="bg-transparent w-full text-white placeholder-slate-500 focus:outline-none font-medium" />
+      <div className="card card-lg p-4 flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-48 bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs flex items-center gap-2">
+          <Search size={14} className="t-faint" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search student name, ID or receipt..." className="bg-transparent w-full t-body placeholder-faint focus:outline-none font-medium" />
         </div>
-        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-32">
+        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer min-w-32">
           <option value="">All Months</option>
-          {MONTHS.map(m => <option key={m} className="bg-slate-900">{m}</option>)}
+          {MONTHS.map(m => <option key={m} className="bg-surface-2">{m}</option>)}
         </select>
-        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-32">
+        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer min-w-32">
           <option value="">All Classes</option>
-          {classes.map(c => <option key={c} value={c} className="bg-slate-900">Class {c}</option>)}
+          {classes.map(c => <option key={c} value={c} className="bg-surface-2">Class {c}</option>)}
         </select>
       </div>
 
       {/* Table List */}
-      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="card card-lg overflow-hidden">
         {loading ? (
           <div className="p-12 text-center flex flex-col items-center">
             <div className="animate-spin w-8 h-8 border-4 border-rose-600 border-t-transparent rounded-full mx-auto" />
-            <p className="text-slate-400 text-xs mt-3 uppercase font-bold tracking-wider">Compiling outstanding totals...</p>
+            <p className="t-muted text-xs mt-3 uppercase font-bold tracking-wider">Compiling outstanding totals...</p>
           </div>
         ) : filteredDues.length === 0 ? (
-          <div className="p-16 text-center text-slate-500 flex flex-col items-center">
-            <AlertCircle size={40} className="text-slate-600 mb-3" />
-            <p className="text-slate-300 font-bold uppercase tracking-wider text-sm">No outstanding dues</p>
+          <div className="p-16 text-center t-faint flex flex-col items-center">
+            <AlertCircle size={40} className="t-muted mb-3" />
+            <p className="t-muted font-bold uppercase tracking-wider text-sm">No outstanding dues</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-white/3 border-b border-white/5 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
+              <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
                 <tr>
                   <th className="px-5 py-4">Challan No.</th>
                   <th className="px-5 py-4">Student</th>
@@ -321,30 +321,30 @@ export default function DuesPage() {
                   <th className="text-right px-5 py-4">Total Due</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/3 text-slate-300">
+              <tbody className="divide-y divide-line t-muted">
                 {filteredDues.map(d => {
                   const remaining = d.balance || 0;
                   const monthlyDue = monthlyDueOf(d);
                   const annualDue = annualDueOf(d);
                   return (
-                    <tr key={d._id} className="hover:bg-white/3 transition">
-                      <td className="px-5 py-4 font-mono font-bold text-slate-500">{d.challanNo}</td>
+                    <tr key={d._id} className="hover:bg-surface-2 transition">
+                      <td className="px-5 py-4 font-mono font-bold t-faint">{d.challanNo}</td>
                       <td className="px-5 py-4 whitespace-nowrap">
-                        <div className="font-bold text-white">{d.student?.fullName}</div>
-                        {d.student?.fatherName && <div className="text-[10px] text-slate-400 mt-0.5">s/o {d.student.fatherName}</div>}
-                        <div className="text-[10px] font-mono text-slate-500 mt-0.5">{d.student?.studentId}</div>
+                        <div className="font-bold t-body">{d.student?.fullName}</div>
+                        {d.student?.fatherName && <div className="text-[10px] t-muted mt-0.5">s/o {d.student.fatherName}</div>}
+                        <div className="text-[10px] font-mono t-faint mt-0.5">{d.student?.studentId}</div>
                       </td>
-                      <td className="px-5 py-4 text-slate-300 font-medium">Class {d.student?.class} {d.student?.section || ''}</td>
-                      <td className="px-5 py-4 text-slate-400 font-semibold">{d.dueMonthRange || d.feeMonth} {d.feeYear}</td>
+                      <td className="px-5 py-4 t-muted font-medium">Class {d.student?.class} {d.student?.section || ''}</td>
+                      <td className="px-5 py-4 t-muted font-semibold">{d.dueMonthRange || d.feeMonth} {d.feeYear}</td>
                       <td className="px-5 py-4 text-right">Rs. {d.totalAmount?.toLocaleString()}</td>
-                      <td className="px-5 py-4 text-right text-slate-500">Rs. {((d.amountPaid || 0) + (d.discount || 0)).toLocaleString()}</td>
+                      <td className="px-5 py-4 text-right t-faint">Rs. {((d.amountPaid || 0) + (d.discount || 0)).toLocaleString()}</td>
                       <td className="px-5 py-4 text-right font-medium">
-                        {monthlyDue > 0 ? `Rs. ${monthlyDue.toLocaleString()}` : <span className="text-slate-600">—</span>}
+                        {monthlyDue > 0 ? `Rs. ${monthlyDue.toLocaleString()}` : <span className="t-muted">—</span>}
                       </td>
-                      <td className="px-5 py-4 text-right font-medium text-indigo-400">
-                        {annualDue > 0 ? `Rs. ${annualDue.toLocaleString()}` : <span className="text-slate-600">—</span>}
+                      <td className="px-5 py-4 text-right font-medium t-brand">
+                        {annualDue > 0 ? `Rs. ${annualDue.toLocaleString()}` : <span className="t-muted">—</span>}
                       </td>
-                      <td className="px-5 py-4 text-right font-black text-rose-400">Rs. {remaining.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-right font-black t-bad">Rs. {remaining.toLocaleString()}</td>
                     </tr>
                   );
                 })}

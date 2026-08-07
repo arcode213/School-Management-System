@@ -99,33 +99,33 @@ export default function StudentPrintModal({ open, onClose, filters }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-solid rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Printer className="text-white w-4 h-4" />
+            <div className="w-9 h-9 bg-brand rounded-xl flex items-center justify-center">
+              <Printer className="t-body w-4 h-4" />
             </div>
-            <h2 className="font-semibold text-slate-800">Print Student Records</h2>
+            <h2 className="font-semibold t-body">Print Student Records</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+          <button onClick={onClose} className="t-muted hover:t-muted"><X size={20} /></button>
         </div>
 
         <div className="px-6 py-5 space-y-4 overflow-y-auto">
-          <div className="bg-blue-50 border border-blue-100 text-blue-800 text-sm rounded-lg p-3">
+          <div className="bg-brand-soft border border-brand-border t-brand text-sm rounded-lg p-3">
             Printing <strong>{filterSummary()}</strong>. Adjust the filters on the Students page to change who is included.
           </div>
 
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-700">Columns to print</h3>
-            <button onClick={toggleAll} className="text-xs text-blue-600 hover:underline">
+            <h3 className="text-sm font-semibold t-body">Columns to print</h3>
+            <button onClick={toggleAll} className="text-xs t-brand hover:underline">
               {allChecked ? 'Uncheck all' : 'Check all'}
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             {COLUMNS.map(c => (
-              <label key={c.key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer p-1.5 rounded hover:bg-slate-50">
+              <label key={c.key} className="flex items-center gap-2 text-sm t-body cursor-pointer p-1.5 rounded hover:bg-surface-2">
                 <input type="checkbox" checked={!!selected[c.key]} onChange={() => toggle(c.key)} className="rounded" />
                 {c.label}
               </label>
@@ -133,9 +133,9 @@ export default function StudentPrintModal({ open, onClose, filters }) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg">Cancel</button>
-          <button onClick={handlePrint} disabled={loading} className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50">
+        <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm t-muted border border-line rounded-lg">Cancel</button>
+          <button onClick={handlePrint} disabled={loading} className="px-5 py-2 text-sm bg-brand hover:bg-brand t-body font-medium rounded-lg flex items-center gap-2 disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
             Print
           </button>

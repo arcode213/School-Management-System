@@ -45,74 +45,74 @@ export default function SalaryModal({ open, onClose, employee, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-solid rounded-2xl shadow-2xl w-full max-w-md flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center">
-              <DollarSign className="text-white w-4 h-4" />
+            <div className="w-9 h-9 bg-ok rounded-xl flex items-center justify-center">
+              <DollarSign className="t-body w-4 h-4" />
             </div>
-            <h2 className="font-semibold text-slate-800">Post Salary</h2>
+            <h2 className="font-semibold t-body">Post Salary</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition"><X size={20} /></button>
+          <button onClick={onClose} className="t-muted hover:t-muted transition"><X size={20} /></button>
         </div>
 
         <form id="salary-form" onSubmit={handleSubmit(onSubmit)} className="px-6 py-5 space-y-4">
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-2">
-            <p className="text-sm font-semibold text-slate-700">{employee?.fullName}</p>
-            <p className="text-xs text-slate-500">{employee?.designation}</p>
+          <div className="bg-surface-2 p-3 rounded-xl border border-line mb-2">
+            <p className="text-sm font-semibold t-body">{employee?.fullName}</p>
+            <p className="text-xs t-faint">{employee?.designation}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Month</label>
-              <select {...register('salaryMonth')} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+              <label className="block text-xs font-medium t-muted mb-1">Month</label>
+              <select {...register('salaryMonth')} className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand">
                 {MONTHS.map(m => <option key={m}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Year</label>
-              <input type="number" {...register('salaryYear')} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500" />
+              <label className="block text-xs font-medium t-muted mb-1">Year</label>
+              <input type="number" {...register('salaryYear')} className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand" />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Base</label>
-              <input type="number" {...register('baseSalary')} className="w-full border border-slate-200 rounded-lg px-2 py-2 text-sm" />
+              <label className="block text-xs font-medium t-muted mb-1">Base</label>
+              <input type="number" {...register('baseSalary')} className="w-full border border-line rounded-lg px-2 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Allowances</label>
-              <input type="number" {...register('allowances')} className="w-full border border-slate-200 rounded-lg px-2 py-2 text-sm" />
+              <label className="block text-xs font-medium t-muted mb-1">Allowances</label>
+              <input type="number" {...register('allowances')} className="w-full border border-line rounded-lg px-2 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Deductions</label>
-              <input type="number" {...register('deductions')} className="w-full border border-red-200 rounded-lg px-2 py-2 text-sm text-red-600 bg-red-50" />
+              <label className="block text-xs font-medium t-muted mb-1">Deductions</label>
+              <input type="number" {...register('deductions')} className="w-full border border-bad-border rounded-lg px-2 py-2 text-sm t-bad bg-bad-soft" />
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200 mt-2">
-            <span className="text-sm font-semibold text-green-800">Net Payable:</span>
-            <span className="text-lg font-bold text-green-700">Rs. {net.toLocaleString()}</span>
+          <div className="flex items-center justify-between p-3 bg-ok-soft rounded-lg border border-ok-border mt-2">
+            <span className="text-sm font-semibold t-ok">Net Payable:</span>
+            <span className="text-lg font-bold t-ok">Rs. {net.toLocaleString()}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Method</label>
-              <select {...register('paymentMethod')} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+              <label className="block text-xs font-medium t-muted mb-1">Method</label>
+              <select {...register('paymentMethod')} className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand">
                 <option>Bank Transfer</option><option>Cash</option><option>Cheque</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Remarks</label>
-              <input {...register('remarks')} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Optional" />
+              <label className="block text-xs font-medium t-muted mb-1">Remarks</label>
+              <input {...register('remarks')} className="w-full border border-line rounded-lg px-3 py-2 text-sm" placeholder="Optional" />
             </div>
           </div>
         </form>
 
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg">Cancel</button>
-          <button type="submit" form="salary-form" disabled={isSubmitting} className="px-5 py-2 text-sm bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center gap-2">
+        <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm t-muted border border-line rounded-lg">Cancel</button>
+          <button type="submit" form="salary-form" disabled={isSubmitting} className="px-5 py-2 text-sm bg-ok hover:bg-ok t-body font-medium rounded-lg flex items-center gap-2">
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
             Confirm Payment
           </button>

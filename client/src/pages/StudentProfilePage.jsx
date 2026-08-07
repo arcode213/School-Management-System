@@ -16,28 +16,28 @@ const fmtRs = (n) => `Rs. ${Number(n || 0).toLocaleString()}`;
 
 const InfoRow = ({ label, value }) => (
   <div className="flex flex-col gap-0.5">
-    <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wide">{label}</span>
-    <span className="text-sm text-slate-700 font-medium break-words">{value || '—'}</span>
+    <span className="text-[11px] t-muted font-medium uppercase tracking-wide">{label}</span>
+    <span className="text-sm t-body font-medium break-words">{value || '—'}</span>
   </div>
 );
 
 const StatusBadge = ({ status }) => {
-  const map = { Active: 'bg-green-100 text-green-700', Left: 'bg-red-100 text-red-700', Graduated: 'bg-blue-100 text-blue-700' };
-  return <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${map[status] || 'bg-slate-100 text-slate-600'}`}>{status}</span>;
+  const map = { Active: 'bg-ok-soft t-ok', Left: 'bg-bad-soft t-bad', Graduated: 'bg-brand-soft t-brand' };
+  return <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${map[status] || 'bg-surface-2 t-muted'}`}>{status}</span>;
 };
 
 const Card = ({ icon: Icon, title, tint = 'blue', children, className = '' }) => {
   const tints = {
-    blue: 'bg-blue-50 text-blue-600', purple: 'bg-purple-50 text-purple-600',
-    green: 'bg-green-50 text-green-600', indigo: 'bg-indigo-50 text-indigo-600',
+    blue: 'bg-brand-soft t-brand', purple: 'bg-brand-soft t-brand',
+    green: 'bg-ok-soft t-ok', indigo: 'bg-brand-soft t-brand',
   };
   return (
-    <div className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-5 ${className}`}>
+    <div className={`bg-solid rounded-2xl border border-line shadow-sm p-5 ${className}`}>
       <div className="flex items-center gap-2 mb-4">
         <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${tints[tint]}`}>
           <Icon size={14} />
         </div>
-        <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+        <h2 className="text-sm font-semibold t-body">{title}</h2>
       </div>
       {children}
     </div>
@@ -218,17 +218,17 @@ export default function StudentProfilePage() {
     <div className="space-y-5 max-w-5xl">
       {/* Top bar */}
       <div className="flex items-center justify-between">
-        <Link to="/students" className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+        <Link to="/students" className="flex items-center gap-2 text-sm t-faint hover:t-body transition">
           <ArrowLeft size={16} /> Back to Students
         </Link>
         <div className="flex items-center gap-2">
           <button onClick={handlePrint}
-            className="flex items-center gap-2 text-sm bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl hover:border-slate-300 transition shadow-sm">
+            className="flex items-center gap-2 text-sm bg-solid border border-line t-body px-4 py-2 rounded-xl hover:border-line transition shadow-sm">
             <Printer size={14} /> Print Record
           </button>
           {user?.role !== 'Staff' && (
             <button onClick={() => setEditOpen(true)}
-              className="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition shadow-sm">
+              className="flex items-center gap-2 text-sm bg-brand t-body px-4 py-2 rounded-xl hover:bg-brand transition shadow-sm">
               <Edit2 size={14} /> Edit Student
             </button>
           )}
@@ -236,9 +236,9 @@ export default function StudentProfilePage() {
       </div>
 
       {/* Hero card */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
+      <div className="relative overflow-hidden rounded-2xl border border-line shadow-sm">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700" />
-        <div className="relative p-6 flex items-start gap-5 text-white">
+        <div className="relative p-6 flex items-start gap-5 t-body">
           <div className="w-20 h-20 bg-white/15 backdrop-blur border border-white/30 rounded-2xl flex items-center justify-center text-3xl font-bold flex-shrink-0 shadow-lg">
             {student.fullName?.charAt(0)?.toUpperCase()}
           </div>
@@ -247,7 +247,7 @@ export default function StudentProfilePage() {
               <h1 className="text-2xl font-bold">{student.fullName}</h1>
               <StatusBadge status={student.status} />
               {student.isFreeship && (
-                <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-warn-soft t-warn">
                   Freeship
                 </span>
               )}
@@ -265,27 +265,27 @@ export default function StudentProfilePage() {
       </div>
 
       {/* Monthly fee highlight */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <div className="bg-solid rounded-2xl border border-line shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
-            <Wallet size={14} className="text-emerald-600" />
+          <div className="w-7 h-7 bg-ok-soft rounded-lg flex items-center justify-center">
+            <Wallet size={14} className="t-ok" />
           </div>
-          <h2 className="text-sm font-semibold text-slate-700">Fee Details <span className="text-slate-400 font-normal">(set by admin for Class {student.class})</span></h2>
+          <h2 className="text-sm font-semibold t-body">Fee Details <span className="t-muted font-normal">(set by admin for Class {student.class})</span></h2>
         </div>
         {student.isFreeship ? (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <p className="text-sm font-semibold text-amber-900">Freeship — fees waived by the school</p>
-            <p className="text-xs text-amber-700 mt-1">
+          <div className="bg-warn-soft border border-warn-border rounded-xl p-4">
+            <p className="text-sm font-semibold t-warn">Freeship — fees waived by the school</p>
+            <p className="text-xs t-warn mt-1">
               No fee challan is generated or printed for this student.
               {fee?.hasStructure && <> The Class {fee.className} rate would otherwise be {fmtRs(fee.tuitionFee)}/month.</>}
             </p>
           </div>
         ) : fee && fee.hasStructure ? (
           <div className="flex flex-wrap items-stretch gap-4">
-            <div className="flex-1 min-w-[180px] bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl p-4">
-              <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">Monthly Tuition Fee</p>
-              <p className="text-3xl font-bold text-emerald-700 mt-1">{fmtRs(fee.tuitionFee)}</p>
-              {fee.hasOverride && <span className="inline-block mt-1 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Custom fee applied</span>}
+            <div className="flex-1 min-w-[180px] bg-gradient-to-br from-emerald-50 to-teal-50 border border-ok-border rounded-xl p-4">
+              <p className="text-xs t-ok font-semibold uppercase tracking-wide">Monthly Tuition Fee</p>
+              <p className="text-3xl font-bold t-ok mt-1">{fmtRs(fee.tuitionFee)}</p>
+              {fee.hasOverride && <span className="inline-block mt-1 text-[10px] bg-warn-soft t-warn px-2 py-0.5 rounded-full font-medium">Custom fee applied</span>}
             </div>
             <div className="flex-[2] min-w-[240px] grid grid-cols-2 sm:grid-cols-4 gap-3">
               <FeeStat label="Transport" value={fmtRs(fee.transportFee)} />
@@ -295,9 +295,9 @@ export default function StudentProfilePage() {
             </div>
           </div>
         ) : (
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm text-slate-500">
+          <div className="bg-surface-2 border border-line rounded-xl p-4 text-sm t-faint">
             No fee structure has been set for <strong>Class {student.class}</strong> in the current session.
-            {user?.role !== 'Staff' && <> Set it in <Link to="/fee-structures" className="text-blue-600 hover:underline">Fee Structures</Link>.</>}
+            {user?.role !== 'Staff' && <> Set it in <Link to="/fee-structures" className="t-brand hover:underline">Fee Structures</Link>.</>}
           </div>
         )}
       </div>
@@ -348,7 +348,7 @@ export default function StudentProfilePage() {
 
         {student.address && (
           <Card icon={MapPin} title="Address" tint="green">
-            <p className="text-sm text-slate-600 leading-relaxed">{student.address}</p>
+            <p className="text-sm t-muted leading-relaxed">{student.address}</p>
           </Card>
         )}
       </div>
@@ -356,21 +356,21 @@ export default function StudentProfilePage() {
       {/* Academic History Timeline */}
       {student.academicHistory && student.academicHistory.length > 0 && (
         <Card icon={Calendar} title="Academic History Timeline" tint="indigo">
-          <div className="relative border-l border-slate-200 ml-3 space-y-6 mt-2">
+          <div className="relative border-l border-line ml-3 space-y-6 mt-2">
             {student.academicHistory.map((record, index) => (
               <div key={record._id} className="relative pl-6">
-                <div className={`absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-white ${index === 0 ? 'bg-indigo-500' : 'bg-slate-300'}`} />
+                <div className={`absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-line ${index === 0 ? 'bg-brand' : 'bg-surface-3'}`} />
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h3 className="text-sm font-bold text-slate-800">{record.academicSession?.name || 'Unknown Session'}</h3>
+                  <h3 className="text-sm font-bold t-body">{record.academicSession?.name || 'Unknown Session'}</h3>
                   {record.academicSession?.isActive && (
-                    <span className="bg-green-100 text-green-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Active</span>
+                    <span className="bg-ok-soft t-ok text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Active</span>
                   )}
                   <StatusBadge status={record.status} />
                 </div>
-                <div className="text-sm text-slate-600">
+                <div className="text-sm t-muted">
                   <span className="font-semibold">Class {record.className}</span> {record.section && `(Sec ${record.section})`} • Roll: {record.rollNumber || '—'}
                 </div>
-                <div className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+                <div className="text-xs t-muted mt-1 flex items-center gap-1.5">
                   <Users2 size={12} /> {record.campus?.name} {record.promotionStatus && `• Promotion: ${record.promotionStatus}`}
                   {(record.status === 'Left' || record.status === 'Graduated') && record.statusDate && ` • ${record.status} on ${fmtDate(record.statusDate)}`}
                 </div>
@@ -386,8 +386,8 @@ export default function StudentProfilePage() {
 }
 
 const FeeStat = ({ label, value, highlight }) => (
-  <div className={`rounded-xl p-3 border ${highlight ? 'bg-slate-800 border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}>
-    <p className={`text-[11px] font-medium uppercase tracking-wide ${highlight ? 'text-slate-300' : 'text-slate-400'}`}>{label}</p>
-    <p className={`text-base font-bold mt-0.5 ${highlight ? 'text-white' : 'text-slate-700'}`}>{value}</p>
+  <div className={`rounded-xl p-3 border ${highlight ? 'bg-surface-3 border-brand-border t-body' : 'bg-surface-2 border-line'}`}>
+    <p className={`text-[11px] font-medium uppercase tracking-wide ${highlight ? 't-muted' : 't-muted'}`}>{label}</p>
+    <p className={`text-base font-bold mt-0.5 ${highlight ? 't-body' : 't-body'}`}>{value}</p>
   </div>
 );

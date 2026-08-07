@@ -56,19 +56,19 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="relative bg-solid rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
-              <User className="text-white w-4 h-4" />
+            <div className="w-9 h-9 bg-brand rounded-xl flex items-center justify-center">
+              <User className="t-body w-4 h-4" />
             </div>
-            <h2 className="font-semibold text-slate-800">{isEdit ? 'Edit Student' : 'Add New Student'}</h2>
+            <h2 className="font-semibold t-body">{isEdit ? 'Edit Student' : 'Add New Student'}</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
+          <button onClick={onClose} className="t-muted hover:t-muted transition">
             <X size={20} />
           </button>
         </div>
@@ -174,11 +174,11 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
                 revoked mid-session. */}
             <div className="col-span-2">
               <label htmlFor="std-isFreeship"
-                className="flex items-start gap-3 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-amber-100/70 transition">
+                className="flex items-start gap-3 border border-warn-border bg-warn-soft rounded-lg px-3 py-2.5 cursor-pointer hover:bg-warn-soft transition">
                 <input id="std-isFreeship" type="checkbox" {...register('isFreeship')} className="mt-0.5 flex-shrink-0" />
                 <span>
-                  <span className="block text-sm font-medium text-amber-900">Freeship student — fees waived by the school</span>
-                  <span className="block text-xs text-amber-700 mt-0.5">
+                  <span className="block text-sm font-medium t-warn">Freeship student — fees waived by the school</span>
+                  <span className="block text-xs t-warn mt-0.5">
                     No fee challan will be generated or printed for this student while this is ticked.
                   </span>
                 </span>
@@ -201,13 +201,13 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
               <input id="std-annualFeePaid" type="number" min="0" {...register('annualFeePaid', { valueAsNumber: true })} className={input()} placeholder="e.g. 3000" disabled={isEdit} />
             </Field>
             <div className="col-span-2">
-              <p className="text-xs text-slate-400 leading-snug">
+              <p className="text-xs t-muted leading-snug">
                 {isEdit
                   ? 'Opening balances are set at admission. Adjust the existing arrears challan from Fee Management instead.'
                   : 'Leave amounts blank or 0 if nothing is owed. Monthly dues print as “Arrears (January - March)” using the period above; unpaid annual fee prints on its own “Previous Annual Fee” line.'}
               </p>
               {!isEdit && (
-                <p className="text-xs text-slate-400 leading-snug mt-1">
+                <p className="text-xs t-muted leading-snug mt-1">
                   <strong>Annual Fee Already Paid</strong> is for a student who has already paid this
                   session's annual fee — it is recorded as settled so Generate Fees will not charge
                   them again. Leave it blank or 0 if they have not paid.
@@ -219,21 +219,21 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
           {/* Address */}
           <Section title="Address">
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Address</label>
+              <label className="block text-xs font-medium t-muted mb-1">Address</label>
               <textarea id="std-address" {...register('address')} rows={2}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"
                 placeholder="Full address" />
             </div>
           </Section>
         </form>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 border border-slate-200 rounded-lg transition">
+        <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm t-muted hover:t-body border border-line rounded-lg transition">
             Cancel
           </button>
           <button type="submit" form="student-form" disabled={isSubmitting}
-            className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition flex items-center gap-2 disabled:opacity-60">
+            className="px-5 py-2 text-sm bg-brand hover:bg-brand t-body font-medium rounded-lg transition flex items-center gap-2 disabled:opacity-60">
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
             {isEdit ? 'Save Changes' : 'Add Student'}
           </button>
@@ -245,12 +245,12 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
 
 // ── Helpers ──────────────────────────────────────────────────────
 const input = (err) =>
-  `w-full border ${err ? 'border-red-400' : 'border-slate-200'} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white`;
+  `w-full border ${err ? 'border-bad' : 'border-line'} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-solid`;
 
 function Section({ title, children }) {
   return (
     <div>
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">{title}</p>
+      <p className="text-xs font-semibold t-muted uppercase tracking-wide mb-3">{title}</p>
       <div className="grid grid-cols-2 gap-4">{children}</div>
     </div>
   );
@@ -259,9 +259,9 @@ function Section({ title, children }) {
 function Field({ label, children, error }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <label className="block text-xs font-medium t-muted mb-1">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
+      {error && <p className="text-xs t-bad mt-0.5">{error}</p>}
     </div>
   );
 }

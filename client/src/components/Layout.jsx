@@ -2,33 +2,93 @@ import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 import {
-  LayoutDashboard, Users, UserCog, DollarSign,
-  FileText, BarChart2, LogOut, Menu, X, BookOpen, Settings, ChevronDown, Wallet
+  LayoutDashboard, Users, UserCog, DollarSign, FileText, BarChart2, LogOut,
+  Menu, X, BookOpen, Settings, ChevronDown, Wallet, ArrowUpNarrowWide,
+  Sun, Moon, Building2, CalendarDays,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Administrator', 'Staff'] },
-  { to: '/students', label: 'Students', icon: Users, roles: ['Admin', 'Administrator', 'Staff'] },
-  { to: '/employees', label: 'Employees', icon: UserCog, roles: ['Admin', 'Administrator', 'Staff'] },
-  { to: '/promotions', label: 'Promotions', icon: Users, roles: ['Admin', 'Administrator'] },
-  { to: '/expenses', label: 'Expenses', icon: Wallet, roles: ['Admin', 'Administrator', 'Staff'] },
-  { to: '/fee-structures', label: 'Fee Structures', icon: Settings, roles: ['Admin', 'Administrator', 'Staff'] },
-  { to: '/fees', label: 'Fee Management', icon: DollarSign, roles: ['Admin', 'Administrator', 'Staff'] },
-  { to: '/challans', label: 'Challans', icon: FileText, roles: ['Admin', 'Administrator', 'Staff'] },
-  { to: '/dues', label: 'Dues Report', icon: BarChart2, roles: ['Admin', 'Administrator'] },
-  { to: '/reports', label: 'Reports', icon: BarChart2, roles: ['Admin', 'Administrator'] },
-  { to: '/users', label: 'Users', icon: Users, roles: ['Admin'] },
-  { to: '/settings', label: 'System Settings', icon: Settings, roles: ['Admin'] },
+// Grouped so a twelve-item sidebar reads as three short lists instead of one long
+// scroll — the sections match how the office actually works (who is enrolled, what
+// money moved, how the system is configured).
+const navGroups = [
+  {
+    label: 'Overview',
+    items: [
+      { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Administrator', 'Staff'] },
+    ],
+  },
+  {
+    label: 'People',
+    items: [
+      { to: '/students', label: 'Students', icon: Users, roles: ['Admin', 'Administrator', 'Staff'] },
+      { to: '/employees', label: 'Employees', icon: UserCog, roles: ['Admin', 'Administrator', 'Staff'] },
+      { to: '/promotions', label: 'Promotions', icon: ArrowUpNarrowWide, roles: ['Admin', 'Administrator'] },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { to: '/fees', label: 'Fee Management', icon: DollarSign, roles: ['Admin', 'Administrator', 'Staff'] },
+      { to: '/challans', label: 'Challans', icon: FileText, roles: ['Admin', 'Administrator', 'Staff'] },
+      { to: '/fee-structures', label: 'Fee Structures', icon: Wallet, roles: ['Admin', 'Administrator', 'Staff'] },
+      { to: '/expenses', label: 'Expenses', icon: Wallet, roles: ['Admin', 'Administrator', 'Staff'] },
+      { to: '/dues', label: 'Dues Report', icon: BarChart2, roles: ['Admin', 'Administrator'] },
+      { to: '/reports', label: 'Reports', icon: BarChart2, roles: ['Admin', 'Administrator'] },
+    ],
+  },
+  {
+    label: 'Administration',
+    items: [
+      { to: '/users', label: 'Users', icon: Users, roles: ['Admin'] },
+      { to: '/settings', label: 'System Settings', icon: Settings, roles: ['Admin'] },
+    ],
+  },
 ];
+
+function ThemeToggle({ compact = false }) {
+  const { isDark, toggleTheme } = useTheme();
+  const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+
+  return (
+    <button
+      onClick={toggleTheme}
+      title={label}
+      aria-label={label}
+      className={`icon-btn ${compact ? '' : 'p-2'}`}
+    >
+      {isDark ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
+  );
+}
+
+// The campus / session pickers. Wrapped so the icon sits inside the control and
+// the native select arrow is replaced by one that follows the theme.
+function ContextSelect({ icon: Icon, value, onChange, placeholder, children }) {
+  return (
+    <div className="relative flex items-center">
+      <Icon size={13} className="absolute left-3 t-faint pointer-events-none" />
+      <select
+        value={value || ''}
+        onChange={onChange}
+        className="field appearance-none pl-8 pr-8 py-2 text-[11px] font-bold uppercase tracking-wider"
+      >
+        <option value="" disabled>{placeholder}</option>
+        {children}
+      </select>
+      <ChevronDown size={13} className="absolute right-2.5 t-faint pointer-events-none" />
+    </div>
+  );
+}
 
 export default function Layout() {
   const { user, logout } = useAuth();
-  const { 
-    campuses, sessions, 
-    currentCampus, setCurrentCampus, 
-    currentSession, setCurrentSession 
+  const {
+    campuses, sessions,
+    currentCampus, setCurrentCampus,
+    currentSession, setCurrentSession,
   } = useAppContext();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -39,129 +99,146 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const filteredNav = navItems.filter(item => item.roles.includes(user?.role));
+  const visibleGroups = navGroups
+    .map(g => ({ ...g, items: g.items.filter(i => i.roles.includes(user?.role)) }))
+    .filter(g => g.items.length > 0);
+
+  const initial = user?.name?.charAt(0)?.toUpperCase() || '?';
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-[#0b0f19] via-[#111827] to-[#0b0f19] font-sans overflow-hidden text-slate-100">
-      {/* Sidebar */}
+    <div className="flex h-screen font-sans overflow-hidden t-body">
+      {/* ── Sidebar ────────────────────────────────────────────────────────── */}
       <aside
-        className={`${sidebarOpen ? 'w-64' : 'w-20'} transition-all duration-300 bg-[#090d16]/80 backdrop-blur-xl border-r border-white/5 flex flex-col shadow-[10px_0_30px_rgba(0,0,0,0.5)] z-20 flex-shrink-0`}
+        className={`${sidebarOpen ? 'w-64' : 'w-20'} transition-[width] duration-300 bg-surface backdrop-blur-xl border-r border-line flex flex-col z-20 flex-shrink-0`}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-6 border-b border-white/5">
-          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.5)]">
-            <BookOpen className="text-white w-5 h-5" />
+        {/* Brand */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-line">
+          <div
+            className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, var(--sms-primary) 0%, var(--sms-accent) 140%)',
+              boxShadow: '0 6px 18px -6px var(--sms-primary)',
+            }}
+          >
+            <BookOpen className="w-5 h-5" style={{ color: '#fff' }} />
           </div>
           {sidebarOpen && (
-            <div className="overflow-hidden animate-fade-in-up">
-              <p className="text-white font-extrabold text-sm tracking-wider uppercase bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">School</p>
-              <p className="text-blue-400 text-xs font-semibold">Management Hub</p>
+            <div className="overflow-hidden animate-fade-in">
+              <p className="t-gradient font-extrabold text-sm tracking-wider uppercase leading-tight">School</p>
+              <p className="t-muted text-[11px] font-semibold">Management Hub</p>
             </div>
           )}
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto">
-          {filteredNav.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-gradient-to-r from-blue-600/20 to-indigo-600/10 text-white font-semibold shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] border-l-4 border-blue-500'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'
-                }`
-              }
-            >
-              <Icon size={18} className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
-              {sidebarOpen && <span className="text-xs font-semibold tracking-wide uppercase">{label}</span>}
-            </NavLink>
+        {/* Navigation */}
+        <nav className="flex-1 py-4 px-3 space-y-4 overflow-y-auto">
+          {visibleGroups.map(group => (
+            <div key={group.label}>
+              {sidebarOpen && (
+                <p className="t-faint text-[9px] font-bold uppercase tracking-[0.12em] px-3 mb-1.5">
+                  {group.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map(({ to, label, icon: Icon }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={to === '/'}
+                    title={sidebarOpen ? undefined : label}
+                    className={({ isActive }) =>
+                      `relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150 group ${
+                        isActive ? 'nav-active' : 'nav-idle'
+                      } ${sidebarOpen ? '' : 'justify-center'}`
+                    }
+                  >
+                    <Icon size={17} className="flex-shrink-0" />
+                    {sidebarOpen && (
+                      <span className="text-[11px] font-bold tracking-wide uppercase truncate">{label}</span>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
-        {/* User + logout */}
-        <div className="border-t border-white/5 p-4 bg-black/10">
+        {/* User */}
+        <div className="border-t border-line p-3">
           {sidebarOpen ? (
-            <div className="flex items-center gap-3 px-2 py-2">
-              <div className="w-9 h-9 bg-gradient-to-tr from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.3)]">
-                {user?.name?.charAt(0)}
+            <div className="flex items-center gap-3 px-1 py-1">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, var(--sms-primary) 0%, var(--sms-accent) 140%)', color: '#fff' }}
+              >
+                {initial}
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-white text-xs font-bold truncate">{user?.name}</p>
-                <p className="text-blue-400 text-[10px] uppercase font-bold tracking-wider truncate">{user?.role}</p>
+                <p className="t-body text-xs font-bold truncate">{user?.name}</p>
+                <p className="t-brand text-[10px] uppercase font-bold tracking-wider truncate">{user?.role}</p>
               </div>
-              <button onClick={handleLogout} className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 p-2 rounded-xl transition">
+              <button onClick={handleLogout} className="icon-btn icon-btn-danger" title="Log out">
                 <LogOut size={16} />
               </button>
             </div>
           ) : (
-            <button onClick={handleLogout} className="w-full flex justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 p-2 rounded-xl transition py-2.5">
+            <button onClick={handleLogout} className="icon-btn icon-btn-danger w-full py-2.5" title="Log out">
               <LogOut size={18} />
             </button>
           )}
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* ── Main ───────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="bg-[#090d16]/40 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex items-center gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-slate-400 hover:text-slate-100 hover:bg-white/5 p-2 rounded-xl transition"
-          >
+        <header className="bg-surface backdrop-blur-xl border-b border-line px-5 py-3 flex items-center gap-3 flex-wrap">
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="icon-btn" title="Toggle sidebar">
             {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
-          
-          <div className="flex items-center gap-3 ml-4">
-            {/* Campus Switcher - Only visible to Admin */}
+
+          <div className="flex items-center gap-2.5 ml-1 flex-wrap">
+            {/* Campus switching is Admin-only — everyone else is pinned to their
+                own campus by the server regardless of what the client sends. */}
             {user?.role === 'Admin' && (
-              <div className="relative">
-                <select
-                  value={currentCampus || ''}
-                  onChange={(e) => setCurrentCampus(e.target.value)}
-                  className="appearance-none bg-slate-900/60 border border-white/10 text-xs text-slate-200 rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer font-semibold uppercase tracking-wider"
-                >
-                  <option value="" disabled>Select Campus</option>
-                  {campuses.map(c => (
-                    <option key={c._id} value={c._id} className="bg-slate-900 text-slate-200">{c.name}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
+              <ContextSelect
+                icon={Building2}
+                value={currentCampus}
+                onChange={(e) => setCurrentCampus(e.target.value)}
+                placeholder="Select Campus"
+              >
+                {campuses.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+              </ContextSelect>
             )}
 
-            {/* Session Switcher */}
-            <div className="relative">
-              <select
-                value={currentSession || ''}
-                onChange={(e) => setCurrentSession(e.target.value)}
-                className="appearance-none bg-slate-900/60 border border-white/10 text-xs text-slate-200 rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer font-semibold uppercase tracking-wider"
-              >
-                <option value="" disabled>Select Session</option>
-                {sessions.map(s => (
-                  <option key={s._id} value={s._id} className="bg-slate-900 text-slate-200">
-                    {s.name} {s.isActive ? '●' : ''}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            </div>
+            <ContextSelect
+              icon={CalendarDays}
+              value={currentSession}
+              onChange={(e) => setCurrentSession(e.target.value)}
+              placeholder="Select Session"
+            >
+              {sessions.map(s => (
+                <option key={s._id} value={s._id}>{s.name}{s.isActive ? ' •' : ''}</option>
+              ))}
+            </ContextSelect>
           </div>
 
           <div className="flex-1" />
-          <div className="flex items-center gap-2.5 bg-slate-900/60 border border-white/5 rounded-full px-3.5 py-1.5 shadow-sm">
-            <div className="w-6 h-6 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-[0_0_8px_rgba(59,130,246,0.4)]">
-              {user?.name?.charAt(0)}
+
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <div className="flex items-center gap-2.5 surface-muted rounded-full px-3 py-1.5">
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+                style={{ background: 'linear-gradient(135deg, var(--sms-primary) 0%, var(--sms-accent) 140%)', color: '#fff' }}
+              >
+                {initial}
+              </div>
+              <span className="t-body text-xs font-semibold hidden sm:inline">{user?.name}</span>
+              <span className="badge badge-brand text-[9px]">{user?.role}</span>
             </div>
-            <span className="text-xs text-slate-200 font-semibold">{user?.name}</span>
-            <span className="text-[9px] text-blue-300 bg-blue-500/10 border border-blue-500/20 uppercase tracking-widest font-bold rounded-full px-2 py-0.5">{user?.role}</span>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>

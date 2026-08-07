@@ -1,214 +1,539 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   THEME SYSTEM
+
+   Every colour in the app resolves to a semantic token defined here, never to a
+   raw palette value in a component. That is what makes one theme switch flip the
+   whole portal: a card asks for "surface", not "#111827", so it is correct in
+   both themes without the component knowing which theme is active.
+
+   The theme is selected by `data-theme="light" | "dark"` on <html> (set by
+   ThemeContext). `@theme inline` below is what lets Tailwind's generated
+   utilities (bg-surface, text-muted, …) point at these live CSS variables rather
+   than baking a fixed value in at build time.
+
+   NOTE: this file previously ended with a `@media screen` block that forced every
+   light utility (bg-white, text-slate-800, and `input { color:#fff !important }`)
+   to dark with !important. That is why the colours looked wrong — modals authored
+   light were being repainted by blunt global overrides, and white-on-white inputs
+   were a direct result. It is gone; theming is now the components' own doing.
+   ────────────────────────────────────────────────────────────────────────────── */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --sms-bg: #eef1f8;
+  --sms-bg-tint-a: rgba(99, 102, 241, 0.10);
+  --sms-bg-tint-b: rgba(14, 165, 233, 0.09);
+  --sms-bg-tint-c: rgba(16, 185, 129, 0.07);
+
+  --sms-surface: #ffffff;
+  --sms-surface-2: #f5f7fc;
+  --sms-surface-3: #eaeef7;
+  --sms-surface-solid: #ffffff;
+
+  --sms-border: #dfe4ef;
+  --sms-border-strong: #c3ccdd;
+
+  --sms-text: #101729;
+  --sms-text-muted: #4e5b72;
+  --sms-text-faint: #8492aa;
+  --sms-text-inverse: #ffffff;
+
+  --sms-primary: #4f46e5;
+  --sms-primary-hover: #4338ca;
+  --sms-primary-soft: rgba(79, 70, 229, 0.10);
+  --sms-primary-border: rgba(79, 70, 229, 0.24);
+  --sms-primary-text: #4338ca;
+
+  --sms-accent: #0e7490;
+  --sms-accent-soft: rgba(14, 116, 144, 0.10);
+
+  --sms-success: #047857;
+  --sms-success-soft: rgba(4, 120, 87, 0.10);
+  --sms-success-border: rgba(4, 120, 87, 0.22);
+
+  --sms-warning: #b45309;
+  --sms-warning-soft: rgba(180, 83, 9, 0.10);
+  --sms-warning-border: rgba(180, 83, 9, 0.22);
+
+  --sms-danger: #be123c;
+  --sms-danger-soft: rgba(190, 18, 60, 0.09);
+  --sms-danger-border: rgba(190, 18, 60, 0.22);
+
+  --sms-info: #0369a1;
+  --sms-info-soft: rgba(3, 105, 161, 0.10);
+  --sms-info-border: rgba(3, 105, 161, 0.22);
+
+  --sms-ring: rgba(79, 70, 229, 0.30);
+  --sms-shadow: 0 1px 2px rgba(16, 23, 41, 0.05), 0 8px 24px rgba(16, 23, 41, 0.07);
+  --sms-shadow-lg: 0 2px 4px rgba(16, 23, 41, 0.05), 0 20px 48px rgba(16, 23, 41, 0.12);
+  --sms-blur: 0px;
+  --sms-scrollbar: rgba(100, 116, 139, 0.32);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --sms-bg: #080b14;
+  --sms-bg-tint-a: rgba(99, 102, 241, 0.13);
+  --sms-bg-tint-b: rgba(56, 189, 248, 0.09);
+  --sms-bg-tint-c: rgba(16, 185, 129, 0.06);
+
+  --sms-surface: rgba(20, 27, 45, 0.72);
+  --sms-surface-2: rgba(255, 255, 255, 0.045);
+  --sms-surface-3: rgba(255, 255, 255, 0.08);
+  --sms-surface-solid: #141b2d;
+
+  --sms-border: rgba(255, 255, 255, 0.08);
+  --sms-border-strong: rgba(255, 255, 255, 0.16);
+
+  --sms-text: #e9eefb;
+  --sms-text-muted: #97a4bd;
+  --sms-text-faint: #64748b;
+  --sms-text-inverse: #0b1020;
+
+  --sms-primary: #6366f1;
+  --sms-primary-hover: #818cf8;
+  --sms-primary-soft: rgba(99, 102, 241, 0.16);
+  --sms-primary-border: rgba(99, 102, 241, 0.32);
+  --sms-primary-text: #a5b4fc;
+
+  --sms-accent: #22d3ee;
+  --sms-accent-soft: rgba(34, 211, 238, 0.14);
+
+  --sms-success: #34d399;
+  --sms-success-soft: rgba(52, 211, 153, 0.13);
+  --sms-success-border: rgba(52, 211, 153, 0.26);
+
+  --sms-warning: #fbbf24;
+  --sms-warning-soft: rgba(251, 191, 36, 0.13);
+  --sms-warning-border: rgba(251, 191, 36, 0.26);
+
+  --sms-danger: #fb7185;
+  --sms-danger-soft: rgba(251, 113, 133, 0.13);
+  --sms-danger-border: rgba(251, 113, 133, 0.26);
+
+  --sms-info: #38bdf8;
+  --sms-info-soft: rgba(56, 189, 248, 0.13);
+  --sms-info-border: rgba(56, 189, 248, 0.26);
+
+  --sms-ring: rgba(99, 102, 241, 0.45);
+  --sms-shadow: 0 8px 28px rgba(0, 0, 0, 0.34);
+  --sms-shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.48);
+  --sms-blur: 14px;
+  --sms-scrollbar: rgba(148, 163, 184, 0.26);
+}
+
+/* Expose the tokens as Tailwind utilities. `inline` keeps them as var()
+   references so they follow the live theme instead of being frozen at build. */
+@theme inline {
+  --color-bg: var(--sms-bg);
+  --color-surface: var(--sms-surface);
+  --color-surface-2: var(--sms-surface-2);
+  --color-surface-3: var(--sms-surface-3);
+  --color-solid: var(--sms-surface-solid);
+
+  --color-line: var(--sms-border);
+  --color-line-strong: var(--sms-border-strong);
+
+  --color-body: var(--sms-text);
+  --color-muted: var(--sms-text-muted);
+  --color-faint: var(--sms-text-faint);
+  --color-inverse: var(--sms-text-inverse);
+
+  --color-brand: var(--sms-primary);
+  --color-brand-hover: var(--sms-primary-hover);
+  --color-brand-soft: var(--sms-primary-soft);
+  --color-brand-border: var(--sms-primary-border);
+  --color-brand-text: var(--sms-primary-text);
+
+  --color-accent: var(--sms-accent);
+  --color-accent-soft: var(--sms-accent-soft);
+
+  --color-ok: var(--sms-success);
+  --color-ok-soft: var(--sms-success-soft);
+  --color-ok-border: var(--sms-success-border);
+
+  --color-warn: var(--sms-warning);
+  --color-warn-soft: var(--sms-warning-soft);
+  --color-warn-border: var(--sms-warning-border);
+
+  --color-bad: var(--sms-danger);
+  --color-bad-soft: var(--sms-danger-soft);
+  --color-bad-border: var(--sms-danger-border);
+
+  --color-info: var(--sms-info);
+  --color-info-soft: var(--sms-info-soft);
+  --color-info-border: var(--sms-info-border);
+}
+
 @layer base {
   * {
     box-sizing: border-box;
+  }
+
+  html {
+    height: 100%;
   }
 
   html, body, #root {
     height: 100%;
     margin: 0;
     padding: 0;
-    background-color: #0b0f19; /* Deep Slate Navy for premium look */
-    color: #f1f5f9;
   }
 
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.07) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.07) 0px, transparent 50%),
-      radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.04) 0px, transparent 50%);
+    background-color: var(--sms-bg);
+    color: var(--sms-text);
+    background-image:
+      radial-gradient(at 0% 0%, var(--sms-bg-tint-a) 0px, transparent 55%),
+      radial-gradient(at 100% 0%, var(--sms-bg-tint-b) 0px, transparent 55%),
+      radial-gradient(at 50% 100%, var(--sms-bg-tint-c) 0px, transparent 55%);
     background-attachment: fixed;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  /* Native widgets (date pickers, dropdown arrows, scrollbars) follow the theme
+     because color-scheme is declared on :root above. Options still need help on
+     some platforms, where the popup is painted by the OS, not the page. */
+  option {
+    background-color: var(--sms-surface-solid);
+    color: var(--sms-text);
   }
-  ::-webkit-scrollbar-track {
-    background: rgba(11, 15, 25, 0.6);
-  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.2);
+    background: var(--sms-scrollbar);
     border-radius: 9999px;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(59, 130, 246, 0.5);
+  ::-webkit-scrollbar-thumb:hover { background: var(--sms-primary); }
+
+  ::selection {
+    background: var(--sms-primary);
+    color: #fff;
   }
 }
 
-/* Premium UI Utilities */
-@layer utilities {
-  .glass-panel {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+/* ─────────────────────────────────────────────────────────────────────────────
+   COMPONENT CLASSES
+
+   The portal repeats a handful of shapes several hundred times (a glass card, a
+   filter bar select, a table head, a pill badge). Naming them once here is what
+   keeps the two themes in agreement — and means restyling the whole portal later
+   is an edit in this file, not a sweep through 28 components.
+   ────────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  .card {
+    background-color: var(--sms-surface);
+    backdrop-filter: blur(var(--sms-blur));
+    -webkit-backdrop-filter: blur(var(--sms-blur));
+    border: 1px solid var(--sms-border);
+    border-radius: 1.25rem;
+    box-shadow: var(--sms-shadow);
   }
 
-  .glass-card {
-    background: rgba(17, 24, 39, 0.45);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  .card-lg {
+    border-radius: 1.5rem;
+    box-shadow: var(--sms-shadow-lg);
   }
 
-  .glass-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(59, 130, 246, 0.2);
-    box-shadow: 0 12px 40px 0 rgba(59, 130, 246, 0.12);
-    background: rgba(17, 24, 39, 0.55);
+  /* Stat tiles lift slightly on hover — the only motion on an otherwise static
+     dashboard, so it reads as "this is a live figure" rather than decoration. */
+  .card-hover {
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.22s ease, box-shadow 0.22s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-3px);
+    border-color: var(--sms-primary-border);
+    box-shadow: var(--sms-shadow-lg);
   }
 
-  .text-gradient-primary {
-    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  .surface-muted {
+    background-color: var(--sms-surface-2);
+    border: 1px solid var(--sms-border);
+  }
+
+  /* ── Text ─────────────────────────────────────────────────────────────── */
+  .t-title    { color: var(--sms-text); font-weight: 700; letter-spacing: -0.02em; }
+  .t-body     { color: var(--sms-text); }
+  .t-muted    { color: var(--sms-text-muted); }
+  .t-faint    { color: var(--sms-text-faint); }
+  .t-brand    { color: var(--sms-primary-text); }
+  .t-ok       { color: var(--sms-success); }
+  .t-warn     { color: var(--sms-warning); }
+  .t-bad      { color: var(--sms-danger); }
+  .t-info     { color: var(--sms-info); }
+
+  .t-eyebrow {
+    color: var(--sms-text-muted);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .t-gradient {
+    background: linear-gradient(135deg, var(--sms-primary) 0%, var(--sms-accent) 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
-  .text-gradient-emerald {
-    background: linear-gradient(135deg, #34d399 0%, #059669 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+  /* ── Buttons ──────────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border: 1px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.18s ease, border-color 0.18s ease,
+                color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease;
+  }
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn:focus-visible { outline: 2px solid var(--sms-primary); outline-offset: 2px; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--sms-primary) 0%, var(--sms-accent) 140%);
+    color: #fff;
+    box-shadow: 0 6px 18px -6px var(--sms-primary);
+  }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 10px 24px -8px var(--sms-primary); }
+
+  .btn-ghost {
+    background-color: var(--sms-surface-2);
+    border-color: var(--sms-border);
+    color: var(--sms-text-muted);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--sms-surface-3);
+    color: var(--sms-text);
+    border-color: var(--sms-border-strong);
   }
 
-  .text-gradient-amber {
-    background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+  .btn-ok     { background-color: var(--sms-success-soft); border-color: var(--sms-success-border); color: var(--sms-success); }
+  .btn-ok:hover:not(:disabled)   { background-color: var(--sms-success); color: #fff; }
+  .btn-danger { background-color: var(--sms-danger-soft);  border-color: var(--sms-danger-border);  color: var(--sms-danger); }
+  .btn-danger:hover:not(:disabled) { background-color: var(--sms-danger); color: #fff; }
+
+  .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.625rem; border-radius: 0.625rem; }
+
+  /* Square icon-only action button used in every table row. */
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem;
+    border-radius: 0.625rem;
+    border: 1px solid transparent;
+    color: var(--sms-text-faint);
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+  .icon-btn:hover:not(:disabled) {
+    color: var(--sms-primary-text);
+    background-color: var(--sms-primary-soft);
+    border-color: var(--sms-primary-border);
+  }
+  .icon-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+  .icon-btn-danger:hover:not(:disabled) {
+    color: var(--sms-danger);
+    background-color: var(--sms-danger-soft);
+    border-color: var(--sms-danger-border);
+  }
+  .icon-btn-warn:hover:not(:disabled) {
+    color: var(--sms-warning);
+    background-color: var(--sms-warning-soft);
+    border-color: var(--sms-warning-border);
   }
 
-  .glow-blue {
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.25);
+  /* ── Forms ────────────────────────────────────────────────────────────── */
+  .field {
+    width: 100%;
+    background-color: var(--sms-surface-2);
+    border: 1px solid var(--sms-border);
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.75rem;
+    color: var(--sms-text);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
   }
-
-  .glow-emerald {
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
-  }
-
-  .glow-purple {
-    box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
-  }
-
-  /* Form inputs premium redesign */
-  .premium-input {
-    background: rgba(17, 24, 39, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #f1f5f9;
-    transition: all 0.2s ease-in-out;
-  }
-
-  .premium-input:focus {
-    background: rgba(17, 24, 39, 0.6);
-    border-color: rgba(59, 130, 246, 0.6);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  .field::placeholder { color: var(--sms-text-faint); }
+  .field:focus {
     outline: none;
+    border-color: var(--sms-primary);
+    box-shadow: 0 0 0 3px var(--sms-ring);
+  }
+  .field:disabled { opacity: 0.55; cursor: not-allowed; }
+  select.field { cursor: pointer; }
+
+  .label {
+    display: block;
+    margin-bottom: 0.375rem;
+    color: var(--sms-text-muted);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
 
-  /* Premium buttons */
-  .btn-premium-primary {
-    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* ── Tables ───────────────────────────────────────────────────────────── */
+  .table-wrap { width: 100%; overflow-x: auto; }
+  .tbl { width: 100%; font-size: 0.75rem; text-align: left; border-collapse: collapse; }
+  .tbl thead {
+    background-color: var(--sms-surface-2);
+    border-bottom: 1px solid var(--sms-border);
+  }
+  .tbl thead th {
+    padding: 0.875rem 1.25rem;
+    color: var(--sms-text-muted);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .tbl tbody tr { border-top: 1px solid var(--sms-border); }
+  .tbl tbody tr:hover { background-color: var(--sms-surface-2); }
+  .tbl tbody td { padding: 0.875rem 1.25rem; color: var(--sms-text-muted); vertical-align: middle; }
+
+  /* ── Badges ───────────────────────────────────────────────────────────── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .badge-ok      { background: var(--sms-success-soft); color: var(--sms-success); border-color: var(--sms-success-border); }
+  .badge-warn    { background: var(--sms-warning-soft); color: var(--sms-warning); border-color: var(--sms-warning-border); }
+  .badge-bad     { background: var(--sms-danger-soft);  color: var(--sms-danger);  border-color: var(--sms-danger-border); }
+  .badge-info    { background: var(--sms-info-soft);    color: var(--sms-info);    border-color: var(--sms-info-border); }
+  .badge-brand   { background: var(--sms-primary-soft); color: var(--sms-primary-text); border-color: var(--sms-primary-border); }
+  .badge-neutral { background: var(--sms-surface-3);    color: var(--sms-text-muted); border-color: var(--sms-border); }
+
+  /* ── Modals ───────────────────────────────────────────────────────────── */
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(8, 11, 20, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .modal-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--sms-surface-solid);
+    border: 1px solid var(--sms-border);
+    border-radius: 1.25rem;
+    box-shadow: var(--sms-shadow-lg);
+    color: var(--sms-text);
+    overflow: hidden;
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--sms-border);
+    background-color: var(--sms-surface-2);
+  }
+  .modal-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--sms-border);
+    background-color: var(--sms-surface-2);
   }
 
-  .btn-premium-primary:hover:not(:disabled) {
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
-    transform: translateY(-1px);
-    filter: brightness(1.1);
+  /* Brand-gradient square used for logo marks and avatars. Always carries white
+     content, so it is one of the few places a fixed foreground is correct. */
+  .brand-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--sms-primary) 0%, var(--sms-accent) 140%);
+    box-shadow: 0 8px 22px -8px var(--sms-primary);
+    color: #fff;
   }
 
-  .btn-premium-primary:active:not(:disabled) {
-    transform: translateY(1px);
+  /* ── Sidebar navigation ───────────────────────────────────────────────── */
+  .nav-idle { color: var(--sms-text-muted); }
+  .nav-idle:hover { background-color: var(--sms-surface-2); color: var(--sms-text); }
+  .nav-active {
+    background-color: var(--sms-primary-soft);
+    color: var(--sms-primary-text);
+    font-weight: 700;
+  }
+  /* Left rail marks the active item without shifting the label, which a border
+     on the element itself would do. */
+  .nav-active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 20%; bottom: 20%;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--sms-primary);
   }
 
-  /* Keyframe Animations */
+  /* Tinted note/callout used for hints and warnings inside forms. */
+  .note      { border-radius: 0.75rem; border: 1px solid; padding: 0.75rem; font-size: 0.75rem; line-height: 1.5; }
+  .note-info { background: var(--sms-info-soft);    border-color: var(--sms-info-border);    color: var(--sms-info); }
+  .note-warn { background: var(--sms-warning-soft); border-color: var(--sms-warning-border); color: var(--sms-warning); }
+  .note-bad  { background: var(--sms-danger-soft);  border-color: var(--sms-danger-border);  color: var(--sms-danger); }
+  .note-brand{ background: var(--sms-primary-soft); border-color: var(--sms-primary-border); color: var(--sms-primary-text); }
+
+  .divider { height: 1px; background-color: var(--sms-border); border: 0; }
+}
+
+@layer utilities {
   @keyframes fadeInUp {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
+  .animate-fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-fade-in    { animation: fadeInUp 0.3s ease both; }
 
-  @keyframes pulseGlow {
-    0%, 100% {
-      opacity: 0.12;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.22;
-      transform: scale(1.05);
-    }
-  }
-
-  .animate-fade-in-up {
-    animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .animate-pulse-glow {
-    animation: pulseGlow 4s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up, .animate-fade-in { animation: none; }
+    .card-hover:hover { transform: none; }
   }
 }
 
-/* Global Glassmorphic Overrides for Screen Elements */
-@media screen {
-  .bg-white {
-    background-color: rgba(17, 24, 39, 0.5) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border-color: rgba(255, 255, 255, 0.05) !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+/* Printing must stay black-on-white whatever the screen theme is — challans go
+   onto pre-printed bank paper and the dues report onto plain paper. */
+@media print {
+  body {
+    background: #fff !important;
+    background-image: none !important;
+    color: #000 !important;
   }
-
-  .bg-slate-50, .bg-gray-50, .bg-slate-100, .bg-gray-100 {
-    background-color: rgba(255, 255, 255, 0.03) !important;
-  }
-
-  .border-slate-100, .border-slate-200, .border-gray-100, .border-gray-200 {
-    border-color: rgba(255, 255, 255, 0.06) !important;
-  }
-
-  .divide-slate-50 > :not([hidden]) ~ :not([hidden]) {
-    border-color: rgba(255, 255, 255, 0.04) !important;
-  }
-  .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
-    border-color: rgba(255, 255, 255, 0.05) !important;
-  }
-  .divide-gray-100 > :not([hidden]) ~ :not([hidden]), .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
-    border-color: rgba(255, 255, 255, 0.05) !important;
-  }
-
-  /* Universal text color adjustments for dark theme readability */
-  .text-slate-800, .text-gray-800 {
-    color: #f8fafc !important;
-  }
-  .text-slate-700, .text-gray-700 {
-    color: #f1f5f9 !important;
-  }
-  .text-slate-600, .text-gray-600 {
-    color: #cbd5e1 !important;
-  }
-  .text-slate-500, .text-gray-500 {
-    color: #94a3b8 !important;
-  }
-  .text-slate-400, .text-gray-400 {
-    color: #64748b !important;
-  }
-
-  /* Form inputs text visibility inside white/gray inputs overridden by glass */
-  input, select, textarea {
-    color: #ffffff !important;
-  }
-  option {
-    background-color: #0f172a !important;
-    color: #f1f5f9 !important;
-  }
+  .card, .modal-panel { box-shadow: none !important; }
 }

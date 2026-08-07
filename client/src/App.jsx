@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
@@ -21,14 +22,32 @@ import UsersPage from './pages/UsersPage';
 import ExpensesPage from './pages/ExpensesPage';
 
 // Placeholder pages (filled in later steps)
-const Unauthorized = () => <div className="text-red-500 p-8"><h1 className="text-2xl font-bold">403 – Unauthorized</h1><p>You don't have permission to view this page.</p></div>;
+const Unauthorized = () => <div className="t-bad p-8"><h1 className="text-2xl font-bold">403 – Unauthorized</h1><p>You don't have permission to view this page.</p></div>;
 
 function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <AppProvider>
         <BrowserRouter>
-          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+          {/* Toasts read their colours from the theme tokens so they never appear
+              as a white card on a dark portal (or the reverse). */}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: 'var(--sms-surface-solid)',
+                color: 'var(--sms-text)',
+                border: '1px solid var(--sms-border)',
+                boxShadow: 'var(--sms-shadow-lg)',
+                fontSize: '0.8125rem',
+                fontWeight: 500,
+              },
+              success: { iconTheme: { primary: 'var(--sms-success)', secondary: 'var(--sms-surface-solid)' } },
+              error: { iconTheme: { primary: 'var(--sms-danger)', secondary: 'var(--sms-surface-solid)' } },
+            }}
+          />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
@@ -69,6 +88,7 @@ function App() {
         </BrowserRouter>
       </AppProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 

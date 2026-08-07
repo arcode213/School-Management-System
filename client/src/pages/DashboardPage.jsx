@@ -25,13 +25,13 @@ const CLASS_COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#f59e0b','#ec4899','#10b981
 const BarTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-4 text-xs text-slate-200">
-      <p className="font-bold text-white mb-2">{label}</p>
+    <div className="bg-solid backdrop-blur-md border border-line rounded-2xl shadow-2xl p-4 text-xs t-body">
+      <p className="font-bold t-body mb-2">{label}</p>
       {payload.map((p) => (
         <div key={p.name} className="flex items-center gap-2 mt-1">
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.fill }} />
           <span>{p.name}:</span>
-          <span className="font-extrabold text-white">Rs. {p.value.toLocaleString()}</span>
+          <span className="font-extrabold t-body">Rs. {p.value.toLocaleString()}</span>
         </div>
       ))}
     </div>
@@ -58,12 +58,12 @@ const renderActiveShape = (props) => {
 // ─── Status badge ─────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const map = {
-    Paid:    'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    Unpaid:  'bg-red-500/10 text-red-400 border-red-500/20',
-    Partial: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    Paid:    'bg-ok-soft t-ok border-ok-border',
+    Unpaid:  'bg-bad-soft t-bad border-bad-border',
+    Partial: 'bg-warn-soft t-warn border-warn-border',
   };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${map[status] || 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${map[status] || 'bg-surface-3 t-muted border-line'}`}>
       {status}
     </span>
   );
@@ -135,21 +135,21 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* ── Page header / Welcome Banner ────────────────── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900/60 via-indigo-950/80 to-[#0b0f19] border border-white/5 p-6 md:p-8 shadow-[0_10px_35px_rgba(0,0,0,0.3)]">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900/60 via-indigo-950/80 to-[#0b0f19] border border-line p-6 md:p-8 shadow-[0_10px_35px_rgba(0,0,0,0.3)]">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-12 -right-12 w-48 h-48 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-pulse-glow" />
-          <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-pulse-glow delay-1000" />
+          <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-brand rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-pulse-glow delay-1000" />
         </div>
 
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-300 uppercase tracking-widest">
+            <span className="px-3 py-1 rounded-full bg-brand-soft border border-brand-border text-xs font-bold t-brand uppercase tracking-widest">
               Live Console
             </span>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white mt-3 tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-extrabold t-body mt-3 tracking-tight">
               Good {getGreeting()}, {user?.name?.split(' ')[0]} 👋
             </h1>
-            <p className="text-slate-400 text-sm mt-1">
+            <p className="t-muted text-sm mt-1">
               Select or synchronize metrics view.
             </p>
           </div>
@@ -157,14 +157,14 @@ export default function DashboardPage() {
             {activeDashboard !== 'blank' && (
               <button
                 onClick={() => setActiveDashboard('blank')}
-                className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl px-4 py-2.5 transition"
+                className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider t-muted hover:t-body bg-surface-2 hover:bg-surface-3 border border-line rounded-xl px-4 py-2.5 transition"
               >
                 <ArrowLeft size={14} /> Back
               </button>
             )}
             <button
               onClick={fetchAll}
-              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 transition shadow-sm"
+              className="btn btn-ghost hover:t-body shadow-sm"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               Synchronize
@@ -177,8 +177,8 @@ export default function DashboardPage() {
       {activeDashboard === 'blank' && (
         <div className="flex flex-col items-center justify-center py-10 space-y-8 animate-fade-in-up">
           <div className="text-center max-w-lg">
-            <h2 className="text-xl font-bold tracking-tight text-white uppercase">Analytics Dashboard Hub</h2>
-            <p className="text-slate-400 text-xs mt-1.5 leading-relaxed font-semibold uppercase tracking-wider">
+            <h2 className="text-xl font-bold tracking-tight t-body uppercase">Analytics Dashboard Hub</h2>
+            <p className="t-muted text-xs mt-1.5 leading-relaxed font-semibold uppercase tracking-wider">
               Please choose a dashboard below to inspect live school metrics:
             </p>
           </div>
@@ -187,14 +187,14 @@ export default function DashboardPage() {
             {/* Academics Selector Card */}
             <button
               onClick={() => setActiveDashboard('academics')}
-              className="glass-card text-left p-8 rounded-3xl border border-white/5 hover:border-blue-500/30 flex flex-col justify-between h-56 transition-all group duration-300"
+              className="glass-card text-left p-8 rounded-3xl border border-line hover:border-brand-border flex flex-col justify-between h-56 transition-all group duration-300"
             >
               <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-2xl p-4 w-14 h-14 flex items-center justify-center shadow-lg shadow-blue-500/10 group-hover:scale-110 transition duration-300">
-                <GraduationCap className="text-white w-7 h-7" />
+                <GraduationCap className="t-body w-7 h-7" />
               </div>
               <div>
-                <h3 className="text-lg font-black tracking-tight text-white uppercase group-hover:text-blue-400 transition-colors">Academics Hub</h3>
-                <p className="text-slate-400 text-xs mt-1 font-medium leading-relaxed">
+                <h3 className="text-lg font-black tracking-tight t-body uppercase group-hover:t-brand transition-colors">Academics Hub</h3>
+                <p className="t-muted text-xs mt-1 font-medium leading-relaxed">
                   Analyze active student registrations, class demographics, teacher ratios, and enrollment health lines.
                 </p>
               </div>
@@ -203,14 +203,14 @@ export default function DashboardPage() {
             {/* Finance Selector Card */}
             <button
               onClick={() => setActiveDashboard('finance')}
-              className="glass-card text-left p-8 rounded-3xl border border-white/5 hover:border-emerald-500/30 flex flex-col justify-between h-56 transition-all group duration-300"
+              className="glass-card text-left p-8 rounded-3xl border border-line hover:border-ok-border flex flex-col justify-between h-56 transition-all group duration-300"
             >
               <div className="bg-gradient-to-tr from-emerald-600/80 to-emerald-400/80 rounded-2xl p-4 w-14 h-14 flex items-center justify-center shadow-lg shadow-emerald-500/10 group-hover:scale-110 transition duration-300">
-                <Landmark className="text-white w-7 h-7" />
+                <Landmark className="t-body w-7 h-7" />
               </div>
               <div>
-                <h3 className="text-lg font-black tracking-tight text-white uppercase group-hover:text-emerald-400 transition-colors">Financial Hub</h3>
-                <p className="text-slate-400 text-xs mt-1 font-medium leading-relaxed">
+                <h3 className="text-lg font-black tracking-tight t-body uppercase group-hover:t-ok transition-colors">Financial Hub</h3>
+                <p className="t-muted text-xs mt-1 font-medium leading-relaxed">
                   Monitor collection efficiency, fee invoices status, cumulative outstanding dues, and payment logs.
                 </p>
               </div>
@@ -223,12 +223,12 @@ export default function DashboardPage() {
       {activeDashboard === 'academics' && (
         <div className="space-y-6 animate-fade-in-up">
           {/* Header row */}
-          <div className="flex items-center justify-between border-b border-white/5 pb-3">
-            <span className="text-xs font-bold uppercase tracking-widest text-blue-400 flex items-center gap-1.5">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <span className="text-xs font-bold uppercase tracking-widest t-brand flex items-center gap-1.5">
               <GraduationCap size={16} /> Academics Metrics Dashboard
             </span>
             <div className="flex gap-2">
-              <button onClick={() => setActiveDashboard('finance')} className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white bg-white/3 px-3 py-1.5 rounded-xl border border-white/5">
+              <button onClick={() => setActiveDashboard('finance')} className="text-[10px] font-bold uppercase tracking-wider t-muted hover:t-body bg-surface-2 px-3 py-1.5 rounded-xl border border-line">
                 Switch to Finance
               </button>
             </div>
@@ -267,16 +267,16 @@ export default function DashboardPage() {
 
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+            <div className="card card-lg lg:col-span-2 p-6 flex flex-col justify-between">
               <div>
-                <h2 className="font-bold text-white text-sm tracking-wider uppercase">Class Demographics</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Active student distribution breakdown</p>
+                <h2 className="font-bold t-body text-sm tracking-wider uppercase">Class Demographics</h2>
+                <p className="text-xs t-muted mt-0.5">Active student distribution breakdown</p>
               </div>
               {loading ? (
                 <Skeleton className="h-56 w-full" />
               ) : classDist.length === 0 ? (
-                <div className="h-56 flex items-center justify-center text-slate-500 text-xs flex-col gap-2">
-                  <BookOpen size={32} className="text-slate-600" />
+                <div className="h-56 flex items-center justify-center t-faint text-xs flex-col gap-2">
+                  <BookOpen size={32} className="t-muted" />
                   <span>No student data yet</span>
                 </div>
               ) : (
@@ -294,27 +294,27 @@ export default function DashboardPage() {
             </div>
 
             {/* Ratios Insights */}
-            <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+            <div className="card card-lg p-6 flex flex-col justify-between">
               <div>
-                <h2 className="font-bold text-white text-sm tracking-wider uppercase">Student to Teacher Ratio</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Calculated metric compared to active teaching headcount.</p>
+                <h2 className="font-bold t-body text-sm tracking-wider uppercase">Student to Teacher Ratio</h2>
+                <p className="text-xs t-muted mt-0.5">Calculated metric compared to active teaching headcount.</p>
               </div>
               
               <div className="flex flex-col items-center justify-center my-6">
-                <div className="w-32 h-32 rounded-full border-4 border-dashed border-blue-500/30 flex flex-col items-center justify-center shadow-lg shadow-blue-500/5 animate-pulse-glow">
-                  <span className="text-3xl font-extrabold text-blue-400">{studentTeacherRatio}:1</span>
-                  <span className="text-[8px] uppercase tracking-widest text-slate-400 mt-1 font-bold">ratio</span>
+                <div className="w-32 h-32 rounded-full border-4 border-dashed border-brand-border flex flex-col items-center justify-center shadow-lg shadow-blue-500/5 animate-pulse-glow">
+                  <span className="text-3xl font-extrabold t-brand">{studentTeacherRatio}:1</span>
+                  <span className="text-[8px] uppercase tracking-widest t-muted mt-1 font-bold">ratio</span>
                 </div>
               </div>
 
-              <div className="space-y-3 border-t border-white/5 pt-4">
+              <div className="space-y-3 border-t border-line pt-4">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">Active Teachers</span>
-                  <span className="font-bold text-white">{stats?.employees?.teachers || 0}</span>
+                  <span className="t-muted">Active Teachers</span>
+                  <span className="font-bold t-body">{stats?.employees?.teachers || 0}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">Active Students</span>
-                  <span className="font-bold text-white">{stats?.students?.active || 0}</span>
+                  <span className="t-muted">Active Students</span>
+                  <span className="font-bold t-body">{stats?.students?.active || 0}</span>
                 </div>
               </div>
             </div>
@@ -326,12 +326,12 @@ export default function DashboardPage() {
       {activeDashboard === 'finance' && (
         <div className="space-y-6 animate-fade-in-up">
           {/* Header row */}
-          <div className="flex items-center justify-between border-b border-white/5 pb-3">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <span className="text-xs font-bold uppercase tracking-widest t-ok flex items-center gap-1.5">
               <Landmark size={16} /> Financial Metrics Dashboard
             </span>
             <div className="flex gap-2">
-              <button onClick={() => setActiveDashboard('academics')} className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white bg-white/3 px-3 py-1.5 rounded-xl border border-white/5">
+              <button onClick={() => setActiveDashboard('academics')} className="text-[10px] font-bold uppercase tracking-wider t-muted hover:t-body bg-surface-2 px-3 py-1.5 rounded-xl border border-line">
                 Switch to Academics
               </button>
             </div>
@@ -363,13 +363,13 @@ export default function DashboardPage() {
 
           {/* Monthly Collection Bar Chart */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-xl">
+            <div className="card card-lg lg:col-span-2 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="font-bold text-white text-sm tracking-wider uppercase">Monthly Fee Collection</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Collections vs balances over 12 billing periods</p>
+                  <h2 className="font-bold t-body text-sm tracking-wider uppercase">Monthly Fee Collection</h2>
+                  <p className="text-xs t-muted mt-0.5">Collections vs balances over 12 billing periods</p>
                 </div>
-                <TrendingUp size={16} className="text-blue-400" />
+                <TrendingUp size={16} className="t-brand" />
               </div>
               {loading ? (
                 <Skeleton className="h-64 w-full" />
@@ -400,13 +400,13 @@ export default function DashboardPage() {
             </div>
 
             {/* Collection Efficiency Card */}
-            <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+            <div className="card card-lg p-6 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-bold text-white text-sm tracking-wider uppercase">Collection Efficiency</h2>
-                  <Percent size={16} className="text-indigo-400" />
+                  <h2 className="font-bold t-body text-sm tracking-wider uppercase">Collection Efficiency</h2>
+                  <Percent size={16} className="t-brand" />
                 </div>
-                <p className="text-xs text-slate-400">Monthly receipt rate over total billed amount.</p>
+                <p className="text-xs t-muted">Monthly receipt rate over total billed amount.</p>
               </div>
 
               {loading ? (
@@ -425,16 +425,16 @@ export default function DashboardPage() {
                     </RadialBarChart>
                   </ResponsiveContainer>
                   <div className="absolute flex flex-col items-center justify-center">
-                    <span className="text-3xl font-extrabold text-white tracking-tight">{collectionEfficiency}%</span>
-                    <span className="text-[9px] uppercase font-bold tracking-widest text-slate-400 mt-0.5">collected</span>
+                    <span className="text-3xl font-extrabold t-body tracking-tight">{collectionEfficiency}%</span>
+                    <span className="text-[9px] uppercase font-bold tracking-widest t-muted mt-0.5">collected</span>
                   </div>
                 </div>
               )}
 
-              <div className="space-y-3 border-t border-white/5 pt-4">
+              <div className="space-y-3 border-t border-line pt-4">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400 flex items-center gap-1"><Layers size={12}/> Dues Burden Rate</span>
-                  <span className={`font-extrabold px-2 py-0.5 rounded-lg border ${burdenRatio > 100 ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'}`}>
+                  <span className="t-muted flex items-center gap-1"><Layers size={12}/> Dues Burden Rate</span>
+                  <span className={`font-extrabold px-2 py-0.5 rounded-lg border ${burdenRatio > 100 ? 't-bad bg-bad-soft border-bad-border' : 't-warn bg-warn-soft border-warn-border'}`}>
                     {burdenRatio}%
                   </span>
                 </div>
@@ -444,19 +444,19 @@ export default function DashboardPage() {
 
           {/* Fee Status Pie & Recent Transactions */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-xl">
+            <div className="card card-lg p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="font-bold text-white text-sm tracking-wider uppercase">Fee Status</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Current month invoice categories</p>
+                  <h2 className="font-bold t-body text-sm tracking-wider uppercase">Fee Status</h2>
+                  <p className="text-xs t-muted mt-0.5">Current month invoice categories</p>
                 </div>
-                <DollarSign size={16} className="text-emerald-400" />
+                <DollarSign size={16} className="t-ok" />
               </div>
               {loading ? (
                 <Skeleton className="h-56 w-full" />
               ) : feeStatus.every(f => f.value === 0) ? (
-                <div className="h-56 flex items-center justify-center text-slate-500 text-xs flex-col gap-2">
-                  <BadgeDollarSign size={32} className="text-slate-600" />
+                <div className="h-56 flex items-center justify-center t-faint text-xs flex-col gap-2">
+                  <BadgeDollarSign size={32} className="t-muted" />
                   <span>No fee records this month</span>
                 </div>
               ) : (
@@ -486,8 +486,8 @@ export default function DashboardPage() {
                     {feeStatus.map((f) => (
                       <div key={f.name} className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider">
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: PIE_COLORS[f.name] }} />
-                        <span className="text-slate-400">{f.name}:</span>
-                        <span className="text-white font-extrabold">{f.value}</span>
+                        <span className="t-muted">{f.name}:</span>
+                        <span className="t-body font-extrabold">{f.value}</span>
                       </div>
                     ))}
                   </div>
@@ -496,13 +496,13 @@ export default function DashboardPage() {
             </div>
 
             {/* Recent Payments table inside Dashboard */}
-            <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-xl">
+            <div className="card card-lg p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="font-bold text-white text-sm tracking-wider uppercase">Recent Receipts</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Last 5 fee collections</p>
+                  <h2 className="font-bold t-body text-sm tracking-wider uppercase">Recent Receipts</h2>
+                  <p className="text-xs t-muted mt-0.5">Last 5 fee collections</p>
                 </div>
-                <Link to="/fees" className="text-xs font-bold uppercase tracking-wider text-blue-400 hover:text-blue-300 flex items-center gap-0.5 transition">
+                <Link to="/fees" className="text-xs font-bold uppercase tracking-wider t-brand hover:t-brand flex items-center gap-0.5 transition">
                   View All <ChevronRight size={12} />
                 </Link>
               </div>
@@ -511,22 +511,22 @@ export default function DashboardPage() {
                   {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
                 </div>
               ) : recent.length === 0 ? (
-                <div className="h-56 flex items-center justify-center text-slate-500 text-xs flex-col gap-2">
-                  <DollarSign size={32} className="text-slate-600" />
+                <div className="h-56 flex items-center justify-center t-faint text-xs flex-col gap-2">
+                  <DollarSign size={32} className="t-muted" />
                   <span>No payments recorded yet</span>
                 </div>
               ) : (
                 <div className="space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
                   {recent.map((r) => (
-                    <div key={r._id} className="flex items-center justify-between p-3 rounded-2xl bg-white/3 border border-white/5 hover:border-blue-500/10 transition-colors">
+                    <div key={r._id} className="flex items-center justify-between p-3 rounded-2xl bg-surface-2 border border-line hover:border-blue-500/10 transition-colors">
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-white truncate">{r.student?.fullName || '—'}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                        <p className="text-xs font-bold t-body truncate">{r.student?.fullName || '—'}</p>
+                        <p className="text-[10px] t-muted mt-0.5 font-medium">
                           Class {r.student?.class || '—'} {r.student?.section ? `(${r.student.section})` : ''} • {r.feeMonth} {r.feeYear}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs font-black text-slate-200">Rs. {r.amountPaid?.toLocaleString()}</p>
+                        <p className="text-xs font-black t-body">Rs. {r.amountPaid?.toLocaleString()}</p>
                         <div className="mt-1"><StatusBadge status={r.status} /></div>
                       </div>
                     </div>
@@ -539,7 +539,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── Footer ───────────────────────────────────────────── */}
-      <p className="text-center text-[10px] font-bold uppercase tracking-wider text-slate-600 pt-4">
+      <p className="text-center text-[10px] font-bold uppercase tracking-wider t-muted pt-4">
         Last updated: {lastRefresh.toLocaleTimeString()}
       </p>
     </div>

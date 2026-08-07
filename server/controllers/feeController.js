@@ -404,8 +404,18 @@ const addFee = async (req, res) => {
     }
     const academicRecordId = academicRecord._id;
 
-    // Check for duplicates
-    const exists = await FeeRecord.findOne({ student, feeMonth, feeYear, isDeleted: false }).session(session);
+    // Check for duplicates.
+    //
+    // Opening-balance records are deliberately EXCLUDED. They are a statement of what
+    // was owed or settled before the school started using the system, not a challan
+    // the school issued — they are never printed, and the printing screen filters them
+    // out. Both kinds are stamped with the CURRENT month when no period is supplied
+    // (an `ANP-` already-paid annual fee always is), so counting them here made an
+    // imported student look like they had already been billed for this month and
+    // silently blocked their first real challan.
+    const exists = await FeeRecord.findOne({
+      student, feeMonth, feeYear, isDeleted: false, isOpeningBalance: { $ne: true },
+    }).session(session);
     if (exists) throw badRequest(`Challan for ${feeMonth} ${feeYear} already exists for this student.`);
 
     // Resolve the annual fee the same way the class batch does, so an amount set in
@@ -580,13 +590,15 @@ const addBulkFees = async (req, res) => {
         continue;
       }
 
-      // Skip if already generated
+      // Skip if already generated. Opening-balance records do NOT count as a challan
+      // for the month they are stamped with — see the note in addFee.
       const exists = await FeeRecord.findOne({
         student: record.student,
         feeMonth,
         feeYear,
         academicSession: currentSession,
-        isDeleted: false
+        isDeleted: false,
+        isOpeningBalance: { $ne: true }
       }).session(session);
 
       if (exists) {

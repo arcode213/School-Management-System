@@ -47,16 +47,16 @@ export default function EmployeeFormModal({ open, onClose, employee, onSaved }) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-solid rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-purple-600 rounded-xl flex items-center justify-center">
-              <UserCog className="text-white w-4 h-4" />
+            <div className="w-9 h-9 bg-brand rounded-xl flex items-center justify-center">
+              <UserCog className="t-body w-4 h-4" />
             </div>
-            <h2 className="font-semibold text-slate-800">{isEdit ? 'Edit Employee' : 'Add New Employee'}</h2>
+            <h2 className="font-semibold t-body">{isEdit ? 'Edit Employee' : 'Add New Employee'}</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition"><X size={20} /></button>
+          <button onClick={onClose} className="t-muted hover:t-muted transition"><X size={20} /></button>
         </div>
 
         <form id="emp-form" onSubmit={handleSubmit(onSubmit)} className="overflow-y-auto px-6 py-5 space-y-5 flex-1">
@@ -124,15 +124,15 @@ export default function EmployeeFormModal({ open, onClose, employee, onSaved }) 
               <Field label="Experience"><input {...register('experience')} className={input()} placeholder="e.g. 5 Years" /></Field>
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Address</label>
-              <textarea {...register('address')} rows={2} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500" placeholder="Full address" />
+              <label className="block text-xs font-medium t-muted mb-1">Address</label>
+              <textarea {...register('address')} rows={2} className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand" placeholder="Full address" />
             </div>
           </Section>
         </form>
 
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg">Cancel</button>
-          <button type="submit" form="emp-form" disabled={isSubmitting} className="px-5 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg flex items-center gap-2">
+        <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm t-muted border border-line rounded-lg">Cancel</button>
+          <button type="submit" form="emp-form" disabled={isSubmitting} className="px-5 py-2 text-sm bg-brand hover:bg-purple-700 t-body font-medium rounded-lg flex items-center gap-2">
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
             {isEdit ? 'Save Changes' : 'Add Employee'}
           </button>
@@ -142,10 +142,10 @@ export default function EmployeeFormModal({ open, onClose, employee, onSaved }) 
   );
 }
 
-const input = (err) => `w-full border ${err ? 'border-red-400' : 'border-slate-200'} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white`;
+const input = (err) => `w-full border ${err ? 'border-bad' : 'border-line'} rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-solid`;
 const Section = ({ title, children }) => (
-  <div><p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">{title}</p><div className="grid grid-cols-2 gap-4">{children}</div></div>
+  <div><p className="text-xs font-semibold t-muted uppercase tracking-wide mb-3">{title}</p><div className="grid grid-cols-2 gap-4">{children}</div></div>
 );
 const Field = ({ label, children, error }) => (
-  <div><label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>{children}{error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}</div>
+  <div><label className="block text-xs font-medium t-muted mb-1">{label}</label>{children}{error && <p className="text-xs t-bad mt-0.5">{error}</p>}</div>
 );

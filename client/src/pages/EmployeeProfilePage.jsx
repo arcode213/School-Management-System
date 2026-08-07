@@ -22,18 +22,18 @@ export default function EmployeeProfilePage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <Link to="/employees" className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+      <Link to="/employees" className="flex items-center gap-2 text-sm t-faint hover:t-body transition">
         <ArrowLeft size={16} /> Back to Employees
       </Link>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex items-start gap-5">
-        <div className="w-20 h-20 bg-purple-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+      <div className="bg-solid rounded-2xl border border-line shadow-sm p-6 flex items-start gap-5">
+        <div className="w-20 h-20 bg-brand rounded-2xl flex items-center justify-center t-body text-3xl font-bold shadow-lg">
           {employee.fullName.charAt(0)}
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-800">{employee.fullName}</h1>
-          <p className="text-slate-500 text-sm mt-1">{employee.designation} • {employee.department}</p>
-          <div className="flex gap-4 mt-3 text-xs text-slate-500">
+          <h1 className="text-xl font-bold t-body">{employee.fullName}</h1>
+          <p className="t-faint text-sm mt-1">{employee.designation} • {employee.department}</p>
+          <div className="flex gap-4 mt-3 text-xs t-faint">
             <span className="flex items-center gap-1.5"><Phone size={12}/> {employee.phone || 'No phone'}</span>
             <span className="flex items-center gap-1.5"><Calendar size={12}/> Joined {new Date(employee.joiningDate).toLocaleDateString()}</span>
           </div>
@@ -41,41 +41,41 @@ export default function EmployeeProfilePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2"><User size={14} className="text-purple-600"/> Personal Info</h2>
+        <div className="bg-solid rounded-2xl border border-line shadow-sm p-5">
+          <h2 className="text-sm font-semibold t-body mb-4 flex items-center gap-2"><User size={14} className="t-brand"/> Personal Info</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><p className="text-xs text-slate-400">Father</p><p className="font-medium">{employee.fatherName}</p></div>
-            <div><p className="text-xs text-slate-400">CNIC</p><p className="font-medium">{employee.cnic}</p></div>
-            <div><p className="text-xs text-slate-400">DOB</p><p className="font-medium">{new Date(employee.dateOfBirth).toLocaleDateString()}</p></div>
-            <div><p className="text-xs text-slate-400">Gender</p><p className="font-medium">{employee.gender}</p></div>
+            <div><p className="text-xs t-muted">Father</p><p className="font-medium">{employee.fatherName}</p></div>
+            <div><p className="text-xs t-muted">CNIC</p><p className="font-medium">{employee.cnic}</p></div>
+            <div><p className="text-xs t-muted">DOB</p><p className="font-medium">{new Date(employee.dateOfBirth).toLocaleDateString()}</p></div>
+            <div><p className="text-xs t-muted">Gender</p><p className="font-medium">{employee.gender}</p></div>
           </div>
         </div>
         
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2"><Briefcase size={14} className="text-blue-600"/> Employment</h2>
+        <div className="bg-solid rounded-2xl border border-line shadow-sm p-5">
+          <h2 className="text-sm font-semibold t-body mb-4 flex items-center gap-2"><Briefcase size={14} className="t-brand"/> Employment</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><p className="text-xs text-slate-400">Base Salary</p><p className="font-medium text-green-600">Rs. {employee.salary?.toLocaleString()}</p></div>
-            <div><p className="text-xs text-slate-400">Status</p><p className="font-medium">{employee.status}</p></div>
-            <div><p className="text-xs text-slate-400">Qualification</p><p className="font-medium">{employee.qualification}</p></div>
-            <div><p className="text-xs text-slate-400">Experience</p><p className="font-medium">{employee.experience}</p></div>
+            <div><p className="text-xs t-muted">Base Salary</p><p className="font-medium t-ok">Rs. {employee.salary?.toLocaleString()}</p></div>
+            <div><p className="text-xs t-muted">Status</p><p className="font-medium">{employee.status}</p></div>
+            <div><p className="text-xs t-muted">Qualification</p><p className="font-medium">{employee.qualification}</p></div>
+            <div><p className="text-xs t-muted">Experience</p><p className="font-medium">{employee.experience}</p></div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2"><DollarSign size={14} className="text-green-600"/> Salary History</h2>
-        {history.length === 0 ? <p className="text-slate-400 text-sm">No salary records.</p> : (
+      <div className="bg-solid rounded-2xl border border-line shadow-sm p-5">
+        <h2 className="text-sm font-semibold t-body mb-4 flex items-center gap-2"><DollarSign size={14} className="t-ok"/> Salary History</h2>
+        {history.length === 0 ? <p className="t-muted text-sm">No salary records.</p> : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-xs text-left">
+            <thead className="bg-surface-2 t-faint uppercase text-xs text-left">
               <tr><th className="p-3">Month</th><th className="p-3">Base</th><th className="p-3">Net Paid</th><th className="p-3">Date</th></tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-line">
               {history.map(h => (
                 <tr key={h._id}>
                   <td className="p-3 font-medium">{h.salaryMonth} {h.salaryYear}</td>
-                  <td className="p-3 text-slate-500">Rs. {h.baseSalary.toLocaleString()}</td>
-                  <td className="p-3 text-green-600 font-bold">Rs. {h.netSalary.toLocaleString()}</td>
-                  <td className="p-3 text-slate-500">{new Date(h.paymentDate).toLocaleDateString()}</td>
+                  <td className="p-3 t-faint">Rs. {h.baseSalary.toLocaleString()}</td>
+                  <td className="p-3 t-ok font-bold">Rs. {h.netSalary.toLocaleString()}</td>
+                  <td className="p-3 t-faint">{new Date(h.paymentDate).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>

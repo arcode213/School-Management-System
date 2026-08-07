@@ -211,35 +211,35 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-4 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
+      <div className="bg-solid rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-4 border-b border-line">
+          <h2 className="text-lg font-bold t-body">
             Import {type === 'students' ? 'Students' : 'Employees'}
           </h2>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition">
+          <button onClick={onClose} className="p-2 t-muted hover:t-muted hover:bg-surface-2 rounded-full transition">
             <X size={18} />
           </button>
         </div>
 
         <div className="p-6">
-          <div className="flex justify-between items-center bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
+          <div className="flex justify-between items-center bg-brand-soft border border-brand-border rounded-xl p-4 mb-6">
             <div className="flex items-center gap-3">
-              <FileSpreadsheet className="text-blue-500" size={24} />
+              <FileSpreadsheet className="t-brand" size={24} />
               <div>
-                <p className="text-sm font-semibold text-slate-700">Download Template</p>
-                <p className="text-xs text-slate-500">Fill your data according to the format.</p>
+                <p className="text-sm font-semibold t-body">Download Template</p>
+                <p className="text-xs t-faint">Fill your data according to the format.</p>
               </div>
             </div>
             <button 
               onClick={downloadTemplate}
-              className="px-4 py-2 bg-white text-blue-600 text-sm font-medium border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition">
+              className="px-4 py-2 bg-solid t-brand text-sm font-medium border border-brand-border rounded-lg shadow-sm hover:bg-brand-soft transition">
               Download
             </button>
           </div>
 
           <div
-            className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-2xl transition ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'}`}
+            className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-2xl transition ${dragActive ? 'border-brand bg-brand-soft' : 'border-line bg-surface-2 hover:bg-surface-2'}`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -253,71 +253,71 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
               disabled={loading}
             />
             <div className="flex flex-col items-center pointer-events-none">
-              <UploadCloud size={40} className={`mb-3 ${dragActive ? 'text-blue-500' : 'text-slate-400'}`} />
-              <p className="text-sm font-medium text-slate-700">Drag & Drop file here</p>
-              <p className="text-xs text-slate-500 mt-1">or click to browse (.xlsx, .csv)</p>
+              <UploadCloud size={40} className={`mb-3 ${dragActive ? 't-brand' : 't-muted'}`} />
+              <p className="text-sm font-medium t-body">Drag & Drop file here</p>
+              <p className="text-xs t-faint mt-1">or click to browse (.xlsx, .csv)</p>
             </div>
           </div>
           
           {type === 'students' && (
-            <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1.5">
-              <p className="font-semibold text-slate-700">Fee columns</p>
+            <div className="mt-4 bg-surface-2 border border-line rounded-lg p-3 text-xs t-muted space-y-1.5">
+              <p className="font-semibold t-body">Fee columns</p>
               <p>
-                <code className="bg-white border px-1 rounded">isFreeship</code> — enter <strong>Yes</strong> for
+                <code className="bg-solid border px-1 rounded">isFreeship</code> — enter <strong>Yes</strong> for
                 students whose fees the school has waived. No challan is generated or printed for them. Leave blank for
                 paying students.
               </p>
               <p>
-                <code className="bg-white border px-1 rounded">previousDues</code> — outstanding <strong>monthly</strong>{' '}
+                <code className="bg-solid border px-1 rounded">previousDues</code> — outstanding <strong>monthly</strong>{' '}
                 fee the student already owes, with{' '}
-                <code className="bg-white border px-1 rounded">previousDuesFrom</code> /{' '}
-                <code className="bg-white border px-1 rounded">previousDuesTo</code> giving the months it covers. No
+                <code className="bg-solid border px-1 rounded">previousDuesFrom</code> /{' '}
+                <code className="bg-solid border px-1 rounded">previousDuesTo</code> giving the months it covers. No
                 challan is created for it — it is recorded as an opening balance, shows in <em>Outstanding Dues</em>,
                 and is carried into the next challan you generate as <em>Previous Arrears</em>.
               </p>
               <p>
-                <code className="bg-white border px-1 rounded">previousAnnualFee</code> — unpaid{' '}
+                <code className="bg-solid border px-1 rounded">previousAnnualFee</code> — unpaid{' '}
                 <strong>annual</strong> fee from before. Tracked separately and printed on its own{' '}
                 <em>Previous Annual Fee</em> line, so it is never mixed into the monthly arrears. No date range needed.
               </p>
               <p>
-                <code className="bg-white border px-1 rounded">annualFeePaid</code> — for students who have{' '}
+                <code className="bg-solid border px-1 rounded">annualFeePaid</code> — for students who have{' '}
                 <strong>already paid this session's annual fee</strong>. Enter the amount they paid and it is
                 recorded as settled, so <em>Generate Fees</em> will not charge them the annual fee again this
                 session. Enter <strong>0</strong> or leave it blank for students who have not paid — their annual
                 fee stays at zero until you charge it from <em>Generate Fees</em>.
               </p>
-              <p className="text-slate-500">
-                Dates accept a real date cell, <code className="bg-white border px-1 rounded">2026-01-15</code>,{' '}
-                <code className="bg-white border px-1 rounded">January 2026</code> or{' '}
-                <code className="bg-white border px-1 rounded">2026-01</code>.
+              <p className="t-faint">
+                Dates accept a real date cell, <code className="bg-solid border px-1 rounded">2026-01-15</code>,{' '}
+                <code className="bg-solid border px-1 rounded">January 2026</code> or{' '}
+                <code className="bg-solid border px-1 rounded">2026-01</code>.
               </p>
             </div>
           )}
 
-          <div className="mt-4 flex items-start gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg text-xs">
+          <div className="mt-4 flex items-start gap-2 t-warn bg-warn-soft p-3 rounded-lg text-xs">
             <AlertCircle size={14} className="shrink-0 mt-0.5" />
             <p>Make sure the header names exactly match the template. Invalid data may cause the entire import to fail.</p>
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50">
+        <div className="p-4 border-t border-line flex justify-end gap-2 bg-surface-2">
           <button type="button" onClick={onClose} disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+            className="px-4 py-2 text-sm font-medium t-muted bg-solid border border-line rounded-xl hover:bg-surface-2 transition">
             Cancel
           </button>
         </div>
         
         {loading && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">
-            <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mb-3" />
-            <p className="text-sm font-medium text-slate-700">
+          <div className="absolute inset-0 bg-solid backdrop-blur-sm flex flex-col items-center justify-center z-10">
+            <div className="animate-spin w-8 h-8 border-4 border-brand border-t-transparent rounded-full mb-3" />
+            <p className="text-sm font-medium t-body">
               {progress ? `Importing ${progress.done} of ${progress.total} rows...` : 'Processing File...'}
             </p>
             {progress && progress.total > 0 && (
-              <div className="mt-3 w-48 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="mt-3 w-48 h-1.5 bg-surface-3 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-600 transition-all duration-300"
+                  className="h-full bg-brand transition-all duration-300"
                   style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
                 />
               </div>

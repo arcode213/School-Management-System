@@ -104,55 +104,55 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#080c14]/65 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-[#111827] border border-white/5 rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[92vh] text-slate-100 overflow-hidden">
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
+      <div className="card card-lg relative w-full max-w-md flex flex-col max-h-[92vh] t-body overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/3">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line bg-surface-2">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/10">
-              <CreditCard className="text-white w-4 h-4" />
+              <CreditCard className="t-body w-4 h-4" />
             </div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-white">Record Fee Receipt</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider t-body">Record Fee Receipt</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200"><X size={20} /></button>
+          <button onClick={onClose} className="t-muted hover:t-body"><X size={20} /></button>
         </div>
 
         <form id="payment-form" onSubmit={handleSubmit(onSubmit)} className="px-6 py-5 space-y-4 overflow-y-auto">
           {/* Summary Panel */}
-          <div className="bg-white/3 rounded-2xl p-4 border border-white/5 flex flex-col gap-2.5">
+          <div className="bg-surface-2 rounded-2xl p-4 border border-line flex flex-col gap-2.5">
             <div className="flex justify-between text-xs gap-3">
-              <span className="text-slate-400">Student Name:</span>
-              <span className="font-bold text-white text-right">
+              <span className="t-muted">Student Name:</span>
+              <span className="font-bold t-body text-right">
                 {student.fullName || 'Student'} ({student.class ? `Class ${student.class}` : ''})
                 {student.fatherName && (
-                  <span className="block text-[10px] font-medium text-slate-500">s/o {student.fatherName}</span>
+                  <span className="block text-[10px] font-medium t-faint">s/o {student.fatherName}</span>
                 )}
               </span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Fee Months:</span>
-              <span className="font-bold text-white">{feeRecord.feeMonth} {feeRecord.feeYear}</span>
+              <span className="t-muted">Fee Months:</span>
+              <span className="font-bold t-body">{feeRecord.feeMonth} {feeRecord.feeYear}</span>
             </div>
-            <div className="h-px bg-white/5 my-1" />
+            <div className="h-px bg-surface-2 my-1" />
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Total Billed:</span>
-              <span className="text-slate-300 font-semibold">Rs. {feeRecord.totalAmount?.toLocaleString()}</span>
+              <span className="t-muted">Total Billed:</span>
+              <span className="t-muted font-semibold">Rs. {feeRecord.totalAmount?.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Prior Payments/Discount:</span>
-              <span className="text-slate-300 font-semibold">Rs. {((feeRecord.amountPaid || 0) + (feeRecord.discount || 0)).toLocaleString()}</span>
+              <span className="t-muted">Prior Payments/Discount:</span>
+              <span className="t-muted font-semibold">Rs. {((feeRecord.amountPaid || 0) + (feeRecord.discount || 0)).toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-[11px]">
-              <span className="text-slate-500">Monthly Arrears Outstanding:</span>
-              <span className="text-slate-400">Rs. {monthlyDue.toLocaleString()}</span>
+              <span className="t-faint">Monthly Arrears Outstanding:</span>
+              <span className="t-muted">Rs. {monthlyDue.toLocaleString()}</span>
             </div>
             {hasAnnual && (
               <div className="flex justify-between text-[11px]">
-                <span className="text-slate-500">Annual Fee Outstanding:</span>
-                <span className="text-indigo-400 font-semibold">Rs. {annualDue.toLocaleString()}</span>
+                <span className="t-faint">Annual Fee Outstanding:</span>
+                <span className="t-brand font-semibold">Rs. {annualDue.toLocaleString()}</span>
               </div>
             )}
-            <div className="flex justify-between font-black text-rose-400 mt-1.5 text-base border-t border-white/5 pt-2">
+            <div className="flex justify-between font-black t-bad mt-1.5 text-base border-t border-line pt-2">
               <span>Current Due Balance:</span>
               <span>Rs. {totalDue.toLocaleString()}</span>
             </div>
@@ -160,22 +160,22 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
 
           {canPayByMonth && (
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Installment Split (Number of Months)</label>
+              <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Installment Split (Number of Months)</label>
               <select onChange={e => selectMonths(e.target.value)} defaultValue=""
-                className="w-full text-xs font-semibold bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                className="w-full text-xs font-semibold bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer"
               >
-                <option value="" disabled className="bg-slate-900">Select months to pay…</option>
+                <option value="" disabled className="bg-surface-2">Select months to pay…</option>
                 {Array.from({ length: remainingMonths }, (_, i) => i + 1).map(n => {
                   const thru = monthAt(startIdx + alreadyPaidMonths + n - 1);
                   const isAll = n === remainingMonths;
                   return (
-                    <option key={n} value={n} className="bg-slate-900">
+                    <option key={n} value={n} className="bg-surface-2">
                       {n} Month{n > 1 ? 's' : ''} — settles through {thru}{isAll ? ' (clears months)' : ''}
                     </option>
                   );
                 })}
               </select>
-              <p className="text-[10px] text-slate-500 mt-1.5 font-medium leading-relaxed">
+              <p className="text-[10px] t-faint mt-1.5 font-medium leading-relaxed">
                 Tuition/recurring cost: Rs. {recurring.toLocaleString()} / month. This auto-fills the payment fields.
               </p>
             </div>
@@ -183,13 +183,13 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">New Discount (Rs.)</label>
+              <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">New Discount (Rs.)</label>
               <input type="number" min="0" max={monthlyDueRaw} {...register('discount')}
-                className="w-full text-xs bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" 
+                className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand" 
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+              <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">
                 {hasAnnual ? 'Monthly Cash Paid (Rs.)' : 'Cash Received (Rs.)'}
               </label>
               <input
@@ -197,22 +197,22 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
                 {...register('monthlyPay', {
                   onChange: () => setEdited(e => ({ ...e, monthly: true })),
                 })}
-                className="w-full text-xs bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-2.5 text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                className="w-full text-xs bg-ok-soft border border-ok-border rounded-xl px-3 py-2.5 t-ok focus:outline-none focus:ring-2 focus:ring-brand font-bold"
               />
             </div>
           </div>
 
           {hasAnnual && (
-            <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3.5 space-y-2">
+            <div className="rounded-2xl border border-brand-border bg-brand-soft px-4 py-3.5 space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Annual Fee Cash (Rs.)</label>
+                <label className="text-[10px] font-bold t-muted uppercase tracking-widest">Annual Fee Cash (Rs.)</label>
                 <div className="flex gap-2">
                   <button type="button"
                     onClick={() => { setEdited(e => ({ ...e, annual: true })); setValue('annualPay', annualDue); }}
-                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-wider">Pay Full</button>
+                    className="text-[10px] t-brand hover:t-brand font-bold uppercase tracking-wider">Pay Full</button>
                   <button type="button"
                     onClick={() => { setEdited(e => ({ ...e, annual: true })); setValue('annualPay', 0); }}
-                    className="text-[10px] text-slate-500 hover:text-slate-400 font-bold uppercase tracking-wider">Skip</button>
+                    className="text-[10px] t-faint hover:t-muted font-bold uppercase tracking-wider">Skip</button>
                 </div>
               </div>
               <input
@@ -220,9 +220,9 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
                 {...register('annualPay', {
                   onChange: () => setEdited(e => ({ ...e, annual: true })),
                 })}
-                className="w-full text-xs bg-indigo-950 border border-indigo-500/30 rounded-xl px-3 py-2.5 text-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                className="w-full text-xs bg-surface-2 border border-brand-border rounded-xl px-3 py-2.5 t-brand focus:outline-none focus:ring-2 focus:ring-brand font-bold"
               />
-              <p className="text-[10px] text-slate-500 leading-normal font-medium">
+              <p className="text-[10px] t-faint leading-normal font-medium">
                 Unpaid annual balance Rs. {annualDue.toLocaleString()}
                 {carriedAnnual > 0 && ` (includes Rs. ${carriedAnnual.toLocaleString()} forward dues)`}.
               </p>
@@ -231,30 +231,30 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Payment Method</label>
-              <select {...register('paymentMethod')} className="w-full text-xs font-semibold bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                <option value="Cash" className="bg-slate-900">Cash</option>
-                <option value="Bank" className="bg-slate-900">Bank Deposit</option>
-                <option value="Online" className="bg-slate-900">Online Transfer</option>
+              <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Payment Method</label>
+              <select {...register('paymentMethod')} className="w-full text-xs font-semibold bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body outline-none focus:ring-2 focus:ring-brand cursor-pointer">
+                <option value="Cash" className="bg-surface-2">Cash</option>
+                <option value="Bank" className="bg-surface-2">Bank Deposit</option>
+                <option value="Online" className="bg-surface-2">Online Transfer</option>
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Remarks / Details</label>
-              <input {...register('remarks')} className="w-full text-xs bg-slate-900 border border-white/10 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g. Challan slip no." />
+              <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Remarks / Details</label>
+              <input {...register('remarks')} className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Challan slip no." />
             </div>
           </div>
 
-          <div className="flex justify-between items-center bg-white/3 border border-white/5 px-4 py-2.5 rounded-xl text-xs">
-            <span className="text-slate-400">Total Receipt Value:</span>
-            <span className="font-bold text-emerald-400">Rs. {payingTotal.toLocaleString()}</span>
+          <div className="flex justify-between items-center bg-surface-2 border border-line px-4 py-2.5 rounded-xl text-xs">
+            <span className="t-muted">Total Receipt Value:</span>
+            <span className="font-bold t-ok">Rs. {payingTotal.toLocaleString()}</span>
           </div>
-          <div className="flex justify-between items-center bg-white/3 border border-white/5 px-4 py-2.5 rounded-xl text-xs">
-            <span className="text-slate-400">Resulting Account Status:</span>
-            <span className={`font-bold ${nextStatus === 'Paid' ? 'text-emerald-400' : nextStatus === 'Partial' ? 'text-amber-400' : 'text-rose-400'}`}>{nextStatus}</span>
+          <div className="flex justify-between items-center bg-surface-2 border border-line px-4 py-2.5 rounded-xl text-xs">
+            <span className="t-muted">Resulting Account Status:</span>
+            <span className={`font-bold ${nextStatus === 'Paid' ? 't-ok' : nextStatus === 'Partial' ? 't-warn' : 't-bad'}`}>{nextStatus}</span>
           </div>
 
           {canPayByMonth && settlesThrough && (
-            <div className="text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl px-3.5 py-2.5 leading-relaxed font-semibold">
+            <div className="text-[10px] bg-brand-soft border border-brand-border t-brand rounded-xl px-3.5 py-2.5 leading-relaxed font-semibold">
               Settles through <strong>{settlesThrough}</strong>.
               {carriesFrom
                 ? <> Remaining <strong>{carriesFrom} – {feeRecord.feeMonth}</strong> will carry to the next challan as outstanding dues.</>
@@ -263,9 +263,9 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
           )}
         </form>
 
-        <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3 bg-white/3">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:bg-white/5 rounded-xl transition">Cancel</button>
-          <button type="submit" form="payment-form" disabled={isSubmitting || (payingTotal === 0 && newDiscount === 0)} className="px-5 py-2.5 bg-gradient-to-tr from-emerald-600 to-indigo-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition shadow-lg shadow-emerald-500/25 active:scale-95 disabled:opacity-50">
+        <div className="px-6 py-4 border-t border-line flex justify-end gap-3 bg-surface-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-2 rounded-xl transition">Cancel</button>
+          <button type="submit" form="payment-form" disabled={isSubmitting || (payingTotal === 0 && newDiscount === 0)} className="btn btn-primary disabled:opacity-50">
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
             Confirm Payment
           </button>

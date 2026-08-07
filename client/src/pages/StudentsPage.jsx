@@ -17,12 +17,12 @@ const STATUSES = ['Active', 'Left', 'Graduated'];
 
 const StatusBadge = ({ status }) => {
   const map = {
-    Active:    'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    Left:      'bg-rose-500/10 text-rose-400 border-rose-500/20',
-    Graduated: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    Active:    'bg-ok-soft t-ok border-ok-border',
+    Left:      'bg-bad-soft t-bad border-bad-border',
+    Graduated: 'bg-brand-soft t-brand border-brand-border',
   };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${map[status] || 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${map[status] || 'bg-surface-3 t-muted border-line'}`}>
       {status}
     </span>
   );
@@ -147,32 +147,32 @@ export default function StudentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight uppercase">Students Directory</h1>
-          <p className="text-slate-400 text-xs font-semibold mt-1 uppercase tracking-wider">
+          <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Students Directory</h1>
+          <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">
             {pagination.total} registered student records
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <button onClick={exportCSV} disabled={exporting}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-4 py-2.5 transition disabled:opacity-50"
+            className="btn btn-ghost disabled:opacity-50"
           >
             <Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}
           </button>
           <button onClick={() => setPrintOpen(true)}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-4 py-2.5 transition"
+            className="btn btn-ghost"
           >
             <Printer size={14} /> Print Records
           </button>
           {user?.role !== 'Staff' && (
             <button onClick={() => setImportOpen(true)}
-              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-4 py-2.5 transition"
+              className="btn btn-ghost"
             >
               <Upload size={14} /> Import Data
             </button>
           )}
           {user?.role !== 'Staff' && (
             <button id="add-student-btn" onClick={openAdd}
-              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl px-4 py-2.5 transition shadow-lg shadow-blue-500/25 active:scale-95"
+              className="btn btn-primary"
             >
               <UserPlus size={14} /> Add Student
             </button>
@@ -181,67 +181,67 @@ export default function StudentsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4">
+      <div className="card card-lg p-4">
         <div className="flex flex-wrap gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-48">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 t-muted" />
             <input
               id="student-search"
               type="text"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by name, ID, father, roll..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-900/60 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium"
+              className="w-full pl-9 pr-4 py-2 bg-surface-2 border border-line rounded-xl text-xs t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-medium"
             />
           </div>
           {/* Class filter */}
           <select id="filter-class" value={filterClass}
             onChange={e => { setFilterClass(e.target.value); setPage(1); }}
-            className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer"
           >
             <option value="">All Classes</option>
-            {classes.map(c => <option key={c} value={c} className="bg-slate-900">Class {c}</option>)}
+            {classes.map(c => <option key={c} value={c} className="bg-surface-2">Class {c}</option>)}
           </select>
           {/* Section filter */}
           <select id="filter-section" value={filterSection}
             onChange={e => { setFilterSection(e.target.value); setPage(1); }}
-            className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer"
           >
             <option value="">All Sections</option>
-            {['A','B','C','D','E'].map(s => <option key={s} className="bg-slate-900">{s}</option>)}
+            {['A','B','C','D','E'].map(s => <option key={s} className="bg-surface-2">{s}</option>)}
           </select>
           {/* Status filter */}
           <select id="filter-status" value={filterStatus}
             onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-            className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer"
           >
             <option value="">All Statuses</option>
-            {STATUSES.map(s => <option key={s} className="bg-slate-900">{s}</option>)}
+            {STATUSES.map(s => <option key={s} className="bg-surface-2">{s}</option>)}
           </select>
           {/* Gender filter */}
           <select id="filter-gender" value={filterGender}
             onChange={e => { setFilterGender(e.target.value); setPage(1); }}
-            className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer"
           >
             <option value="">All Genders</option>
-            <option value="Male" className="bg-slate-900">Boys</option>
-            <option value="Female" className="bg-slate-900">Girls</option>
-            <option value="Other" className="bg-slate-900">Other</option>
+            <option value="Male" className="bg-surface-2">Boys</option>
+            <option value="Female" className="bg-surface-2">Girls</option>
+            <option value="Other" className="bg-surface-2">Other</option>
           </select>
           {/* Freeship filter */}
           <select id="filter-freeship" value={filterFreeship}
             onChange={e => { setFilterFreeship(e.target.value); setPage(1); }}
-            className="bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer"
           >
             <option value="">Fee: All</option>
-            <option value="yes" className="bg-slate-900">Freeship only</option>
-            <option value="no" className="bg-slate-900">Paying only</option>
+            <option value="yes" className="bg-surface-2">Freeship only</option>
+            <option value="no" className="bg-surface-2">Paying only</option>
           </select>
           {/* Clear */}
           {(search || filterClass || filterSection || filterStatus !== 'Active' || filterGender || filterFreeship) && (
             <button onClick={() => { setSearch(''); setFilterClass(''); setFilterSection(''); setFilterStatus('Active'); setFilterGender(''); setFilterFreeship(''); setPage(1); }}
-              className="text-xs font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 border border-rose-500/20 px-4 py-2 rounded-xl transition"
+              className="text-xs font-bold uppercase tracking-wider t-bad bg-bad-soft border border-bad-border px-4 py-2 rounded-xl transition"
             >
               Clear filters
             </button>
@@ -250,66 +250,66 @@ export default function StudentsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-[#111827]/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="card card-lg overflow-hidden">
         {loading ? (
           <div className="p-16 text-center flex flex-col items-center">
-            <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto" />
-            <p className="text-slate-400 text-xs mt-3 uppercase font-bold tracking-wider">Synchronizing directory...</p>
+            <div className="animate-spin w-8 h-8 border-4 border-brand border-t-transparent rounded-full mx-auto" />
+            <p className="t-muted text-xs mt-3 uppercase font-bold tracking-wider">Synchronizing directory...</p>
           </div>
         ) : students.length === 0 ? (
           <div className="p-16 text-center">
-            <Users size={40} className="text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-300 font-bold uppercase tracking-wider text-sm">No students found</p>
-            <p className="text-slate-500 text-xs mt-1 font-medium">Try adjusting your filters or record a new student</p>
+            <Users size={40} className="t-muted mx-auto mb-3" />
+            <p className="t-muted font-bold uppercase tracking-wider text-sm">No students found</p>
+            <p className="t-faint text-xs mt-1 font-medium">Try adjusting your filters or record a new student</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="bg-white/3 border-b border-white/5">
+              <thead className="bg-surface-2 border-b border-line">
                 <tr>
                   {['Student ID','Name','Father','Class','Section','Roll','Status','Phone','Actions'].map(h => (
-                    <th key={h} className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+                    <th key={h} className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-wider t-muted whitespace-nowrap">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/3">
+              <tbody className="divide-y divide-line">
                 {students.map(s => (
-                  <tr key={s._id} className="hover:bg-white/3 transition group">
-                    <td className="px-5 py-4 font-mono font-bold text-blue-400">{s.studentId}</td>
-                    <td className="px-5 py-4 font-bold text-white whitespace-nowrap">
+                  <tr key={s._id} className="hover:bg-surface-2 transition group">
+                    <td className="px-5 py-4 font-mono font-bold t-brand">{s.studentId}</td>
+                    <td className="px-5 py-4 font-bold t-body whitespace-nowrap">
                       {s.fullName}
                       {s.isFreeship && (
-                        <span className="ml-2 align-middle inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 text-amber-400"
+                        <span className="ml-2 align-middle inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-warn-soft border border-warn-border t-warn"
                           title="Fees waived — no challan is generated or printed">
                           FREESHIP
                         </span>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-slate-400 whitespace-nowrap">{s.fatherName || '—'}</td>
-                    <td className="px-5 py-4 text-slate-300 font-medium">Class {s.class}</td>
-                    <td className="px-5 py-4 text-slate-400">{s.section || '—'}</td>
-                    <td className="px-5 py-4 text-slate-400 font-mono">{s.rollNumber || '—'}</td>
+                    <td className="px-5 py-4 t-muted whitespace-nowrap">{s.fatherName || '—'}</td>
+                    <td className="px-5 py-4 t-muted font-medium">Class {s.class}</td>
+                    <td className="px-5 py-4 t-muted">{s.section || '—'}</td>
+                    <td className="px-5 py-4 t-muted font-mono">{s.rollNumber || '—'}</td>
                     <td className="px-5 py-4"><StatusBadge status={s.status} /></td>
-                    <td className="px-5 py-4 text-slate-400 font-medium">{s.phone || '—'}</td>
+                    <td className="px-5 py-4 t-muted font-medium">{s.phone || '—'}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
                         <Link to={`/students/${s._id}`}
-                          className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/20 rounded-xl transition" title="View Profile"
+                          className="p-1.5 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" title="View Profile"
                         >
                           <Eye size={14} />
                         </Link>
                         {user?.role !== 'Staff' && (
                           <button onClick={() => openEdit(s)}
-                            className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 rounded-xl transition" title="Edit Student"
+                            className="p-1.5 t-muted hover:t-warn hover:bg-warn-soft border border-transparent hover:border-warn-border rounded-xl transition" title="Edit Student"
                           >
                             <Edit2 size={14} />
                           </button>
                         )}
                         {user?.role !== 'Staff' && (
                           <button onClick={() => handleDelete(s._id, s.fullName)}
-                            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-xl transition" title="Delete Student"
+                            className="p-1.5 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" title="Delete Student"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -325,13 +325,13 @@ export default function StudentsPage() {
 
         {/* Pagination */}
         {!loading && pagination.pages > 1 && (
-          <div className="px-5 py-4 border-t border-white/5 flex items-center justify-between">
-            <p className="text-xs text-slate-400 font-medium">
+          <div className="px-5 py-4 border-t border-line flex items-center justify-between">
+            <p className="text-xs t-muted font-medium">
               Showing {(pagination.page - 1) * 10 + 1}–{Math.min(pagination.page * 10, pagination.total)} of {pagination.total} records
             </p>
             <div className="flex items-center gap-1">
               <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-                className="p-1.5 text-slate-400 hover:text-slate-200 disabled:opacity-20 disabled:cursor-not-allowed border border-white/10 rounded-xl transition bg-white/3"
+                className="p-1.5 t-muted hover:t-body disabled:opacity-20 disabled:cursor-not-allowed border border-line rounded-xl transition bg-surface-2"
               >
                 <ChevronLeft size={14} />
               </button>
@@ -339,16 +339,16 @@ export default function StudentsPage() {
                 .filter(p => p === 1 || p === pagination.pages || Math.abs(p - page) <= 1)
                 .map((p, i, arr) => (
                   <Fragment key={p}>
-                    {i > 0 && arr[i - 1] !== p - 1 && <span className="px-1 text-slate-600 text-xs">…</span>}
+                    {i > 0 && arr[i - 1] !== p - 1 && <span className="px-1 t-muted text-xs">…</span>}
                     <button onClick={() => setPage(p)}
-                      className={`w-7 h-7 text-xs rounded-xl border transition font-bold ${page === p ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20' : 'border-white/10 text-slate-400 hover:border-white/20'}`}
+                      className={`w-7 h-7 text-xs rounded-xl border transition font-bold ${page === p ? 'bg-brand t-body border-brand shadow-md shadow-blue-500/20' : 'border-line t-muted hover:border-line-strong'}`}
                     >
                       {p}
                     </button>
                   </Fragment>
                 ))}
               <button disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)}
-                className="p-1.5 text-slate-400 hover:text-slate-200 disabled:opacity-20 disabled:cursor-not-allowed border border-white/10 rounded-xl transition bg-white/3"
+                className="p-1.5 t-muted hover:t-body disabled:opacity-20 disabled:cursor-not-allowed border border-line rounded-xl transition bg-surface-2"
               >
                 <ChevronRight size={14} />
               </button>
