@@ -10,9 +10,14 @@ const SalaryRecord = require('../models/SalaryRecord');
 
 // @desc    Get all active campuses
 // @route   GET /api/system/campuses
+// Narrowed to the caller's campus scope. `req.allowedCampuses` is set by `protect`
+// and is empty for an unrestricted account, in which case everything is returned.
 const getCampuses = async (req, res) => {
   try {
-    const campuses = await Campus.find({ isActive: true, isDeleted: false }).sort({ name: 1 });
+    const filter = { isActive: true, isDeleted: false };
+    if (req.allowedCampuses?.length > 0) filter._id = { $in: req.allowedCampuses };
+
+    const campuses = await Campus.find(filter).sort({ name: 1 });
     res.json(campuses);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -21,9 +26,14 @@ const getCampuses = async (req, res) => {
 
 // @desc    Get all academic sessions
 // @route   GET /api/system/sessions
+// Same narrowing as campuses: a session the account is not scoped to never even
+// reaches the switcher, so it cannot be selected by accident.
 const getSessions = async (req, res) => {
   try {
-    const sessions = await AcademicSession.find({ isDeleted: false }).sort({ startDate: -1 });
+    const filter = { isDeleted: false };
+    if (req.allowedSessions?.length > 0) filter._id = { $in: req.allowedSessions };
+
+    const sessions = await AcademicSession.find(filter).sort({ startDate: -1 });
     res.json(sessions);
   } catch (err) {
     res.status(500).json({ message: err.message });

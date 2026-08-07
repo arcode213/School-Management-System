@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
-  const { user } = useAuth();
+  const { user, setActiveCampus } = useAuth();
   const [campuses, setCampuses] = useState([]);
   const [sessions, setSessions] = useState([]);
   
@@ -26,10 +26,15 @@ export function AppProvider({ children }) {
         setCampuses(campRes.data);
         setSessions(sessRes.data);
 
-        // Validate currentCampus
+        // Both lists come back already narrowed to this account's campus and
+        // session scope, so "is it in the list" is the same question as "is this
+        // account allowed it". A stored choice that is no longer in the list —
+        // because the admin just tightened the scope — is dropped and replaced
+        // below rather than left selected.
         let validCampus = currentCampus;
         if (currentCampus && !campRes.data.find(c => c._id === currentCampus)) {
           validCampus = null;
+          localStorage.removeItem('sms_campus');
         }
 
         // Set default campus (from user or first available)
@@ -50,6 +55,7 @@ export function AppProvider({ children }) {
         let validSession = currentSession;
         if (currentSession && !sessRes.data.find(s => s._id === currentSession)) {
           validSession = null;
+          localStorage.removeItem('sms_session');
         }
 
         // Set default session (active session)
@@ -75,6 +81,14 @@ export function AppProvider({ children }) {
 
     fetchSystemData();
   }, [user]);
+
+  // Permissions can differ per campus, and AuthContext is the one answering
+  // `can()` — so the campus selection has to travel back up to it. Switching
+  // campus can therefore change what the sidebar and the buttons offer, which is
+  // the whole point of per-campus rights.
+  useEffect(() => {
+    setActiveCampus(currentCampus || null);
+  }, [currentCampus, setActiveCampus]);
 
   const handleSetCampus = (id) => {
     setCurrentCampus(id);

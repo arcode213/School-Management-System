@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { X, Loader2, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { updateFee } from '../api/fees';
+import ModalPortal from './ModalPortal';
 import { MONTHS, parseStartMonth, monthAt } from '../utils/feeMonths';
 
 export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
@@ -103,6 +104,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
   const student = feeRecord.studentInfo || feeRecord.student || {};
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
       <div className="card card-lg relative w-full max-w-md flex flex-col max-h-[92vh] t-body overflow-hidden">
@@ -272,5 +274,6 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

@@ -5,11 +5,18 @@ const {
   getUsers,
   createUser,
   updateUser,
-  deleteUser
+  deleteUser,
+  getPermissionCatalog
 } = require('../controllers/userController');
 
 router.use(protect);
-router.use(authorize('Admin')); // Only Admin can manage users
+// Accounts, permissions and campus/session scopes belong to the main admin alone.
+// This stays a role check on purpose: it must not be something one account can be
+// granted, or a restricted user could widen their own access.
+router.use(authorize('Admin'));
+
+// The module/action catalogue the permission editor renders its checkboxes from.
+router.get('/permission-catalog', getPermissionCatalog);
 
 router.route('/')
   .get(getUsers)

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
@@ -20,9 +20,38 @@ import DuesPage from './pages/DuesPage';
 import ReportsPage from './pages/ReportsPage';
 import UsersPage from './pages/UsersPage';
 import ExpensesPage from './pages/ExpensesPage';
+import AuditLogsPage from './pages/AuditLogsPage';
+import { useAuth } from './context/AuthContext';
+import { landingPathFor } from './utils/navigation';
 
-// Placeholder pages (filled in later steps)
-const Unauthorized = () => <div className="t-bad p-8"><h1 className="text-2xl font-bold">403 – Unauthorized</h1><p>You don't have permission to view this page.</p></div>;
+const Unauthorized = () => (
+  <div className="p-8 max-w-lg">
+    <h1 className="text-2xl font-bold t-bad">403 – No Access</h1>
+    <p className="t-muted text-sm mt-2 leading-relaxed">
+      Your account has not been given access to this screen. If you need it, ask the
+      system administrator to tick it for you under User Management.
+    </p>
+    <Link to="/" className="inline-block mt-4 text-xs font-bold uppercase tracking-wider t-brand hover:underline">
+      Go to my home screen
+    </Link>
+  </div>
+);
+
+/**
+ * The landing screen.
+ *
+ * Most accounts get the dashboard. One that was not granted it is sent to the
+ * first screen it can actually open, rather than to a page that would only answer
+ * 403 — a fee cashier lands on Fee Management.
+ */
+function Home() {
+  const { user, can } = useAuth();
+  if (can('dashboard', 'view')) return <DashboardPage />;
+
+  const fallback = landingPathFor(user, can);
+  if (fallback && fallback !== '/') return <Navigate to={fallback} replace />;
+  return <Unauthorized />;
+}
 
 function App() {
   return (
@@ -52,33 +81,63 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Protected layout routes */}
+          {/* Protected layout routes.
+
+              Each screen is gated on the permission module it belongs to rather
+              than on a role name, so what a person can open is whatever the admin
+              ticked for their account. The server checks the same module on every
+              request behind these screens. */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
-              <Route path="/" element={<DashboardPage />} />
-              {/* Admin, Administrator, Staff */}
-              <Route element={<ProtectedRoute allowedRoles={['Admin', 'Administrator', 'Staff']} />}>
+              <Route path="/" element={<Home />} />
+
+              <Route element={<ProtectedRoute module="students" />}>
                 <Route path="/students" element={<StudentsPage />} />
                 <Route path="/students/:id" element={<StudentProfilePage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute module="employees" />}>
                 <Route path="/employees" element={<EmployeesPage />} />
                 <Route path="/employees/:id" element={<EmployeeProfilePage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute module="expenses" />}>
                 <Route path="/expenses" element={<ExpensesPage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute module="fees" />}>
                 <Route path="/fees" element={<FeesPage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute module="feeStructures" />}>
                 <Route path="/fee-structures" element={<FeeStructurePage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute module="challans" />}>
                 <Route path="/challans" element={<ChallansPage />} />
               </Route>
 
-              {/* Admin & Administrator only routes */}
-              <Route element={<ProtectedRoute allowedRoles={['Admin', 'Administrator']} />}>
+              <Route element={<ProtectedRoute module="promotions" />}>
                 <Route path="/promotions" element={<PromotionsPage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute module="dues" />}>
                 <Route path="/dues" element={<DuesPage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute module="reports" />}>
                 <Route path="/reports" element={<ReportsPage />} />
               </Route>
 
-              {/* Admin only routes */}
+              <Route element={<ProtectedRoute module="settings" />}>
+                <Route path="/settings" element={<SystemSettingsPage />} />
+              </Route>
+
+              {/* Accounts, their permissions, and the audit trail are the main
+                  admin's alone — a role check, never a grantable permission. */}
               <Route element={<ProtectedRoute allowedRoles={['Admin']} />}>
                 <Route path="/users" element={<UsersPage />} />
-                <Route path="/settings" element={<SystemSettingsPage />} />
+                <Route path="/logs" element={<AuditLogsPage />} />
               </Route>
             </Route>
           </Route>

@@ -315,7 +315,16 @@ const getStudent = async (req, res) => {
     const student = await Student.findOne({ _id: req.params.id, isDeleted: false });
     if (!student) return res.status(404).json({ message: 'Student not found' });
 
-    const academicHistory = await StudentAcademicRecord.find({ student: student._id, isDeleted: false })
+    // The profile shows a student's whole enrolment history, which for a student
+    // who has moved between campuses (or been here several years) spans places
+    // and years this account may not be allowed to see. Narrow it to the caller's
+    // scope: the middleware has already established they may open THIS student,
+    // but that is not permission to read every campus that student ever attended.
+    const historyFilter = { student: student._id, isDeleted: false };
+    if (req.allowedCampuses?.length > 0) historyFilter.campus = { $in: req.allowedCampuses };
+    if (req.allowedSessions?.length > 0) historyFilter.academicSession = { $in: req.allowedSessions };
+
+    const academicHistory = await StudentAcademicRecord.find(historyFilter)
       .populate('academicSession', 'name startDate endDate isActive')
       .populate('campus', 'name code')
       .sort({ createdAt: -1 });

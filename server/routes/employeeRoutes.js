@@ -1,26 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const { protect, authorize } = require('../middleware/authMiddleware');
+const { protect, requirePermission } = require('../middleware/authMiddleware');
+const { restrictEmployeeToScope } = require('../middleware/scopeMiddleware');
 const {
   addEmployee, getEmployees, getEmployee, updateEmployee, deleteEmployee, postSalary, getSalaryHistory, bulkAddEmployees
 } = require('../controllers/employeeController');
 
-// Removed router-level authorize
 router.use(protect);
 
 router.route('/')
-  .get(authorize('Admin', 'Administrator', 'Staff'), getEmployees)
-  .post(authorize('Admin', 'Administrator', 'Staff'), addEmployee);
+  .get(requirePermission('employees', 'view'), getEmployees)
+  .post(requirePermission('employees', 'create'), addEmployee);
 
-router.post('/bulk', authorize('Admin', 'Administrator', 'Staff'), bulkAddEmployees);
+router.post('/bulk', requirePermission('employees', 'create'), bulkAddEmployees);
 
-router.post('/salary', authorize('Admin', 'Administrator'), postSalary);
+// Salaries are their own module so pay figures can be kept from staff who are
+// otherwise allowed to manage employee records.
+router.post('/salary', requirePermission('salaries', 'create'), postSalary);
 
 router.route('/:id')
-  .get(authorize('Admin', 'Administrator', 'Staff'), getEmployee)
-  .put(authorize('Admin', 'Administrator', 'Staff'), updateEmployee)
-  .delete(authorize('Admin', 'Administrator'), deleteEmployee);
+  .get(requirePermission('employees', 'view'), restrictEmployeeToScope, getEmployee)
+  .put(requirePermission('employees', 'edit'), restrictEmployeeToScope, updateEmployee)
+  .delete(requirePermission('employees', 'delete'), restrictEmployeeToScope, deleteEmployee);
 
-router.get('/:id/salary-history', authorize('Admin', 'Administrator'), getSalaryHistory);
+router.get('/:id/salary-history', requirePermission('salaries', 'view'), restrictEmployeeToScope, getSalaryHistory);
 
 module.exports = router;

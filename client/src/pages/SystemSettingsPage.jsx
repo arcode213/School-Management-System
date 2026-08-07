@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import api from '../api/axios';
 import { toast } from 'react-hot-toast';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 // Must match RESET_CONFIRMATION on the server, which rejects anything else.
 const RESET_PHRASE = 'DELETE DATA';
@@ -23,7 +24,13 @@ const RESET_DEPENDENCIES = { students: ['fees', 'feeOverrides'], employees: ['sa
 
 export default function SystemSettingsPage() {
   const { campuses, sessions, setCurrentCampus, setCurrentSession } = useAppContext();
-  
+  // Someone can be granted a look at the campus and session setup without being
+  // able to change it, so the forms and row buttons are gated separately from the
+  // screen itself. Wiping the school's data is never grantable — Admin only, and
+  // the server enforces the same.
+  const { can, isAdmin } = useAuth();
+  const canWriteSettings = can('settings', 'create') || can('settings', 'edit');
+
   const [activeTab, setActiveTab] = useState('campuses');
   const [localCampuses, setLocalCampuses] = useState([]);
   const [localSessions, setLocalSessions] = useState([]);
@@ -214,17 +221,19 @@ export default function SystemSettingsPage() {
         >
           Academic Sessions
         </button>
-        <button
-          className={`py-2 px-4 font-semibold ${activeTab === 'danger' ? 't-bad border-b-2 border-red-600' : 't-faint hover:t-bad'}`}
-          onClick={() => setActiveTab('danger')}
-        >
-          Danger Zone
-        </button>
+        {isAdmin && (
+          <button
+            className={`py-2 px-4 font-semibold ${activeTab === 'danger' ? 't-bad border-b-2 border-red-600' : 't-faint hover:t-bad'}`}
+            onClick={() => setActiveTab('danger')}
+          >
+            Danger Zone
+          </button>
+        )}
       </div>
 
       {loading ? (
         <div className="flex justify-center p-8"><div className="w-8 h-8 border-4 border-brand border-t-transparent rounded-full animate-spin"></div></div>
-      ) : activeTab === 'danger' ? (
+      ) : activeTab === 'danger' && isAdmin ? (
         <div className="max-w-2xl">
           <div className="bg-solid border-2 border-bad-border rounded-xl overflow-hidden shadow">
             <div className="bg-bad-soft border-b border-bad-border px-6 py-4">
@@ -308,6 +317,9 @@ export default function SystemSettingsPage() {
         </div>
       ) : activeTab === 'campuses' ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Read-only access shows the list alone; the editor is not drawn at all
+              rather than drawn and rejected on save. */}
+          {canWriteSettings && (
           <div className="md:col-span-1 bg-solid p-6 rounded-xl shadow border border-line">
             <h2 className="text-xl font-bold mb-4">{editingCampusId ? 'Edit Campus' : 'Add New Campus'}</h2>
             <form onSubmit={handleSaveCampus} className="space-y-4">
@@ -339,7 +351,8 @@ export default function SystemSettingsPage() {
               </div>
             </form>
           </div>
-          <div className="md:col-span-2">
+          )}
+          <div className={canWriteSettings ? 'md:col-span-2' : 'md:col-span-3'}>
             <div className="bg-solid rounded-xl shadow overflow-hidden border border-line">
               <table className="min-w-full divide-y divide-line">
                 <thead className="bg-surface-2">
@@ -362,8 +375,12 @@ export default function SystemSettingsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => handleEditCampus(campus)} className="px-3 py-1 text-xs font-medium t-warn bg-warn-soft hover:bg-warn-soft rounded transition">Edit</button>
-                          <button onClick={() => handleDeleteCampus(campus)} className="px-3 py-1 text-xs font-medium t-bad bg-bad-soft hover:bg-bad-soft rounded transition">Delete</button>
+                          {can('settings', 'edit') && (
+                            <button onClick={() => handleEditCampus(campus)} className="px-3 py-1 text-xs font-medium t-warn bg-warn-soft hover:bg-warn-soft rounded transition">Edit</button>
+                          )}
+                          {can('settings', 'delete') && (
+                            <button onClick={() => handleDeleteCampus(campus)} className="px-3 py-1 text-xs font-medium t-bad bg-bad-soft hover:bg-bad-soft rounded transition">Delete</button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -375,6 +392,7 @@ export default function SystemSettingsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {canWriteSettings && (
           <div className="md:col-span-1 bg-solid p-6 rounded-xl shadow border border-line">
             <h2 className="text-xl font-bold mb-4">{editingSessionId ? 'Edit Session' : 'Add New Session'}</h2>
             <form onSubmit={handleSaveSession} className="space-y-4">
@@ -410,7 +428,8 @@ export default function SystemSettingsPage() {
               </div>
             </form>
           </div>
-          <div className="md:col-span-2">
+          )}
+          <div className={canWriteSettings ? 'md:col-span-2' : 'md:col-span-3'}>
             <div className="bg-solid rounded-xl shadow overflow-hidden border border-line">
               <table className="min-w-full divide-y divide-line">
                 <thead className="bg-surface-2">
@@ -441,8 +460,12 @@ export default function SystemSettingsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => handleEditSession(session)} className="px-3 py-1 text-xs font-medium t-warn bg-warn-soft hover:bg-warn-soft rounded transition">Edit</button>
-                          <button onClick={() => handleDeleteSession(session)} className="px-3 py-1 text-xs font-medium t-bad bg-bad-soft hover:bg-bad-soft rounded transition">Delete</button>
+                          {can('settings', 'edit') && (
+                            <button onClick={() => handleEditSession(session)} className="px-3 py-1 text-xs font-medium t-warn bg-warn-soft hover:bg-warn-soft rounded transition">Edit</button>
+                          )}
+                          {can('settings', 'delete') && (
+                            <button onClick={() => handleDeleteSession(session)} className="px-3 py-1 text-xs font-medium t-bad bg-bad-soft hover:bg-bad-soft rounded transition">Delete</button>
+                          )}
                         </div>
                       </td>
                     </tr>

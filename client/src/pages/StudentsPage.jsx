@@ -29,7 +29,9 @@ const StatusBadge = ({ status }) => {
 };
 
 export default function StudentsPage() {
-  const { user } = useAuth();
+  // Every control below is drawn from what this account was granted, not from its
+  // role name — the same modules the API checks on the matching request.
+  const { can } = useAuth();
   const { currentCampus, currentSession } = useAppContext();
   const [students, setStudents] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
@@ -163,14 +165,14 @@ export default function StudentsPage() {
           >
             <Printer size={14} /> Print Records
           </button>
-          {user?.role !== 'Staff' && (
+          {can('students', 'create') && (
             <button onClick={() => setImportOpen(true)}
               className="btn btn-ghost"
             >
               <Upload size={14} /> Import Data
             </button>
           )}
-          {user?.role !== 'Staff' && (
+          {can('students', 'create') && (
             <button id="add-student-btn" onClick={openAdd}
               className="btn btn-primary"
             >
@@ -300,14 +302,14 @@ export default function StudentsPage() {
                         >
                           <Eye size={14} />
                         </Link>
-                        {user?.role !== 'Staff' && (
+                        {can('students', 'edit') && (
                           <button onClick={() => openEdit(s)}
                             className="p-1.5 t-muted hover:t-warn hover:bg-warn-soft border border-transparent hover:border-warn-border rounded-xl transition" title="Edit Student"
                           >
                             <Edit2 size={14} />
                           </button>
                         )}
-                        {user?.role !== 'Staff' && (
+                        {can('students', 'delete') && (
                           <button onClick={() => handleDelete(s._id, s.fullName)}
                             className="p-1.5 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" title="Delete Student"
                           >

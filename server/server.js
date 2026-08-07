@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./utils/connectDB');
 const { errorHandler, notFound } = require('./middleware/errorMiddleware');
 const { contextMiddleware } = require('./middleware/contextMiddleware');
+const { auditMiddleware } = require('./middleware/auditMiddleware');
 
 dotenv.config();
 
@@ -43,6 +44,11 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 // Global Context Middleware
 app.use(contextMiddleware);
 
+// Audit trail. Mounted globally and ahead of the routes so it sees every request
+// exactly once: it takes a "before" reading here and writes the entry after the
+// response has gone out, by which point `protect` has identified the caller.
+app.use(auditMiddleware);
+
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
@@ -54,6 +60,7 @@ app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/system', require('./routes/systemRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/expenses', require('./routes/expenseRoutes'));
+app.use('/api/logs', require('./routes/logRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -177,7 +177,7 @@ const printHTML = (s) => {
 export default function StudentProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { can } = useAuth();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -226,7 +226,7 @@ export default function StudentProfilePage() {
             className="flex items-center gap-2 text-sm bg-solid border border-line t-body px-4 py-2 rounded-xl hover:border-line transition shadow-sm">
             <Printer size={14} /> Print Record
           </button>
-          {user?.role !== 'Staff' && (
+          {can('students', 'edit') && (
             <button onClick={() => setEditOpen(true)}
               className="flex items-center gap-2 text-sm bg-brand t-body px-4 py-2 rounded-xl hover:bg-brand transition shadow-sm">
               <Edit2 size={14} /> Edit Student
@@ -297,7 +297,7 @@ export default function StudentProfilePage() {
         ) : (
           <div className="bg-surface-2 border border-line rounded-xl p-4 text-sm t-faint">
             No fee structure has been set for <strong>Class {student.class}</strong> in the current session.
-            {user?.role !== 'Staff' && <> Set it in <Link to="/fee-structures" className="t-brand hover:underline">Fee Structures</Link>.</>}
+            {can('feeStructures', 'edit') && <> Set it in <Link to="/fee-structures" className="t-brand hover:underline">Fee Structures</Link>.</>}
           </div>
         )}
       </div>

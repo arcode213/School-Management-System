@@ -1,10 +1,36 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { basePermissions } = require('../config/permissions');
 
 // Generate JWT
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
+
+/**
+ * The identity the client works from: who you are plus exactly what you may do.
+ *
+ * Both the default grid and any per-campus overrides are sent, because what the
+ * interface should show depends on the campus the user is currently switched to —
+ * the same account can be an office manager at one campus and a fee cashier at
+ * another. It is a convenience for the interface only: every route re-resolves
+ * the grid for the campus the request actually lands in, so editing this payload
+ * in the browser buys nothing.
+ */
+const authPayload = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  campus: user.campus, // the client's default campus for a scoped account
+  campusScope: (user.campusScope || []).map(id => id.toString()),
+  sessionScope: (user.sessionScope || []).map(id => id.toString()),
+  permissions: basePermissions(user),
+  campusPermissions: user.campusPermissions instanceof Map
+    ? Object.fromEntries(user.campusPermissions)
+    : (user.campusPermissions || {}),
+  isActive: user.isActive,
+});
 
 // @desc    Login user
 // @route   POST /api/auth/login
@@ -28,11 +54,7 @@ const login = async (req, res) => {
     }
 
     res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      campus: user.campus, // needed so the client can scope campus-bound users
+      ...authPayload(user),
       token: generateToken(user._id, user.role),
     });
   } catch (err) {
@@ -45,7 +67,10 @@ const login = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   const user = await User.findById(req.user.id).select('-password');
-  res.json(user);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  // Same shape as login, so the client can refresh a session's permissions when
+  // the admin changes them without the user having to log out and back in.
+  res.json(authPayload(user));
 };
 
 // @desc    Seed an admin user (run once)

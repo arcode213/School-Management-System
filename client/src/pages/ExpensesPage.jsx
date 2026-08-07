@@ -12,7 +12,7 @@ const INCOME_CATEGORIES = ['Tuition', 'Donation', 'Grant', 'Other'];
 const EXPENSE_CATEGORIES = ['Utilities', 'Maintenance', 'Rent', 'Salary', 'Stationery', 'Food', 'Other'];
 
 export default function ExpensesPage() {
-  const { user } = useAuth();
+  const { can } = useAuth();
   const { currentCampus, currentSession } = useAppContext();
   
   const [expenses, setExpenses] = useState([]);
@@ -127,12 +127,14 @@ export default function ExpensesPage() {
             Register and analyze school operational incomes and expenses
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          className="btn btn-primary self-start md:self-auto"
-        >
-          <Plus size={16} /> Record Transaction
-        </button>
+        {can('expenses', 'create') && (
+          <button
+            onClick={openAdd}
+            className="btn btn-primary self-start md:self-auto"
+          >
+            <Plus size={16} /> Record Transaction
+          </button>
+        )}
       </div>
 
       {/* Screen Analytics Panel */}
@@ -292,14 +294,16 @@ export default function ExpensesPage() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
-                        <button 
-                          onClick={() => openEdit(e)} 
-                          className="p-1.5 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" 
-                          title="Edit transaction"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        {user?.role !== 'Staff' && (
+                        {can('expenses', 'edit') && (
+                          <button
+                            onClick={() => openEdit(e)}
+                            className="p-1.5 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition"
+                            title="Edit transaction"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        {can('expenses', 'delete') && (
                           <button 
                             onClick={() => handleDelete(e._id)} 
                             className="p-1.5 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" 

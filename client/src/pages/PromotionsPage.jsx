@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { getStudents, getClasses } from '../api/students';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
@@ -7,6 +8,9 @@ import { Users, AlertCircle, RefreshCw, Layers } from 'lucide-react';
 
 export default function PromotionsPage() {
   const { currentCampus, currentSession, sessions } = useAppContext();
+  // Viewing the roll-over list is one grant; actually moving the students up a
+  // class is the write, and only that button needs it.
+  const { can } = useAuth();
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -177,9 +181,11 @@ export default function PromotionsPage() {
               <AlertCircle size={14} className="t-warn" />
               Verify {students.length} student records before remapping
             </div>
-            <button onClick={submitPromotions} disabled={loading} className="btn btn-primary disabled:opacity-50">
-              <Layers size={14} /> Commit Promotions
-            </button>
+            {can('promotions', 'edit') && (
+              <button onClick={submitPromotions} disabled={loading} className="btn btn-primary disabled:opacity-50">
+                <Layers size={14} /> Commit Promotions
+              </button>
+            )}
           </div>
           
           <div className="overflow-x-auto max-h-[60vh]">

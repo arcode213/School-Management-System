@@ -25,7 +25,7 @@ const StatusBadge = ({ status }) => {
 };
 
 export default function FeesPage() {
-  const { user } = useAuth();
+  const { can } = useAuth();
   const { currentCampus, currentSession } = useAppContext();
   const [fees, setFees] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
@@ -102,16 +102,20 @@ export default function FeesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <button onClick={openIndividual}
-            className="btn btn-ghost"
-          >
-            <FilePlus size={14} /> Individual Challan
-          </button>
-          <button onClick={() => setGenerateOpen(true)}
-            className="btn btn-primary"
-          >
-            <CopyPlus size={14} /> Generate Monthly Fees
-          </button>
+          {can('fees', 'create') && (
+            <button onClick={openIndividual}
+              className="btn btn-ghost"
+            >
+              <FilePlus size={14} /> Individual Challan
+            </button>
+          )}
+          {can('fees', 'create') && (
+            <button onClick={() => setGenerateOpen(true)}
+              className="btn btn-primary"
+            >
+              <CopyPlus size={14} /> Generate Monthly Fees
+            </button>
+          )}
         </div>
       </div>
 
@@ -235,17 +239,19 @@ export default function FeesPage() {
                             }>
                             <Printer size={14} />
                           </button>
-                          {!f.hasBeenCarriedForward && (
+                          {!f.hasBeenCarriedForward && can('fees', 'edit') && (
                             <button onClick={() => openEdit(f)} className="p-1.5 t-muted hover:t-warn hover:bg-warn-soft border border-transparent hover:border-warn-border rounded-xl transition" title="Edit Challan">
                               <Edit2 size={14} />
                             </button>
                           )}
-                          {user?.role !== 'Staff' && (
+                          {can('fees', 'delete') && (
                             <button onClick={() => handleDelete(f)} className="p-1.5 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" title="Delete Challan">
                               <Trash2 size={14} />
                             </button>
                           )}
-                          {f.status !== 'Paid' && !f.hasBeenCarriedForward && (
+                          {/* Recording a receipt writes to the challan, so it is
+                              the same `edit` grant the API checks on the save. */}
+                          {f.status !== 'Paid' && !f.hasBeenCarriedForward && can('fees', 'edit') && (
                             <button onClick={() => openPayment(f)} className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-ok-soft hover:bg-ok-soft t-ok border border-ok-border rounded-xl transition active:scale-95" title="Receive Payment">
                               <CreditCard size={12} /> Pay
                             </button>

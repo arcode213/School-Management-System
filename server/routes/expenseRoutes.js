@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, authorize } = require('../middleware/authMiddleware');
+const { protect, requirePermission } = require('../middleware/authMiddleware');
 const {
   getExpenses,
   createExpense,
@@ -11,11 +11,11 @@ const {
 router.use(protect);
 
 router.route('/')
-  .get(getExpenses)
-  .post(authorize('Admin', 'Administrator', 'Staff'), createExpense);
+  .get(requirePermission('expenses', 'view'), getExpenses)
+  .post(requirePermission('expenses', 'create'), createExpense);
 
 router.route('/:id')
-  .put(authorize('Admin', 'Administrator', 'Staff'), updateExpense)
-  .delete(authorize('Admin', 'Administrator'), deleteExpense);
+  .put(requirePermission('expenses', 'edit'), updateExpense)
+  .delete(requirePermission('expenses', 'delete'), deleteExpense);
 
 module.exports = router;

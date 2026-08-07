@@ -30,7 +30,7 @@ const StatusBadge = ({ status }) => {
 
 export default function EmployeesPage() {
   const { currentCampus } = useAppContext();
-  const { user } = useAuth();
+  const { can } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -87,18 +87,20 @@ export default function EmployeesPage() {
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">{pagination.total} registered staff members</p>
         </div>
         <div className="flex items-center gap-2.5">
-          {user?.role !== 'Staff' && (
+          {can('employees', 'create') && (
             <button onClick={() => setImportOpen(true)}
               className="btn btn-ghost"
             >
               <Upload size={14} /> Import Data
             </button>
           )}
-          <button onClick={() => setEmpModal({ open: true, data: null })}
-            className="btn btn-primary"
-          >
-            <UserPlus size={14} /> Add Employee
-          </button>
+          {can('employees', 'create') && (
+            <button onClick={() => setEmpModal({ open: true, data: null })}
+              className="btn btn-primary"
+            >
+              <UserPlus size={14} /> Add Employee
+            </button>
+          )}
         </div>
       </div>
 
@@ -193,7 +195,7 @@ export default function EmployeesPage() {
                     <td className="px-5 py-4"><StatusBadge status={e.status} /></td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
-                        {user?.role !== 'Staff' && (
+                        {can('salaries', 'create') && (
                           <button onClick={() => setSalaryModal({ open: true, emp: e })} className="p-1.5 t-muted hover:t-ok hover:bg-ok-soft border border-transparent hover:border-ok-border rounded-xl transition" title="Pay Salary">
                             <DollarSign size={14} />
                           </button>
@@ -201,10 +203,12 @@ export default function EmployeesPage() {
                         <Link to={`/employees/${e._id}`} className="p-1.5 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" title="View Profile">
                           <Eye size={14} />
                         </Link>
-                        <button onClick={() => setEmpModal({ open: true, data: e })} className="p-1.5 t-muted hover:t-warn hover:bg-warn-soft border border-transparent hover:border-warn-border rounded-xl transition" title="Edit Employee">
-                          <Edit2 size={14} />
-                        </button>
-                        {user?.role !== 'Staff' && (
+                        {can('employees', 'edit') && (
+                          <button onClick={() => setEmpModal({ open: true, data: e })} className="p-1.5 t-muted hover:t-warn hover:bg-warn-soft border border-transparent hover:border-warn-border rounded-xl transition" title="Edit Employee">
+                            <Edit2 size={14} />
+                          </button>
+                        )}
+                        {can('employees', 'delete') && (
                           <button onClick={() => handleDelete(e._id, e.fullName)} className="p-1.5 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" title="Remove Employee">
                             <Trash2 size={14} />
                           </button>

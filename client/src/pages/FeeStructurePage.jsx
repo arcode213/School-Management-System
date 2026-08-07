@@ -8,7 +8,7 @@ import { Settings, Plus, Edit, Trash2, ArrowRightLeft, Landmark, Users, Search, 
 import { CLASSES } from '../utils/constants';
 
 export default function FeeStructurePage() {
-  const { user } = useAuth();
+  const { can } = useAuth();
   const { sessions, currentSession, currentCampus } = useAppContext();
   const [structures, setStructures] = useState([]);
   const [overrides, setOverrides] = useState([]);
@@ -221,12 +221,12 @@ export default function FeeStructurePage() {
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">Configure class structures and student adjustments</p>
         </div>
         <div className="flex items-center gap-2.5">
-          {user?.role !== 'Staff' && (
+          {can('feeStructures', 'create') && (
             <button onClick={openRolloverModal} className="btn btn-ghost">
               <ArrowRightLeft size={14} /> Carry/Rollover Fees
             </button>
           )}
-          {activeTab === 'class' ? (
+          {!can('feeStructures', 'edit') ? null : activeTab === 'class' ? (
             <button onClick={() => openStructModal()} className="btn btn-primary">
               <Plus size={14} /> Set Class Fee
             </button>
@@ -322,7 +322,9 @@ export default function FeeStructurePage() {
                     <td className="p-4">Rs {s.miscFee?.toLocaleString()}</td>
                     <td className="p-4 font-bold t-brand">Rs {(s.annualFee || 0).toLocaleString()}</td>
                     <td className="p-4">
-                      <button onClick={() => openStructModal(s)} className="p-2 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition"><Edit size={14} /></button>
+                      {can('feeStructures', 'edit') && (
+                        <button onClick={() => openStructModal(s)} className="p-2 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition"><Edit size={14} /></button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -366,8 +368,10 @@ export default function FeeStructurePage() {
                     <td className="p-4 t-muted">{o.reason || '—'}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => openOverrideModal(o)} className="p-2 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" title="Edit override"><Edit size={14} /></button>
-                        {user?.role !== 'Staff' && (
+                        {can('feeStructures', 'edit') && (
+                          <button onClick={() => openOverrideModal(o)} className="p-2 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" title="Edit override"><Edit size={14} /></button>
+                        )}
+                        {can('feeStructures', 'delete') && (
                           <button onClick={() => handleDeleteOverride(o._id)} className="p-2 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" title="Delete override"><Trash2 size={14} /></button>
                         )}
                       </div>

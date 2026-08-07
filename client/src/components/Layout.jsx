@@ -4,49 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import {
-  LayoutDashboard, Users, UserCog, DollarSign, FileText, BarChart2, LogOut,
-  Menu, X, BookOpen, Settings, ChevronDown, Wallet, ArrowUpNarrowWide,
+  LogOut, Menu, X, BookOpen, ChevronDown,
   Sun, Moon, Building2, CalendarDays,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-// Grouped so a twelve-item sidebar reads as three short lists instead of one long
-// scroll — the sections match how the office actually works (who is enrolled, what
-// money moved, how the system is configured).
-const navGroups = [
-  {
-    label: 'Overview',
-    items: [
-      { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Administrator', 'Staff'] },
-    ],
-  },
-  {
-    label: 'People',
-    items: [
-      { to: '/students', label: 'Students', icon: Users, roles: ['Admin', 'Administrator', 'Staff'] },
-      { to: '/employees', label: 'Employees', icon: UserCog, roles: ['Admin', 'Administrator', 'Staff'] },
-      { to: '/promotions', label: 'Promotions', icon: ArrowUpNarrowWide, roles: ['Admin', 'Administrator'] },
-    ],
-  },
-  {
-    label: 'Finance',
-    items: [
-      { to: '/fees', label: 'Fee Management', icon: DollarSign, roles: ['Admin', 'Administrator', 'Staff'] },
-      { to: '/challans', label: 'Challans', icon: FileText, roles: ['Admin', 'Administrator', 'Staff'] },
-      { to: '/fee-structures', label: 'Fee Structures', icon: Wallet, roles: ['Admin', 'Administrator', 'Staff'] },
-      { to: '/expenses', label: 'Expenses', icon: Wallet, roles: ['Admin', 'Administrator', 'Staff'] },
-      { to: '/dues', label: 'Dues Report', icon: BarChart2, roles: ['Admin', 'Administrator'] },
-      { to: '/reports', label: 'Reports', icon: BarChart2, roles: ['Admin', 'Administrator'] },
-    ],
-  },
-  {
-    label: 'Administration',
-    items: [
-      { to: '/users', label: 'Users', icon: Users, roles: ['Admin'] },
-      { to: '/settings', label: 'System Settings', icon: Settings, roles: ['Admin'] },
-    ],
-  },
-];
+import { visibleNavGroups } from '../utils/navigation';
 
 function ThemeToggle({ compact = false }) {
   const { isDark, toggleTheme } = useTheme();
@@ -84,7 +46,7 @@ function ContextSelect({ icon: Icon, value, onChange, placeholder, children }) {
 }
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, can } = useAuth();
   const {
     campuses, sessions,
     currentCampus, setCurrentCampus,
@@ -99,9 +61,9 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const visibleGroups = navGroups
-    .map(g => ({ ...g, items: g.items.filter(i => i.roles.includes(user?.role)) }))
-    .filter(g => g.items.length > 0);
+  // Drawn from what this account was granted, so the sidebar only ever offers
+  // screens it can actually open.
+  const visibleGroups = visibleNavGroups(user, can);
 
   const initial = user?.name?.charAt(0)?.toUpperCase() || '?';
 
@@ -197,9 +159,12 @@ export default function Layout() {
           </button>
 
           <div className="flex items-center gap-2.5 ml-1 flex-wrap">
-            {/* Campus switching is Admin-only — everyone else is pinned to their
-                own campus by the server regardless of what the client sends. */}
-            {user?.role === 'Admin' && (
+            {/* Both lists arrive already narrowed to this account's campus and
+                session scope, so a switcher only appears where there is genuinely
+                something to switch between. With exactly one choice the name is
+                shown as a plain label — the server pins the account to it anyway,
+                whatever the client sends. */}
+            {campuses.length > 1 ? (
               <ContextSelect
                 icon={Building2}
                 value={currentCampus}
@@ -208,18 +173,30 @@ export default function Layout() {
               >
                 {campuses.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
               </ContextSelect>
+            ) : campuses.length === 1 && (
+              <span className="field flex items-center gap-2 py-2 text-[11px] font-bold uppercase tracking-wider">
+                <Building2 size={13} className="t-faint" />
+                {campuses[0].name}
+              </span>
             )}
 
-            <ContextSelect
-              icon={CalendarDays}
-              value={currentSession}
-              onChange={(e) => setCurrentSession(e.target.value)}
-              placeholder="Select Session"
-            >
-              {sessions.map(s => (
-                <option key={s._id} value={s._id}>{s.name}{s.isActive ? ' •' : ''}</option>
-              ))}
-            </ContextSelect>
+            {sessions.length > 1 ? (
+              <ContextSelect
+                icon={CalendarDays}
+                value={currentSession}
+                onChange={(e) => setCurrentSession(e.target.value)}
+                placeholder="Select Session"
+              >
+                {sessions.map(s => (
+                  <option key={s._id} value={s._id}>{s.name}{s.isActive ? ' •' : ''}</option>
+                ))}
+              </ContextSelect>
+            ) : sessions.length === 1 && (
+              <span className="field flex items-center gap-2 py-2 text-[11px] font-bold uppercase tracking-wider">
+                <CalendarDays size={13} className="t-faint" />
+                {sessions[0].name}
+              </span>
+            )}
           </div>
 
           <div className="flex-1" />

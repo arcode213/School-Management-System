@@ -810,6 +810,15 @@ const getStudentFees = async (req, res) => {
     const filter = { student: req.params.id, isDeleted: false };
     if (currentSession) filter.academicSession = currentSession;
 
+    // Narrow to the campuses this account may see. Every other fee endpoint is
+    // scoped by campus; this one is addressed by STUDENT id, so without this it
+    // would hand over the full challan and payment history of a student at a
+    // campus the user was never given. A student who has moved between campuses
+    // also correctly shows only the part of their history the user may see.
+    if (req.allowedCampuses?.length > 0) {
+      filter.campus = { $in: req.allowedCampuses };
+    }
+
     const fees = await FeeRecord.find(filter)
       .populate('academicSession', 'name')
       .sort({ feeYear: -1, createdAt: -1 });

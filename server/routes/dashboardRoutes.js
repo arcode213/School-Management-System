@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect, requirePermission } = require('../middleware/authMiddleware');
 const {
   getStats,
   getMonthlyFees,
@@ -9,7 +9,8 @@ const {
   getRecentPayments,
 } = require('../controllers/dashboardController');
 
-router.use(protect); // All dashboard routes require auth
+router.use(protect);
+router.use(requirePermission('dashboard', 'view'));
 
 router.get('/stats', getStats);
 router.get('/monthly-fees', getMonthlyFees);
