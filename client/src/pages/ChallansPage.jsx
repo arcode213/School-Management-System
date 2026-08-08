@@ -77,11 +77,11 @@ export default function ChallansPage() {
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Print Challans</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase">Print Challans</h1>
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">Generate and align printable student fee vouchers</p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button onClick={() => fees[0] ? setPreviewId(fees[0]._id) : toast.error('No challans to align')}
             className="btn btn-ghost"
           >
@@ -96,14 +96,14 @@ export default function ChallansPage() {
       </div>
 
       {/* Screen Analytics Banner */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
             <Layers className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Vouchers in Queue</p>
-            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">{fees.length} printable</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">{fees.length} printable</p>
             <p className="t-faint text-xs mt-1 font-medium">Unpaid and active vouchers</p>
           </div>
         </div>
@@ -114,7 +114,7 @@ export default function ChallansPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Queue Value</p>
-            <p className="text-2xl font-extrabold t-ok mt-0.5 tracking-tight">{fmtRs(totalPrintValue)}</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-ok mt-0.5 tracking-tight break-words">{fmtRs(totalPrintValue)}</p>
             <p className="t-faint text-xs mt-1 font-medium">Outstanding sum in active queue</p>
           </div>
         </div>
@@ -125,7 +125,7 @@ export default function ChallansPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Print Limit status</p>
-            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">
+            <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">
               {fees.length >= 100 ? 'Queue Capped' : 'Uncapped'}
             </p>
             <p className="t-faint text-xs mt-1 font-medium">
@@ -136,7 +136,7 @@ export default function ChallansPage() {
       </div>
 
       {/* Filters */}
-      <div className="card card-lg p-4 flex gap-3">
+      <div className="card card-lg p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer flex-1">
           {MONTHS.map(m => <option key={m} className="bg-surface-2">{m}</option>)}
         </select>
@@ -160,8 +160,8 @@ export default function ChallansPage() {
             <p className="text-xs t-faint mt-1">Adjust filters or select class. Freeship students are automatically excluded.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+          <div className="table-scroll">
+            <table className="w-full text-xs text-left rtable">
               <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
                 <tr>
                   <th className="px-5 py-4">Challan No.</th>
@@ -174,17 +174,19 @@ export default function ChallansPage() {
               <tbody className="divide-y divide-line t-muted">
                 {fees.map(f => (
                   <tr key={f._id} className="hover:bg-surface-2 transition group">
-                    <td className="px-5 py-4 font-mono font-bold t-brand">{f.challanNo}</td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="font-bold t-body">{f.studentInfo?.fullName}</div>
-                      {f.studentInfo?.fatherName && (
-                        <div className="text-[10px] t-muted mt-0.5">s/o {f.studentInfo.fatherName}</div>
-                      )}
+                    <td data-label="Challan No." className="px-5 py-4 font-mono font-bold t-brand">{f.challanNo}</td>
+                    <td data-label="Student" className="px-5 py-4 md:whitespace-nowrap">
+                      <div>
+                        <div className="font-bold t-body">{f.studentInfo?.fullName}</div>
+                        {f.studentInfo?.fatherName && (
+                          <div className="text-[10px] t-muted mt-0.5">s/o {f.studentInfo.fatherName}</div>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-5 py-4 t-muted font-medium">Class {f.studentInfo?.class}</td>
-                    <td className="px-5 py-4 font-black t-body">Rs. {(f.balance ?? 0).toLocaleString()}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
+                    <td data-label="Class" className="px-5 py-4 t-muted font-medium">Class {f.studentInfo?.class}</td>
+                    <td data-label="Amount Due" className="px-5 py-4 font-black t-body">Rs. {(f.balance ?? 0).toLocaleString()}</td>
+                    <td data-actions="" className="px-5 py-4">
+                      <div className="row-actions">
                         <button onClick={() => setPreviewId(f._id)} className="btn btn-ghost gap-1 px-3 py-1.5 text-[10px]">
                           <SlidersHorizontal size={12} /> Preview
                         </button>

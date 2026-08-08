@@ -45,8 +45,29 @@ const ROUTES = [
   { re: /^\/api\/fee-structures\/?$/i, model: 'FeeStructure', module: 'feeStructures', entity: 'FeeStructure' },
 
   // Expenses
+  { re: new RegExp(`^/api/expenses/${OID}/status/?$`, 'i'), model: 'Expense', module: 'accounts', entity: 'Expense', verb: 'Approved or rejected an expense' },
   { re: new RegExp(`^/api/expenses/${OID}/?$`, 'i'), model: 'Expense', module: 'expenses', entity: 'Expense' },
   { re: /^\/api\/expenses\/?$/i, model: 'Expense', module: 'expenses', entity: 'Expense' },
+
+  // Accounts & finance.
+  //
+  // Registered here rather than in a controller because this table is what the
+  // audit middleware matches on — a route missing from it is a route that logs
+  // nothing at all, however consequential it is. Closing a month and paying a
+  // salary are exactly the actions someone will later need to trace.
+  { re: /^\/api\/accounts\/close-month\/?$/i, model: 'ClosedMonth', module: 'accounts', entity: 'ClosedMonth', action: 'create', verb: 'Closed an accounting month' },
+  { re: /^\/api\/accounts\/reopen-month\/?$/i, model: 'ClosedMonth', module: 'accounts', entity: 'ClosedMonth', action: 'update', verb: 'Reopened a closed accounting month' },
+
+  { re: /^\/api\/recurring-expenses\/generate\/?$/i, model: 'Expense', module: 'accounts', entity: 'Expense', action: 'bulk-create', verb: 'Raised recurring bills' },
+  { re: new RegExp(`^/api/recurring-expenses/${OID}/?$`, 'i'), model: 'RecurringExpense', module: 'accounts', entity: 'RecurringExpense' },
+  { re: /^\/api\/recurring-expenses\/?$/i, model: 'RecurringExpense', module: 'accounts', entity: 'RecurringExpense' },
+
+  { re: new RegExp(`^/api/expense-categories/${OID}/?$`, 'i'), model: 'ExpenseCategory', module: 'accounts', entity: 'ExpenseCategory' },
+  { re: /^\/api\/expense-categories\/?$/i, model: 'ExpenseCategory', module: 'accounts', entity: 'ExpenseCategory' },
+
+  { re: /^\/api\/salaries\/pay\/?$/i, model: 'SalaryRecord', module: 'salaries', entity: 'SalaryRecord', action: 'create', verb: 'Paid a salary' },
+  { re: new RegExp(`^/api/salaries/advances/${OID}/?$`, 'i'), model: 'SalaryAdvance', module: 'accounts', entity: 'SalaryAdvance' },
+  { re: /^\/api\/salaries\/advances\/?$/i, model: 'SalaryAdvance', module: 'accounts', entity: 'SalaryAdvance', verb: 'Gave a salary advance' },
 
   // System settings
   { re: /^\/api\/system\/reset-data\/?$/i, module: 'settings', entity: 'Data', action: 'reset-data', verb: 'Permanently deleted school data' },

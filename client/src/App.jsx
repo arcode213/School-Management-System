@@ -19,7 +19,8 @@ import ChallansPage from './pages/ChallansPage';
 import DuesPage from './pages/DuesPage';
 import ReportsPage from './pages/ReportsPage';
 import UsersPage from './pages/UsersPage';
-import ExpensesPage from './pages/ExpensesPage';
+import AccountsPage from './pages/AccountsPage';
+import SalarySheetPage from './pages/SalarySheetPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import { useAuth } from './context/AuthContext';
 import { landingPathFor } from './utils/navigation';
@@ -101,8 +102,15 @@ function App() {
                 <Route path="/employees/:id" element={<EmployeeProfilePage />} />
               </Route>
 
-              <Route element={<ProtectedRoute module="expenses" />}>
-                <Route path="/expenses" element={<ExpensesPage />} />
+              {/* The expense register is a tab inside Accounts & Ledger. Either
+                  grant opens the screen; the tab strip then shows only what the
+                  account is entitled to. */}
+              <Route element={<ProtectedRoute anyModule={['accounts', 'expenses']} />}>
+                <Route path="/accounts" element={<AccountsPage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute module="salaries" />}>
+                <Route path="/salaries" element={<SalarySheetPage />} />
               </Route>
 
               <Route element={<ProtectedRoute module="fees" />}>

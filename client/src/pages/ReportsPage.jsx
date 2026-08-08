@@ -54,11 +54,11 @@ export default function ReportsPage() {
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Financial Analytics</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase">Financial Analytics</h1>
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">Summary and profit breakdown for Fiscal Year {year}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer">
             {[year-2, year-1, year, year+1].map(y => <option key={y} value={y} className="bg-surface-2">{y}</option>)}
           </select>
@@ -69,7 +69,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Screen Analytics: Financial Summary Panels */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-emerald-600/80 to-emerald-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
             <DollarSign className="t-body w-5 h-5" />
@@ -116,9 +116,9 @@ export default function ReportsPage() {
       </div>
 
       {/* Recharts monthly financial overview */}
-      <div className="card card-lg p-6 h-[400px]">
-        <h2 className="text-xs font-bold uppercase tracking-wider t-muted mb-6">Monthly Revenue vs Payroll Overview</h2>
-        <ResponsiveContainer width="100%" height="90%">
+      <div className="card card-lg p-4 sm:p-6 h-[22rem] sm:h-[25rem]">
+        <h2 className="text-xs font-bold uppercase tracking-wider t-muted mb-4 sm:mb-6">Monthly Revenue vs Payroll Overview</h2>
+        <ResponsiveContainer width="100%" height="88%">
           <BarChart data={report.monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }} barSize={8} barGap={4}>
             <defs>
               <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">

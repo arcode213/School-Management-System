@@ -82,11 +82,11 @@ export default function EmployeesPage() {
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Staff Directory</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase">Staff Directory</h1>
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">{pagination.total} registered staff members</p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           {can('employees', 'create') && (
             <button onClick={() => setImportOpen(true)}
               className="btn btn-ghost"
@@ -105,14 +105,14 @@ export default function EmployeesPage() {
       </div>
 
       {/* Screen Analytics: Financial Summary Panels */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-purple-600/80 to-purple-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
             <Users className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Active Staff</p>
-            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">{activeCount} active</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">{activeCount} active</p>
             <p className="t-faint text-xs mt-1 font-medium">Logged operational teachers/staff</p>
           </div>
         </div>
@@ -123,7 +123,7 @@ export default function EmployeesPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Teachers Count</p>
-            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">{teachersCount} tutors</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">{teachersCount} tutors</p>
             <p className="t-faint text-xs mt-1 font-medium">Academic course instructors</p>
           </div>
         </div>
@@ -134,15 +134,15 @@ export default function EmployeesPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Total Headcount</p>
-            <p className="text-2xl font-extrabold t-ok mt-0.5 tracking-tight">{pagination.total} registered</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-ok mt-0.5 tracking-tight break-words">{pagination.total} registered</p>
             <p className="t-faint text-xs mt-1 font-medium">All department records</p>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="card card-lg p-4 flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48 bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs flex items-center gap-2">
+      <div className="card card-lg p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="sm:col-span-2 relative bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs flex items-center gap-2">
           <Search size={14} className="t-faint" />
           <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search staff name, ID..." className="bg-transparent w-full t-body placeholder-faint focus:outline-none font-medium" />
@@ -170,8 +170,8 @@ export default function EmployeesPage() {
             <p className="t-muted font-bold uppercase tracking-wider text-sm">No employees found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+          <div className="table-scroll">
+            <table className="w-full text-xs text-left rtable">
               <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
                 <tr>
                   <th className="px-5 py-4">Employee ID</th>
@@ -185,16 +185,18 @@ export default function EmployeesPage() {
               <tbody className="divide-y divide-line t-muted">
                 {employees.map(e => (
                   <tr key={e._id} className="hover:bg-surface-2 transition group">
-                    <td className="px-5 py-4 font-mono font-bold t-brand">{e.employeeId}</td>
-                    <td className="px-5 py-4 font-bold t-body whitespace-nowrap">{e.fullName}</td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="font-semibold t-body">{e.designation}</div>
-                      <div className="text-[10px] t-muted mt-0.5 font-medium">{e.department}</div>
+                    <td data-label="Employee ID" className="px-5 py-4 font-mono font-bold t-brand">{e.employeeId}</td>
+                    <td data-label="Name" className="px-5 py-4 font-bold t-body md:whitespace-nowrap">{e.fullName}</td>
+                    <td data-label="Designation / Dept" className="px-5 py-4 md:whitespace-nowrap">
+                      <div>
+                        <div className="font-semibold t-body">{e.designation}</div>
+                        <div className="text-[10px] t-muted mt-0.5 font-medium">{e.department}</div>
+                      </div>
                     </td>
-                    <td className="px-5 py-4 t-muted font-medium font-mono">{e.phone || '—'}</td>
-                    <td className="px-5 py-4"><StatusBadge status={e.status} /></td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
+                    <td data-label="Contact" className="px-5 py-4 t-muted font-medium font-mono">{e.phone || '—'}</td>
+                    <td data-label="Status" className="px-5 py-4"><StatusBadge status={e.status} /></td>
+                    <td data-actions="" className="px-5 py-4">
+                      <div className="row-actions">
                         {can('salaries', 'create') && (
                           <button onClick={() => setSalaryModal({ open: true, emp: e })} className="p-1.5 t-muted hover:t-ok hover:bg-ok-soft border border-transparent hover:border-ok-border rounded-xl transition" title="Pay Salary">
                             <DollarSign size={14} />
@@ -224,7 +226,7 @@ export default function EmployeesPage() {
 
         {/* Pagination */}
         {!loading && pagination.pages > 1 && (
-          <div className="px-5 py-4 border-t border-line flex items-center justify-between">
+          <div className="px-5 py-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs t-muted font-medium">Page {pagination.page} of {pagination.pages}</p>
             <div className="flex gap-1">
               <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-1.5 t-muted hover:t-body disabled:opacity-20 disabled:cursor-not-allowed border border-line rounded-xl transition bg-surface-2"><ChevronLeft size={14}/></button>

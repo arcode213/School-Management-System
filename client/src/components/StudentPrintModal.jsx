@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getStudents } from '../api/students';
 import toast from 'react-hot-toast';
 import { X, Printer, Loader2 } from 'lucide-react';
+import ModalPortal from './ModalPortal';
 
 // All printable columns. `all checked by default`.
 const COLUMNS = [
@@ -98,20 +99,21 @@ export default function StudentPrintModal({ open, onClose, filters }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <ModalPortal>
+    <div className="modal-shell">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-solid rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-brand rounded-xl flex items-center justify-center">
+      <div className="modal-box bg-solid shadow-2xl sm:max-w-lg">
+        <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-line flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 bg-brand rounded-xl flex items-center justify-center flex-shrink-0">
               <Printer className="t-body w-4 h-4" />
             </div>
-            <h2 className="font-semibold t-body">Print Student Records</h2>
+            <h2 className="font-semibold t-body truncate">Print Student Records</h2>
           </div>
-          <button onClick={onClose} className="t-muted hover:t-muted"><X size={20} /></button>
+          <button onClick={onClose} className="icon-btn flex-shrink-0" aria-label="Close"><X size={20} /></button>
         </div>
 
-        <div className="px-6 py-5 space-y-4 overflow-y-auto">
+        <div className="px-5 sm:px-6 py-5 space-y-4 overflow-y-auto">
           <div className="bg-brand-soft border border-brand-border t-brand text-sm rounded-lg p-3">
             Printing <strong>{filterSummary()}</strong>. Adjust the filters on the Students page to change who is included.
           </div>
@@ -133,14 +135,15 @@ export default function StudentPrintModal({ open, onClose, filters }) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm t-muted border border-line rounded-lg">Cancel</button>
-          <button onClick={handlePrint} disabled={loading} className="px-5 py-2 text-sm bg-brand hover:bg-brand t-body font-medium rounded-lg flex items-center gap-2 disabled:opacity-50">
+        <div className="px-5 sm:px-6 py-4 border-t border-line modal-actions flex-shrink-0">
+          <button type="button" onClick={onClose} className="px-4 py-2.5 text-sm t-muted border border-line rounded-lg">Cancel</button>
+          <button onClick={handlePrint} disabled={loading} className="px-5 py-2.5 text-sm bg-brand hover:bg-brand t-body font-medium rounded-lg flex items-center justify-center gap-2 disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
             Print
           </button>
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

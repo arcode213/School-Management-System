@@ -32,7 +32,7 @@ const Card = ({ icon: Icon, title, tint = 'blue', children, className = '' }) =>
     green: 'bg-ok-soft t-ok', indigo: 'bg-brand-soft t-brand',
   };
   return (
-    <div className={`bg-solid rounded-2xl border border-line shadow-sm p-5 ${className}`}>
+    <div className={`bg-solid rounded-2xl border border-line shadow-sm p-4 sm:p-5 ${className}`}>
       <div className="flex items-center gap-2 mb-4">
         <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${tints[tint]}`}>
           <Icon size={14} />
@@ -217,11 +217,11 @@ export default function StudentProfilePage() {
   return (
     <div className="space-y-5 max-w-5xl">
       {/* Top bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Link to="/students" className="flex items-center gap-2 text-sm t-faint hover:t-body transition">
           <ArrowLeft size={16} /> Back to Students
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={handlePrint}
             className="flex items-center gap-2 text-sm bg-solid border border-line t-body px-4 py-2 rounded-xl hover:border-line transition shadow-sm">
             <Printer size={14} /> Print Record
@@ -238,13 +238,13 @@ export default function StudentProfilePage() {
       {/* Hero card */}
       <div className="relative overflow-hidden rounded-2xl border border-line shadow-sm">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700" />
-        <div className="relative p-6 flex items-start gap-5 t-body">
-          <div className="w-20 h-20 bg-white/15 backdrop-blur border border-white/30 rounded-2xl flex items-center justify-center text-3xl font-bold flex-shrink-0 shadow-lg">
+        <div className="relative p-4 sm:p-6 flex flex-col sm:flex-row items-start gap-4 sm:gap-5 t-body">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/15 backdrop-blur border border-white/30 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl font-bold flex-shrink-0 shadow-lg">
             {student.fullName?.charAt(0)?.toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold">{student.fullName}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold">{student.fullName}</h1>
               <StatusBadge status={student.status} />
               {student.isFreeship && (
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-warn-soft t-warn">
@@ -265,7 +265,7 @@ export default function StudentProfilePage() {
       </div>
 
       {/* Monthly fee highlight */}
-      <div className="bg-solid rounded-2xl border border-line shadow-sm p-5">
+      <div className="bg-solid rounded-2xl border border-line shadow-sm p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-7 h-7 bg-ok-soft rounded-lg flex items-center justify-center">
             <Wallet size={14} className="t-ok" />
@@ -282,12 +282,12 @@ export default function StudentProfilePage() {
           </div>
         ) : fee && fee.hasStructure ? (
           <div className="flex flex-wrap items-stretch gap-4">
-            <div className="flex-1 min-w-[180px] bg-gradient-to-br from-emerald-50 to-teal-50 border border-ok-border rounded-xl p-4">
+            <div className="flex-1 min-w-full sm:min-w-[180px] bg-gradient-to-br from-emerald-50 to-teal-50 border border-ok-border rounded-xl p-4">
               <p className="text-xs t-ok font-semibold uppercase tracking-wide">Monthly Tuition Fee</p>
               <p className="text-3xl font-bold t-ok mt-1">{fmtRs(fee.tuitionFee)}</p>
               {fee.hasOverride && <span className="inline-block mt-1 text-[10px] bg-warn-soft t-warn px-2 py-0.5 rounded-full font-medium">Custom fee applied</span>}
             </div>
-            <div className="flex-[2] min-w-[240px] grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="flex-[2] min-w-0 sm:min-w-[240px] grid grid-cols-2 sm:grid-cols-4 gap-3">
               <FeeStat label="Transport" value={fmtRs(fee.transportFee)} />
               <FeeStat label="Misc" value={fmtRs(fee.miscFee)} />
               <FeeStat label="Exam" value={fmtRs(fee.examFee)} />
@@ -305,7 +305,7 @@ export default function StudentProfilePage() {
       {/* Info grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Card icon={User} title="Personal Information" tint="blue">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InfoRow label="Father's Name" value={student.fatherName} />
             <InfoRow label="Mother's Name" value={student.motherName} />
             <InfoRow label="Date of Birth" value={fmtDate(student.dateOfBirth)} />
@@ -322,7 +322,7 @@ export default function StudentProfilePage() {
         </Card>
 
         <Card icon={Phone} title="Contact Information" tint="green">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InfoRow label="Student Phone" value={student.phone} />
             <InfoRow label="Father Contact" value={student.fatherContact} />
             <InfoRow label="Mother Contact" value={student.motherContact} />
@@ -333,7 +333,7 @@ export default function StudentProfilePage() {
         </Card>
 
         <Card icon={GraduationCap} title="Academic Information" tint="purple">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InfoRow label="Class" value={`Class ${student.class}`} />
             <InfoRow label="Section" value={student.section} />
             <InfoRow label="Roll Number" value={student.rollNumber} />

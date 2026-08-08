@@ -3,6 +3,7 @@ import { addFee, updateFee, getFeeStructures, getFeeOverrides } from '../api/fee
 import { getStudents } from '../api/students';
 import toast from 'react-hot-toast';
 import { X, Search, Loader2, FileText } from 'lucide-react';
+import ModalPortal from './ModalPortal';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -230,20 +231,21 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <ModalPortal>
+    <div className="modal-shell">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-solid rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-brand rounded-xl flex items-center justify-center">
+      <div className="modal-box bg-solid shadow-2xl sm:max-w-lg">
+        <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-line flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 bg-brand rounded-xl flex items-center justify-center flex-shrink-0">
               <FileText className="t-body w-4 h-4" />
             </div>
-            <h2 className="font-semibold t-body">{isEdit ? `Edit Challan ${feeRecord.challanNo}` : 'Generate Individual Challan'}</h2>
+            <h2 className="font-semibold t-body truncate">{isEdit ? `Edit Challan ${feeRecord.challanNo}` : 'Generate Individual Challan'}</h2>
           </div>
-          <button onClick={onClose} className="t-muted hover:t-muted"><X size={20} /></button>
+          <button onClick={onClose} className="icon-btn flex-shrink-0" aria-label="Close"><X size={20} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="px-5 sm:px-6 py-5 space-y-4 overflow-y-auto">
           {/* Student selector */}
           {isEdit ? (
             <div className="bg-surface-2 rounded-xl p-3 border border-line text-sm">
@@ -317,7 +319,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium t-muted mb-1">Fee Month</label>
               <select value={form.feeMonth} onChange={e => setForm({ ...form, feeMonth: e.target.value })} className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2">
@@ -330,7 +332,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium t-muted mb-1">Tuition Fee</label>
               <input type="number" value={form.tuitionFee} onChange={e => setNum('tuitionFee', e.target.value)} className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2" />
@@ -426,7 +428,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
           </div>
 
           {isEdit && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium t-muted mb-1">Previous Dues (monthly)</label>
                 <input type="number" value={form.previousDues} onChange={e => setNum('previousDues', e.target.value)} className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2" />
@@ -454,9 +456,9 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
             </p>
           )}
 
-          <div className="pt-2 flex gap-3 justify-end">
-            <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-medium t-muted hover:bg-surface-2 rounded-xl transition">Cancel</button>
-            <button type="submit" disabled={loading || blockedByFreeship} className="px-5 py-2 text-sm font-medium bg-brand t-body rounded-xl hover:bg-brand transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+          <div className="pt-2 modal-actions">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm font-medium t-muted hover:bg-surface-2 border border-line rounded-xl transition">Cancel</button>
+            <button type="submit" disabled={loading || blockedByFreeship} className="px-5 py-2.5 text-sm font-medium bg-brand t-body rounded-xl hover:bg-brand transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
               {loading && <Loader2 size={14} className="animate-spin" />}
               {isEdit ? 'Update Challan' : 'Generate Challan'}
             </button>
@@ -464,5 +466,6 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }

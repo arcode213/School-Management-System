@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { addBulkFees, getFeeStructures } from '../api/fees';
 import { getClasses } from '../api/students';
+import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ModalPortal from './ModalPortal';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -81,18 +83,19 @@ export default function GenerateFeeModal({ open, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
-      <div className="bg-solid rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-line flex justify-between items-center bg-surface-2">
-          <h2 className="text-lg font-bold t-body">Generate Monthly Fees</h2>
-          <button onClick={onClose} className="t-muted hover:t-muted">&times;</button>
+    <ModalPortal>
+    <div className="modal-shell bg-black/55 backdrop-blur-sm">
+      <div className="modal-box bg-solid sm:max-w-md shadow-2xl">
+        <div className="px-5 sm:px-6 py-4 border-b border-line flex justify-between items-center gap-3 bg-surface-2 flex-shrink-0">
+          <h2 className="text-lg font-bold t-body truncate">Generate Monthly Fees</h2>
+          <button onClick={onClose} className="icon-btn flex-shrink-0" aria-label="Close"><X size={20} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
           <p className="text-sm t-faint mb-4 bg-brand-soft t-brand p-3 rounded-lg border border-brand-border">
             This will generate a consolidated challan for the selected class. It automatically applies Class Fee Structures and individual Student Overrides, and safely rolls over previous unpaid dues.
             <strong className="block mt-1.5">Freeship students are skipped — no challan is created for them.</strong>
           </p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium t-muted mb-1">Class</label>
               <select required value={formData.class} onChange={e => handleClassChange(e.target.value)} className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2">
@@ -105,7 +108,7 @@ export default function GenerateFeeModal({ open, onClose, onSaved }) {
               <input type="text" value={formData.section} onChange={e => setFormData({...formData, section: e.target.value})} className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2" placeholder="e.g. A" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium t-muted mb-1">Fee Month</label>
               <select required value={formData.feeMonth} onChange={e => setFormData({...formData, feeMonth: e.target.value})} className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2">
@@ -209,14 +212,15 @@ export default function GenerateFeeModal({ open, onClose, onSaved }) {
               </div>
             )}
           </div>
-          <div className="pt-4 flex gap-3 justify-end">
-            <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-medium t-muted hover:bg-surface-2 rounded-xl transition">Cancel</button>
-            <button type="submit" disabled={loading} className="px-5 py-2 text-sm font-medium bg-brand t-body rounded-xl hover:bg-brand transition shadow-sm disabled:opacity-50">
+          <div className="pt-4 modal-actions">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm font-medium t-muted hover:bg-surface-2 border border-line rounded-xl transition">Cancel</button>
+            <button type="submit" disabled={loading} className="px-5 py-2.5 text-sm font-medium bg-brand t-body rounded-xl hover:bg-brand transition shadow-sm disabled:opacity-50">
               {loading ? 'Generating...' : 'Generate Challans'}
             </button>
           </div>
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }

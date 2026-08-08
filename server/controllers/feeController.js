@@ -3,7 +3,9 @@ const FeeRecord = require('../models/FeeRecord');
 const FeeStructure = require('../models/FeeStructure');
 const StudentFeeOverride = require('../models/StudentFeeOverride');
 const StudentAcademicRecord = require('../models/StudentAcademicRecord');
+const FeePayment = require('../models/FeePayment');
 const { MONTHS, parseStartMonth, buildDueMonthRange, absMonth, monthAfter } = require('../utils/feeMonths');
+const { withTransaction, sessionOpts } = require('../utils/transaction');
 
 // Client errors carry a statusCode so the handler can answer 400 instead of a
 // blanket 500 — the UI surfaces these messages verbatim to the user.
@@ -865,6 +867,17 @@ const updateFee = async (req, res) => {
     const fee = await FeeRecord.findOne({ _id: req.params.id, isDeleted: false });
     if (!fee) return res.status(404).json({ message: 'Fee record not found' });
 
+    // The running totals as they stood before this edit. `amountPaid` and
+    // `annualPaid` arrive as totals, not as the amount being handed over, so the
+    // money that actually moved is the difference — and that difference is what
+    // the accounts ledger records as income. Read here, before anything below
+    // overwrites them.
+    const before = {
+      amountPaid: Number(fee.amountPaid) || 0,
+      annualPaid: Number(fee.annualPaid) || 0,
+      discount: Number(fee.discount) || 0,
+    };
+
     // Payment fields
     if (req.body.amountPaid !== undefined) fee.amountPaid = req.body.amountPaid;
     // How much of that total is earmarked for the annual fee (see the FeeRecord
@@ -913,7 +926,42 @@ const updateFee = async (req, res) => {
       fee.arrearsToMonth = undefined;
     }
 
-    await fee.save(); // triggers pre-save hook for status & balance
+    // The challan and its receipt are written together. `fee.save()` runs the
+    // pre-save hook, which re-derives the bucket allocation — so the split is read
+    // AFTER the save, from what the record actually settled, rather than from what
+    // the request claimed.
+    await withTransaction(async (session) => {
+      await fee.save(sessionOpts(session)); // triggers pre-save hook for status & balance
+
+      const delta = (Number(fee.amountPaid) || 0) - before.amountPaid;
+      // A pure charge edit (changing the tuition fee, the due date, the month)
+      // moves no money and must not create a receipt.
+      if (delta === 0) return;
+
+      const annualDelta = (Number(fee.annualPaid) || 0) - before.annualPaid;
+      // The annual share cannot exceed the money that moved, and cannot flip sign
+      // against it — clamp so the two portions always sum back to `delta`.
+      const annualPortion = delta > 0
+        ? Math.min(Math.max(annualDelta, 0), delta)
+        : Math.max(Math.min(annualDelta, 0), delta);
+
+      await FeePayment.create([{
+        feeRecord: fee._id,
+        student: fee.student,
+        // Scope copied from the challan, never from the request headers.
+        campus: fee.campus,
+        academicSession: fee.academicSession,
+        amount: delta,
+        annualPortion,
+        monthlyPortion: delta - annualPortion,
+        discountApplied: (Number(fee.discount) || 0) - before.discount,
+        method: fee.paymentMethod || 'Cash',
+        receivedOn: req.body.paymentDate ? new Date(req.body.paymentDate) : new Date(),
+        receivedBy: req.user?._id,
+        remarks: req.body.remarks,
+        isAdjustment: delta < 0,
+      }], sessionOpts(session));
+    });
 
     res.json(fee);
   } catch (err) {
@@ -939,6 +987,16 @@ const deleteFee = async (req, res) => {
     await FeeRecord.updateMany(
       { carriedForwardTo: fee._id },
       { $set: { hasBeenCarriedForward: false, carriedForwardTo: null } },
+      { session }
+    );
+
+    // The challan's receipts go with it, or the accounts ledger keeps reporting
+    // income for money attached to a challan that no longer exists. Soft-deleted
+    // like everything financial — the rows stay readable for the audit trail, they
+    // simply stop counting.
+    await FeePayment.updateMany(
+      { feeRecord: fee._id, isDeleted: false },
+      { $set: { isDeleted: true } },
       { session }
     );
 

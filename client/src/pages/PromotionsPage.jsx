@@ -96,13 +96,13 @@ export default function PromotionsPage() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div>
-        <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Academic Promotions</h1>
+        <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase">Academic Promotions</h1>
         <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">Carry active students into the next academic term or class levels</p>
       </div>
 
       {/* Configuration Panel */}
-      <div className="card card-lg p-5 flex flex-wrap gap-5 items-end">
-        <div className="flex-1 min-w-48">
+      <div className="card card-lg p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 items-end">
+        <div>
           <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Source Class (Current Session)</label>
           <select value={sourceClass} onChange={e => setSourceClass(e.target.value)} className="w-full text-xs font-semibold bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer">
             <option value="" className="bg-surface-2">Select Class</option>
@@ -110,7 +110,7 @@ export default function PromotionsPage() {
           </select>
         </div>
         
-        <div className="flex-1 min-w-48">
+        <div>
           <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Target Academic Session</label>
           <select value={targetSession} onChange={e => setTargetSession(e.target.value)} className="w-full text-xs font-semibold bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer">
             <option value="" className="bg-surface-2">Select Target Session</option>
@@ -120,12 +120,12 @@ export default function PromotionsPage() {
           </select>
         </div>
 
-        <div className="flex-1 min-w-48">
+        <div>
           <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Default Target Class (Optional)</label>
           <input type="text" value={targetClass} onChange={e => setTargetClass(e.target.value)} placeholder="e.g. 6" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand" />
         </div>
 
-        <button onClick={loadStudents} disabled={loading} className="btn btn-primary py-3 disabled:opacity-50">
+        <button onClick={loadStudents} disabled={loading} className="btn btn-primary py-3 w-full disabled:opacity-50">
           {loading ? <RefreshCw size={14} className="animate-spin" /> : <Users size={14} />}
           Load Students
         </button>
@@ -133,7 +133,7 @@ export default function PromotionsPage() {
 
       {/* Screen Analytics: Promotion Preview Breakdown */}
       {totalInQueue > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="card card-lg p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider t-muted">Total in Queue</p>
@@ -176,9 +176,9 @@ export default function PromotionsPage() {
       {/* Promotion List */}
       {students.length > 0 && (
         <div className="card card-lg overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-line bg-surface-2 flex items-center justify-between">
+          <div className="p-4 border-b border-line bg-surface-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider t-muted">
-              <AlertCircle size={14} className="t-warn" />
+              <AlertCircle size={14} className="t-warn flex-shrink-0" />
               Verify {students.length} student records before remapping
             </div>
             {can('promotions', 'edit') && (
@@ -187,9 +187,9 @@ export default function PromotionsPage() {
               </button>
             )}
           </div>
-          
-          <div className="overflow-x-auto max-h-[60vh]">
-            <table className="w-full text-xs text-left">
+
+          <div className="table-scroll max-h-[60vh] overflow-y-auto">
+            <table className="w-full text-xs text-left rtable">
               <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider sticky top-0 z-10">
                 <tr>
                   <th className="px-5 py-4">Student</th>
@@ -202,14 +202,16 @@ export default function PromotionsPage() {
               <tbody className="divide-y divide-line t-muted">
                 {students.map(s => (
                   <tr key={s._id} className="hover:bg-surface-2 transition">
-                    <td className="px-5 py-4">
-                      <div className="font-bold t-body">{s.fullName}</div>
-                      {s.fatherName && <div className="text-[10px] t-muted mt-0.5">s/o {s.fatherName}</div>}
-                      <div className="text-[10px] font-mono t-faint mt-0.5">{s.studentId}</div>
+                    <td data-label="Student" className="px-5 py-4">
+                      <div>
+                        <div className="font-bold t-body">{s.fullName}</div>
+                        {s.fatherName && <div className="text-[10px] t-muted mt-0.5">s/o {s.fatherName}</div>}
+                        <div className="text-[10px] font-mono t-faint mt-0.5">{s.studentId}</div>
+                      </div>
                     </td>
-                    <td className="px-5 py-4 t-muted font-semibold">Class {s.class} {s.section && `(${s.section})`}</td>
-                    <td className="px-5 py-4">
-                      <select 
+                    <td data-label="Current Class" className="px-5 py-4 t-muted font-semibold">Class {s.class} {s.section && `(${s.section})`}</td>
+                    <td data-label="Decision" className="px-5 py-4">
+                      <select
                         value={promotions[s._id]?.promotionStatus || 'Promoted'} 
                         onChange={e => handlePromotionChange(s._id, 'promotionStatus', e.target.value)}
                         className="bg-surface-2 border border-line rounded-xl px-3 py-1.5 text-xs t-body outline-none focus:ring-1 focus:ring-brand cursor-pointer font-semibold uppercase tracking-wider"
@@ -219,19 +221,19 @@ export default function PromotionsPage() {
                         <option value="Graduated">Graduated (Leave)</option>
                       </select>
                     </td>
-                    <td className="px-5 py-4">
-                      <input 
-                        type="text" 
-                        value={promotions[s._id]?.targetClass || ''} 
+                    <td data-label="Target Class" className="px-5 py-4">
+                      <input
+                        type="text"
+                        value={promotions[s._id]?.targetClass || ''}
                         onChange={e => handlePromotionChange(s._id, 'targetClass', e.target.value)}
                         disabled={promotions[s._id]?.promotionStatus === 'Graduated'}
                         className="w-20 bg-surface-2 border border-line rounded-xl px-3 py-1.5 text-xs font-bold t-body focus:outline-none focus:ring-2 focus:ring-brand text-center disabled:opacity-30"
                       />
                     </td>
-                    <td className="px-5 py-4">
-                      <input 
-                        type="text" 
-                        value={promotions[s._id]?.targetSection || ''} 
+                    <td data-label="Target Section" className="px-5 py-4">
+                      <input
+                        type="text"
+                        value={promotions[s._id]?.targetSection || ''}
                         onChange={e => handlePromotionChange(s._id, 'targetSection', e.target.value)}
                         disabled={promotions[s._id]?.promotionStatus === 'Graduated'}
                         className="w-16 bg-surface-2 border border-line rounded-xl px-3 py-1.5 text-xs font-bold t-body focus:outline-none focus:ring-2 focus:ring-brand text-center disabled:opacity-30"

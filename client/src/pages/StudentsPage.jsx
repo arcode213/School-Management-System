@@ -15,6 +15,10 @@ import {
 
 const STATUSES = ['Active', 'Left', 'Graduated'];
 
+// Doubles as the `data-label` on each cell, which is what the stacked mobile
+// layout prints in place of the (hidden) column header.
+const COLUMNS = ['Student ID', 'Name', 'Father', 'Class', 'Section', 'Roll', 'Status', 'Phone', 'Actions'];
+
 const StatusBadge = ({ status }) => {
   const map = {
     Active:    'bg-ok-soft t-ok border-ok-border',
@@ -148,8 +152,8 @@ export default function StudentsPage() {
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Students Directory</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase">Students Directory</h1>
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">
             {pagination.total} registered student records
           </p>
@@ -184,9 +188,9 @@ export default function StudentsPage() {
 
       {/* Filters */}
       <div className="card card-lg p-4">
-        <div className="flex flex-wrap gap-3">
+        <div className="filter-grid">
           {/* Search */}
-          <div className="relative flex-1 min-w-48">
+          <div className="relative filter-search">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 t-muted" />
             <input
               id="student-search"
@@ -265,11 +269,11 @@ export default function StudentsPage() {
             <p className="t-faint text-xs mt-1 font-medium">Try adjusting your filters or record a new student</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="table-scroll">
+            <table className="w-full text-xs rtable">
               <thead className="bg-surface-2 border-b border-line">
                 <tr>
-                  {['Student ID','Name','Father','Class','Section','Roll','Status','Phone','Actions'].map(h => (
+                  {COLUMNS.map(h => (
                     <th key={h} className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-wider t-muted whitespace-nowrap">
                       {h}
                     </th>
@@ -279,24 +283,26 @@ export default function StudentsPage() {
               <tbody className="divide-y divide-line">
                 {students.map(s => (
                   <tr key={s._id} className="hover:bg-surface-2 transition group">
-                    <td className="px-5 py-4 font-mono font-bold t-brand">{s.studentId}</td>
-                    <td className="px-5 py-4 font-bold t-body whitespace-nowrap">
-                      {s.fullName}
-                      {s.isFreeship && (
-                        <span className="ml-2 align-middle inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-warn-soft border border-warn-border t-warn"
-                          title="Fees waived — no challan is generated or printed">
-                          FREESHIP
-                        </span>
-                      )}
+                    <td data-label="Student ID" className="px-5 py-4 font-mono font-bold t-brand">{s.studentId}</td>
+                    <td data-label="Name" className="px-5 py-4 font-bold t-body md:whitespace-nowrap">
+                      <span>
+                        {s.fullName}
+                        {s.isFreeship && (
+                          <span className="ml-2 align-middle inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-warn-soft border border-warn-border t-warn"
+                            title="Fees waived — no challan is generated or printed">
+                            FREESHIP
+                          </span>
+                        )}
+                      </span>
                     </td>
-                    <td className="px-5 py-4 t-muted whitespace-nowrap">{s.fatherName || '—'}</td>
-                    <td className="px-5 py-4 t-muted font-medium">Class {s.class}</td>
-                    <td className="px-5 py-4 t-muted">{s.section || '—'}</td>
-                    <td className="px-5 py-4 t-muted font-mono">{s.rollNumber || '—'}</td>
-                    <td className="px-5 py-4"><StatusBadge status={s.status} /></td>
-                    <td className="px-5 py-4 t-muted font-medium">{s.phone || '—'}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
+                    <td data-label="Father" className="px-5 py-4 t-muted md:whitespace-nowrap">{s.fatherName || '—'}</td>
+                    <td data-label="Class" className="px-5 py-4 t-muted font-medium">Class {s.class}</td>
+                    <td data-label="Section" className="px-5 py-4 t-muted">{s.section || '—'}</td>
+                    <td data-label="Roll" className="px-5 py-4 t-muted font-mono">{s.rollNumber || '—'}</td>
+                    <td data-label="Status" className="px-5 py-4"><StatusBadge status={s.status} /></td>
+                    <td data-label="Phone" className="px-5 py-4 t-muted font-medium">{s.phone || '—'}</td>
+                    <td data-actions="" className="px-5 py-4">
+                      <div className="row-actions">
                         <Link to={`/students/${s._id}`}
                           className="p-1.5 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" title="View Profile"
                         >
@@ -327,11 +333,11 @@ export default function StudentsPage() {
 
         {/* Pagination */}
         {!loading && pagination.pages > 1 && (
-          <div className="px-5 py-4 border-t border-line flex items-center justify-between">
-            <p className="text-xs t-muted font-medium">
+          <div className="px-5 py-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs t-muted font-medium text-center sm:text-left">
               Showing {(pagination.page - 1) * 10 + 1}–{Math.min(pagination.page * 10, pagination.total)} of {pagination.total} records
             </p>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap justify-center">
               <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
                 className="p-1.5 t-muted hover:t-body disabled:opacity-20 disabled:cursor-not-allowed border border-line rounded-xl transition bg-surface-2"
               >

@@ -99,13 +99,16 @@ export default function PermissionMatrix({ grid, onChange, disabled = false }) {
             {p.label}
           </button>
         ))}
-        <span className="ml-auto text-[10px] font-bold t-faint uppercase tracking-wider">
+        <span className="sm:ml-auto text-[10px] font-bold t-faint uppercase tracking-wider">
           {on} / {total} granted
         </span>
       </div>
 
-      <div className="border border-line rounded-2xl overflow-hidden">
-        <table className="w-full text-xs">
+      {/* A tick-box grid does not survive being stacked into cards — the whole
+          point is reading a row against its columns — so on a narrow screen it
+          scrolls sideways inside its own frame instead. */}
+      <div className="border border-line rounded-2xl overflow-hidden table-scroll">
+        <table className="w-full text-xs min-w-[34rem]">
           <thead className="bg-surface-2 border-b border-line">
             <tr>
               <th className="px-4 py-3 text-left text-[10px] font-bold t-muted uppercase tracking-wider">

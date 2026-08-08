@@ -179,12 +179,30 @@
 
   html {
     height: 100%;
+    /* A phone keyboard or a stray wide element must never be able to shunt the
+       whole portal sideways — every wide thing scrolls inside its own box. */
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
   }
 
   html, body, #root {
     height: 100%;
     margin: 0;
     padding: 0;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Long unbroken values (emails, ids, addresses) would otherwise widen a table
+     cell past the screen on a phone. */
+  h1, h2, h3, p, td, th, span, div, label {
+    overflow-wrap: break-word;
+  }
+
+  img, svg, video, canvas {
+    max-width: 100%;
   }
 
   body {
@@ -220,6 +238,25 @@
   ::selection {
     background: var(--sms-primary);
     color: #fff;
+  }
+
+  /* Safari on iOS zooms the page whenever a focused control's text is under 16px,
+     and then leaves the portal zoomed in. The portal's controls are 12px by
+     design, so on a touch phone they are bumped to the threshold instead — a
+     slightly larger control beats a viewport the user has to pinch back. */
+  @media (max-width: 767px) {
+    input, select, textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* Touch targets. A 14px icon button is a comfortable click and an awkward tap,
+     so on touch hardware every control is padded out to the 40px minimum without
+     changing how it looks on a laptop. */
+  @media (pointer: coarse) {
+    button, [role="button"], a.icon-btn, .icon-btn, select {
+      min-height: 40px;
+    }
   }
 }
 
@@ -511,6 +548,206 @@
   .note-brand{ background: var(--sms-primary-soft); border-color: var(--sms-primary-border); color: var(--sms-primary-text); }
 
   .divider { height: 1px; background-color: var(--sms-border); border: 0; }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     RESPONSIVE PRIMITIVES
+
+     Three shapes repeat on every screen — a wide data table, a row of hover-
+     revealed actions, and a centred dialog. Each is fine on a laptop and each
+     fails differently on a phone, so each is named once here and every page
+     opts in by class rather than carrying its own breakpoints.
+     ────────────────────────────────────────────────────────────────────────── */
+
+  /* ── Wide data tables ──────────────────────────────────────────────────
+     A ten-column table cannot be read at 375px however it is scrolled, so
+     below `md` each row becomes its own card and each cell prints the column
+     name it belongs to (taken from the cell's `data-label`). Above `md` this
+     is an ordinary table again and `.table-scroll` lets it scroll sideways
+     inside its card instead of widening the page. */
+  .table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media (max-width: 767px) {
+    table.rtable,
+    table.rtable > tbody,
+    table.rtable > tbody > tr,
+    table.rtable > tbody > tr > td {
+      display: block;
+      width: 100%;
+    }
+
+    table.rtable > thead { display: none; }
+
+    table.rtable > tbody > tr {
+      border: 1px solid var(--sms-border);
+      border-radius: 1rem;
+      background-color: var(--sms-surface-2);
+      margin: 0.75rem;
+      padding: 0.25rem 0;
+      overflow: hidden;
+    }
+    table.rtable > tbody > tr:hover { background-color: var(--sms-surface-2); }
+
+    table.rtable > tbody > tr > td {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.5rem 0.875rem !important;
+      border: 0;
+      text-align: right;
+    }
+
+    /* The label is the column header this cell would have sat under. Cells with
+       no `data-label` (empty states, full-width detail rows) print no label and
+       keep the whole width. */
+    table.rtable > tbody > tr > td[data-label]::before {
+      content: attr(data-label);
+      flex: 0 0 auto;
+      max-width: 45%;
+      text-align: left;
+      color: var(--sms-text-faint);
+      font-size: 0.5625rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      line-height: 1.5;
+      padding-top: 0.125rem;
+    }
+
+    /* The value side owns the rest of the row and stays right-aligned against
+       its label. */
+    table.rtable > tbody > tr > td[data-label] > * {
+      text-align: right;
+      margin-left: auto;
+    }
+
+    /* An action cell reads as the card's footer rather than as one more field. */
+    table.rtable > tbody > tr > td[data-actions] {
+      justify-content: flex-end;
+      border-top: 1px solid var(--sms-border);
+      margin-top: 0.25rem;
+      padding-top: 0.625rem !important;
+    }
+    table.rtable > tbody > tr > td[data-actions] > * {
+      margin-left: 0;
+    }
+
+    /* Full-width rows — empty states, expanded detail — must not be padded like
+       a label/value pair. */
+    table.rtable > tbody > tr > td:not([data-label]) {
+      text-align: center;
+    }
+
+    /* A row carrying only a full-width cell is the empty state; it should not
+       look like a record card. */
+    table.rtable > tbody > tr.row-plain {
+      border: 0;
+      background: transparent;
+      margin: 0;
+    }
+  }
+
+  /* ── Row actions ───────────────────────────────────────────────────────
+     Table actions were revealed on row hover, which on a touch screen means
+     never. They now hide only where there is a real pointer to reveal them
+     with, and are always visible on a phone or tablet. */
+  .row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+  }
+  @media (hover: hover) and (pointer: fine) and (min-width: 768px) {
+    .row-actions {
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    tr:hover .row-actions,
+    .row-actions:hover,
+    .row-actions:focus-within {
+      opacity: 1;
+    }
+  }
+
+  /* ── Dialogs ───────────────────────────────────────────────────────────
+     A centred box with side margins wastes a phone screen and leaves the
+     buttons under the thumb's reach. Below `sm` a dialog is a bottom sheet
+     that fills the width and stops short of the top; from `sm` up it is the
+     centred card it always was. */
+  .modal-shell {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-box {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: 94dvh;
+    border-radius: 1.25rem 1.25rem 0 0;
+    overflow: hidden;
+  }
+  @media (min-width: 640px) {
+    .modal-shell {
+      align-items: center;
+      padding: 1rem;
+    }
+    .modal-box {
+      max-height: 92dvh;
+      border-radius: 1.25rem;
+    }
+  }
+
+  /* Dialog footers stack on a phone so each button is a full-width target, and
+     the primary one sits on top where the thumb lands first. */
+  .modal-actions {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 0.625rem;
+  }
+  .modal-actions > * { width: 100%; justify-content: center; }
+  @media (min-width: 640px) {
+    .modal-actions {
+      flex-direction: row;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+    .modal-actions > * { width: auto; }
+  }
+
+  /* ── Filter bars ───────────────────────────────────────────────────────
+     One column on a phone, two on a large phone / small tablet, then as many
+     as fit. The search box always spans the full row. */
+  .filter-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .filter-grid > .filter-search { grid-column: 1 / -1; }
+  @media (min-width: 640px) {
+    .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1024px) {
+    .filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+
+  /* Tab strips scroll rather than wrap into a ragged block on a narrow screen. */
+  .tab-strip {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tab-strip::-webkit-scrollbar { display: none; }
+  .tab-strip > * { flex-shrink: 0; }
 }
 
 @layer utilities {

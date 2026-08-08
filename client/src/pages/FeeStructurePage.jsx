@@ -214,13 +214,13 @@ export default function FeeStructurePage() {
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold t-body tracking-tight uppercase flex items-center gap-2">
-            <Settings className="t-brand" /> Fee Settings
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase flex items-center gap-2">
+            <Settings className="t-brand flex-shrink-0" /> Fee Settings
           </h1>
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">Configure class structures and student adjustments</p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           {can('feeStructures', 'create') && (
             <button onClick={openRolloverModal} className="btn btn-ghost">
               <ArrowRightLeft size={14} /> Carry/Rollover Fees
@@ -239,14 +239,14 @@ export default function FeeStructurePage() {
       </div>
 
       {/* Screen Analytics Panel */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
             <Landmark className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Average Monthly Tuition</p>
-            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">Rs. {averageTuition.toLocaleString()}</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">Rs. {averageTuition.toLocaleString()}</p>
             <p className="t-faint text-xs mt-1 font-medium">Class-wise standard mean rate</p>
           </div>
         </div>
@@ -257,7 +257,7 @@ export default function FeeStructurePage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Custom Overrides</p>
-            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">{overridesCount} accounts</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">{overridesCount} accounts</p>
             <p className="t-faint text-xs mt-1 font-medium">Students with override adjustments</p>
           </div>
         </div>
@@ -268,7 +268,7 @@ export default function FeeStructurePage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Highest Tuition Rate</p>
-            <p className="text-2xl font-extrabold t-warn mt-0.5 tracking-tight">
+            <p className="text-xl sm:text-2xl font-extrabold t-warn mt-0.5 tracking-tight break-words">
               {highestTuition ? `Rs. ${highestTuition.tuitionFee.toLocaleString()}` : '—'}
             </p>
             <p className="t-faint text-xs mt-1 font-medium truncate">
@@ -279,15 +279,15 @@ export default function FeeStructurePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-4 border-b border-line">
+      <div className="tab-strip gap-4 border-b border-line">
         <button
-          className={`pb-2.5 px-4 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'class' ? 'border-b-2 border-brand t-brand' : 't-muted hover:t-body'}`}
+          className={`pb-2.5 px-4 text-xs font-bold uppercase tracking-wider transition-colors whitespace-nowrap ${activeTab === 'class' ? 'border-b-2 border-brand t-brand' : 't-muted hover:t-body'}`}
           onClick={() => setActiveTab('class')}
         >
           Class Fee Structures
         </button>
         <button
-          className={`pb-2.5 px-4 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'override' ? 'border-b-2 border-purple-500 t-brand' : 't-muted hover:t-body'}`}
+          className={`pb-2.5 px-4 text-xs font-bold uppercase tracking-wider transition-colors whitespace-nowrap ${activeTab === 'override' ? 'border-b-2 border-purple-500 t-brand' : 't-muted hover:t-body'}`}
           onClick={() => setActiveTab('override')}
         >
           Student Fee Overrides
@@ -297,8 +297,8 @@ export default function FeeStructurePage() {
       {/* Table grids */}
       {activeTab === 'class' && (
         <div className="card card-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+          <div className="table-scroll">
+            <table className="w-full text-xs text-left rtable">
               <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
                 <tr>
                   <th className="p-4">Class</th>
@@ -314,14 +314,14 @@ export default function FeeStructurePage() {
               <tbody className="divide-y divide-line t-muted">
                 {structures.map(s => (
                   <tr key={s._id} className="hover:bg-surface-2 transition">
-                    <td className="p-4 font-bold t-body">Class {s.className}</td>
-                    <td className="p-4 font-semibold">Rs {s.tuitionFee?.toLocaleString()}</td>
-                    <td className="p-4">Rs {s.admissionFee?.toLocaleString()}</td>
-                    <td className="p-4">Rs {s.examFee?.toLocaleString()}</td>
-                    <td className="p-4">Rs {s.transportFee?.toLocaleString()}</td>
-                    <td className="p-4">Rs {s.miscFee?.toLocaleString()}</td>
-                    <td className="p-4 font-bold t-brand">Rs {(s.annualFee || 0).toLocaleString()}</td>
-                    <td className="p-4">
+                    <td data-label="Class" className="p-4 font-bold t-body">Class {s.className}</td>
+                    <td data-label="Tuition Fee" className="p-4 font-semibold">Rs {s.tuitionFee?.toLocaleString()}</td>
+                    <td data-label="Admission Fee" className="p-4">Rs {s.admissionFee?.toLocaleString()}</td>
+                    <td data-label="Exam Fee" className="p-4">Rs {s.examFee?.toLocaleString()}</td>
+                    <td data-label="Transport Fee" className="p-4">Rs {s.transportFee?.toLocaleString()}</td>
+                    <td data-label="Misc Fee" className="p-4">Rs {s.miscFee?.toLocaleString()}</td>
+                    <td data-label="Annual Fee" className="p-4 font-bold t-brand">Rs {(s.annualFee || 0).toLocaleString()}</td>
+                    <td data-actions="" className="p-4">
                       {can('feeStructures', 'edit') && (
                         <button onClick={() => openStructModal(s)} className="p-2 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition"><Edit size={14} /></button>
                       )}
@@ -329,7 +329,7 @@ export default function FeeStructurePage() {
                   </tr>
                 ))}
                 {structures.length === 0 && (
-                  <tr>
+                  <tr className="row-plain">
                     <td colSpan="8" className="p-12 text-center t-faint font-medium">No class fee structures defined yet.</td>
                   </tr>
                 )}
@@ -341,8 +341,8 @@ export default function FeeStructurePage() {
 
       {activeTab === 'override' && (
         <div className="card card-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+          <div className="table-scroll">
+            <table className="w-full text-xs text-left rtable">
               <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
                 <tr>
                   <th className="p-4">Student</th>
@@ -357,16 +357,18 @@ export default function FeeStructurePage() {
               <tbody className="divide-y divide-line t-muted">
                 {overrides.map(o => (
                   <tr key={o._id} className="hover:bg-surface-2 transition">
-                    <td className="p-4">
-                      <p className="font-bold t-body">{o.student?.fullName}</p>
-                      <p className="text-[10px] font-mono t-faint mt-0.5">{o.student?.studentId}</p>
+                    <td data-label="Student" className="p-4">
+                      <div>
+                        <p className="font-bold t-body">{o.student?.fullName}</p>
+                        <p className="text-[10px] font-mono t-faint mt-0.5">{o.student?.studentId}</p>
+                      </div>
                     </td>
-                    <td className="p-4 font-bold t-brand">{fmtOverride(o.customTuitionFee)}</td>
-                    <td className="p-4 font-semibold t-muted">{fmtOverride(o.customTransportFee)}</td>
-                    <td className="p-4 font-semibold t-muted">{fmtOverride(o.customMiscFee)}</td>
-                    <td className="p-4 font-bold t-brand">{fmtOverride(o.customAnnualFee)}</td>
-                    <td className="p-4 t-muted">{o.reason || '—'}</td>
-                    <td className="p-4">
+                    <td data-label="Custom Tuition" className="p-4 font-bold t-brand">{fmtOverride(o.customTuitionFee)}</td>
+                    <td data-label="Custom Transport" className="p-4 font-semibold t-muted">{fmtOverride(o.customTransportFee)}</td>
+                    <td data-label="Custom Misc" className="p-4 font-semibold t-muted">{fmtOverride(o.customMiscFee)}</td>
+                    <td data-label="Custom Annual" className="p-4 font-bold t-brand">{fmtOverride(o.customAnnualFee)}</td>
+                    <td data-label="Reason" className="p-4 t-muted">{o.reason || '—'}</td>
+                    <td data-actions="" className="p-4">
                       <div className="flex items-center gap-1">
                         {can('feeStructures', 'edit') && (
                           <button onClick={() => openOverrideModal(o)} className="p-2 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" title="Edit override"><Edit size={14} /></button>
@@ -379,7 +381,7 @@ export default function FeeStructurePage() {
                   </tr>
                 ))}
                 {overrides.length === 0 && (
-                  <tr>
+                  <tr className="row-plain">
                     <td colSpan="7" className="p-12 text-center t-faint font-medium">No student overrides defined yet.</td>
                   </tr>
                 )}
@@ -391,8 +393,8 @@ export default function FeeStructurePage() {
 
       {/* Modals */}
       {showStructModal && (
-        <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="card card-lg w-full max-w-md p-6">
+        <div className="modal-shell bg-black/55 backdrop-blur-sm">
+          <div className="card card-lg modal-box sm:max-w-md p-5 sm:p-6 overflow-y-auto">
             <h2 className="text-base font-bold uppercase tracking-wider t-body mb-4">Set Class Fee Structure</h2>
             <form onSubmit={handleStructSubmit} className="space-y-4">
               <div>
@@ -401,7 +403,7 @@ export default function FeeStructurePage() {
                   {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Tuition Fee</label><input type="number" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand" value={structForm.tuitionFee} onChange={e=>setStructForm({...structForm, tuitionFee: e.target.value})} /></div>
                 <div><label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Transport Fee</label><input type="number" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand" value={structForm.transportFee} onChange={e=>setStructForm({...structForm, transportFee: e.target.value})} /></div>
                 <div><label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Admission Fee</label><input type="number" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand" value={structForm.admissionFee} onChange={e=>setStructForm({...structForm, admissionFee: e.target.value})} /></div>
@@ -409,8 +411,8 @@ export default function FeeStructurePage() {
                 <div><label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Misc Fee</label><input type="number" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand" value={structForm.miscFee} onChange={e=>setStructForm({...structForm, miscFee: e.target.value})} /></div>
                 <div><label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Annual Fee</label><input type="number" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand" value={structForm.annualFee} onChange={e=>setStructForm({...structForm, annualFee: e.target.value})} /></div>
               </div>
-              <div className="flex gap-3 justify-end pt-4 border-t border-line">
-                <button type="button" onClick={() => setShowStructModal(false)} className="px-4 py-2 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-2 rounded-xl transition">Cancel</button>
+              <div className="modal-actions pt-4 border-t border-line">
+                <button type="button" onClick={() => setShowStructModal(false)} className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-2 border border-line rounded-xl transition">Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Structure</button>
               </div>
             </form>
@@ -419,8 +421,8 @@ export default function FeeStructurePage() {
       )}
 
       {showOverrideModal && (
-        <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="card card-lg w-full max-w-md p-6">
+        <div className="modal-shell bg-black/55 backdrop-blur-sm">
+          <div className="card card-lg modal-box sm:max-w-md p-5 sm:p-6 overflow-y-auto">
             <h2 className="text-base font-bold uppercase tracking-wider t-body mb-1">
               {editingOverride ? 'Edit Student Override' : 'Add Student Override'}
             </h2>
@@ -498,7 +500,7 @@ export default function FeeStructurePage() {
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Custom Tuition</label><input type="number" min="0" placeholder="Class default" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand" value={overrideForm.customTuitionFee} onChange={e=>setOverrideForm({...overrideForm, customTuitionFee: e.target.value})} /></div>
                 <div><label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Custom Transport</label><input type="number" min="0" placeholder="Class default" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand" value={overrideForm.customTransportFee} onChange={e=>setOverrideForm({...overrideForm, customTransportFee: e.target.value})} /></div>
                 <div><label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Custom Misc</label><input type="number" min="0" placeholder="Class default" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand" value={overrideForm.customMiscFee} onChange={e=>setOverrideForm({...overrideForm, customMiscFee: e.target.value})} /></div>
@@ -513,8 +515,8 @@ export default function FeeStructurePage() {
                 only once per session.
               </p>
               <div><label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Reason</label><input type="text" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand" value={overrideForm.reason} onChange={e=>setOverrideForm({...overrideForm, reason: e.target.value})} /></div>
-              <div className="flex gap-3 justify-end pt-4 border-t border-line">
-                <button type="button" onClick={() => setShowOverrideModal(false)} className="px-4 py-2 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-2 rounded-xl transition">Cancel</button>
+              <div className="modal-actions pt-4 border-t border-line">
+                <button type="button" onClick={() => setShowOverrideModal(false)} className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-2 border border-line rounded-xl transition">Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Override</button>
               </div>
             </form>
@@ -523,8 +525,8 @@ export default function FeeStructurePage() {
       )}
 
       {showRolloverModal && (
-        <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="card card-lg w-full max-w-md p-6">
+        <div className="modal-shell bg-black/55 backdrop-blur-sm">
+          <div className="card card-lg modal-box sm:max-w-md p-5 sm:p-6 overflow-y-auto">
             <h2 className="text-base font-bold uppercase tracking-wider t-body mb-4 flex items-center gap-2">
               <ArrowRightLeft className="t-ok" /> Carry/Rollover Fees
             </h2>
@@ -550,8 +552,8 @@ export default function FeeStructurePage() {
                 <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Tuition Fee Increment (Rs.)</label>
                 <input type="number" className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand" value={rolloverForm.incrementAmount} onChange={e=>setRolloverForm({...rolloverForm, incrementAmount: e.target.value})} required min="0" />
               </div>
-              <div className="flex gap-3 justify-end pt-4 border-t border-line">
-                <button type="button" onClick={() => setShowRolloverModal(false)} className="px-4 py-2 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-2 rounded-xl transition">Cancel</button>
+              <div className="modal-actions pt-4 border-t border-line">
+                <button type="button" onClick={() => setShowRolloverModal(false)} className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-2 border border-line rounded-xl transition">Cancel</button>
                 <button type="submit" className="btn btn-primary">Carry Fees</button>
               </div>
             </form>

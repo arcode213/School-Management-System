@@ -11,13 +11,15 @@ export function StatCard({ title, value, sub, icon: Icon, color }) {
   const c = colors[color] || colors.blue;
 
   return (
-    <div className={`glass-card p-5 flex items-start gap-4 ${c.border}`}>
+    <div className={`glass-card p-4 sm:p-5 flex items-start gap-3 sm:gap-4 ${c.border}`}>
       <div className={`bg-gradient-to-tr ${c.iconBg} rounded-xl p-3 flex-shrink-0 shadow-[0_0_15px_rgba(255,255,255,0.05)]`}>
         <Icon className="t-body w-5 h-5" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="t-muted text-[10px] font-bold uppercase tracking-wider">{title}</p>
-        <p className={`text-2xl font-extrabold ${c.text} mt-0.5 tracking-tight`}>{value ?? '—'}</p>
+        {/* Rupee figures run long; they wrap here rather than pushing the card
+            past the screen edge on a phone. */}
+        <p className={`text-xl sm:text-2xl font-extrabold ${c.text} mt-0.5 tracking-tight break-words`}>{value ?? '—'}</p>
         {sub && <p className="t-faint text-xs mt-1 font-medium">{sub}</p>}
       </div>
     </div>

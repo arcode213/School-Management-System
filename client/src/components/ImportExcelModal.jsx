@@ -3,6 +3,7 @@ import { X, UploadCloud, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as xlsx from 'xlsx';
 import api from '../api/axios';
+import ModalPortal from './ModalPortal';
 
 // Rows are sent in batches instead of one giant JSON body. A single request with
 // a full sheet exceeded the server's body limit (413 "request entity too large"),
@@ -211,35 +212,36 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
-      <div className="bg-solid rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-4 border-b border-line">
-          <h2 className="text-lg font-bold t-body">
+    <ModalPortal>
+    <div className="modal-shell bg-black/55 backdrop-blur-sm">
+      <div className="modal-box bg-solid shadow-xl sm:max-w-lg animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between gap-3 p-4 border-b border-line flex-shrink-0">
+          <h2 className="text-lg font-bold t-body truncate">
             Import {type === 'students' ? 'Students' : 'Employees'}
           </h2>
-          <button onClick={onClose} className="p-2 t-muted hover:t-muted hover:bg-surface-2 rounded-full transition">
+          <button onClick={onClose} className="icon-btn flex-shrink-0" aria-label="Close">
             <X size={18} />
           </button>
         </div>
 
-        <div className="p-6">
-          <div className="flex justify-between items-center bg-brand-soft border border-brand-border rounded-xl p-4 mb-6">
-            <div className="flex items-center gap-3">
-              <FileSpreadsheet className="t-brand" size={24} />
-              <div>
+        <div className="p-4 sm:p-6 overflow-y-auto">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-brand-soft border border-brand-border rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-3 min-w-0">
+              <FileSpreadsheet className="t-brand flex-shrink-0" size={24} />
+              <div className="min-w-0">
                 <p className="text-sm font-semibold t-body">Download Template</p>
                 <p className="text-xs t-faint">Fill your data according to the format.</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={downloadTemplate}
-              className="px-4 py-2 bg-solid t-brand text-sm font-medium border border-brand-border rounded-lg shadow-sm hover:bg-brand-soft transition">
+              className="px-4 py-2 bg-solid t-brand text-sm font-medium border border-brand-border rounded-lg shadow-sm hover:bg-brand-soft transition flex-shrink-0">
               Download
             </button>
           </div>
 
           <div
-            className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-2xl transition ${dragActive ? 'border-brand bg-brand-soft' : 'border-line bg-surface-2 hover:bg-surface-2'}`}
+            className={`relative flex flex-col items-center justify-center p-6 sm:p-10 border-2 border-dashed rounded-2xl transition ${dragActive ? 'border-brand bg-brand-soft' : 'border-line bg-surface-2 hover:bg-surface-2'}`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -301,9 +303,9 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
           </div>
         </div>
 
-        <div className="p-4 border-t border-line flex justify-end gap-2 bg-surface-2">
+        <div className="p-4 border-t border-line modal-actions bg-surface-2 flex-shrink-0">
           <button type="button" onClick={onClose} disabled={loading}
-            className="px-4 py-2 text-sm font-medium t-muted bg-solid border border-line rounded-xl hover:bg-surface-2 transition">
+            className="px-4 py-2.5 text-sm font-medium t-muted bg-solid border border-line rounded-xl hover:bg-surface-2 transition">
             Cancel
           </button>
         </div>
@@ -326,5 +328,6 @@ export default function ImportExcelModal({ open, onClose, onImportSuccess, type 
         )}
       </div>
     </div>
+    </ModalPortal>
   );
 }

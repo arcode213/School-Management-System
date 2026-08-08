@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { X, Loader2, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { addStudent, updateStudent } from '../api/students';
+import ModalPortal from './ModalPortal';
 import { CLASSES, SECTIONS } from '../utils/constants';
 
 export default function StudentFormModal({ open, onClose, student, onSaved }) {
@@ -54,27 +55,28 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <ModalPortal>
+    <div className="modal-shell">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-solid rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="modal-box bg-solid shadow-2xl sm:max-w-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-brand rounded-xl flex items-center justify-center">
+        <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-line flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 bg-brand rounded-xl flex items-center justify-center flex-shrink-0">
               <User className="t-body w-4 h-4" />
             </div>
-            <h2 className="font-semibold t-body">{isEdit ? 'Edit Student' : 'Add New Student'}</h2>
+            <h2 className="font-semibold t-body truncate">{isEdit ? 'Edit Student' : 'Add New Student'}</h2>
           </div>
-          <button onClick={onClose} className="t-muted hover:t-muted transition">
+          <button onClick={onClose} className="icon-btn flex-shrink-0" aria-label="Close">
             <X size={20} />
           </button>
         </div>
 
         {/* Body */}
-        <form id="student-form" onSubmit={handleSubmit(onSubmit)} className="overflow-y-auto px-6 py-5 space-y-5 flex-1">
+        <form id="student-form" onSubmit={handleSubmit(onSubmit)} className="overflow-y-auto px-5 sm:px-6 py-5 space-y-5 flex-1">
           {/* Personal Info */}
           <Section title="Personal Information">
             <Field label="Full Name" error={errors.fullName?.message}>
@@ -172,7 +174,7 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
           <Section title="Fee Status & Opening Arrears">
             {/* Freeship — editable at any time, since a waiver can be granted or
                 revoked mid-session. */}
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <label htmlFor="std-isFreeship"
                 className="flex items-start gap-3 border border-warn-border bg-warn-soft rounded-lg px-3 py-2.5 cursor-pointer hover:bg-warn-soft transition">
                 <input id="std-isFreeship" type="checkbox" {...register('isFreeship')} className="mt-0.5 flex-shrink-0" />
@@ -200,7 +202,7 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
             <Field label="Annual Fee Already Paid (Rs.)">
               <input id="std-annualFeePaid" type="number" min="0" {...register('annualFeePaid', { valueAsNumber: true })} className={input()} placeholder="e.g. 3000" disabled={isEdit} />
             </Field>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <p className="text-xs t-muted leading-snug">
                 {isEdit
                   ? 'Opening balances are set at admission. Adjust the existing arrears challan from Fee Management instead.'
@@ -218,7 +220,7 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
 
           {/* Address */}
           <Section title="Address">
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <label className="block text-xs font-medium t-muted mb-1">Address</label>
               <textarea id="std-address" {...register('address')} rows={2}
                 className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"
@@ -228,18 +230,19 @@ export default function StudentFormModal({ open, onClose, student, onSaved }) {
         </form>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-line flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm t-muted hover:t-body border border-line rounded-lg transition">
+        <div className="px-5 sm:px-6 py-4 border-t border-line modal-actions flex-shrink-0">
+          <button type="button" onClick={onClose} className="px-4 py-2.5 text-sm t-muted hover:t-body border border-line rounded-lg transition">
             Cancel
           </button>
           <button type="submit" form="student-form" disabled={isSubmitting}
-            className="px-5 py-2 text-sm bg-brand hover:bg-brand t-body font-medium rounded-lg transition flex items-center gap-2 disabled:opacity-60">
+            className="px-5 py-2.5 text-sm bg-brand hover:bg-brand t-body font-medium rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-60">
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
             {isEdit ? 'Save Changes' : 'Add Student'}
           </button>
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 
@@ -251,7 +254,9 @@ function Section({ title, children }) {
   return (
     <div>
       <p className="text-xs font-semibold t-muted uppercase tracking-wide mb-3">{title}</p>
-      <div className="grid grid-cols-2 gap-4">{children}</div>
+      {/* One field per row on a phone — a 12-field form in two 160px columns is
+          unreadable and the inputs are too narrow to type a name into. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
     </div>
   );
 }

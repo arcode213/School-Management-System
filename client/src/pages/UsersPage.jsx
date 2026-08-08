@@ -215,8 +215,8 @@ export default function UsersPage() {
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold t-body tracking-tight uppercase">User Management</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase">User Management</h1>
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">
             Set who can open which screens, what they may change, and which campuses and sessions they work in
           </p>
@@ -230,14 +230,14 @@ export default function UsersPage() {
       </div>
 
       {/* Screen Analytics: User Summary Panel */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
             <Users className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Total Accounts</p>
-            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">{users.length} registered</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">{users.length} registered</p>
             <p className="t-faint text-xs mt-1 font-medium">{activeCount} active user sessions</p>
           </div>
         </div>
@@ -248,7 +248,7 @@ export default function UsersPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Admins / Managers</p>
-            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">{roleBreakdown.Admin + roleBreakdown.Administrator} users</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">{roleBreakdown.Admin + roleBreakdown.Administrator} users</p>
             <p className="t-faint text-xs mt-1 font-medium">{roleBreakdown.Admin} Super Admins • {roleBreakdown.Administrator} Admins</p>
           </div>
         </div>
@@ -259,7 +259,7 @@ export default function UsersPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Scoped Accounts</p>
-            <p className="text-2xl font-extrabold t-ok mt-0.5 tracking-tight">{restrictedCount} restricted</p>
+            <p className="text-xl sm:text-2xl font-extrabold t-ok mt-0.5 tracking-tight break-words">{restrictedCount} restricted</p>
             <p className="t-faint text-xs mt-1 font-medium">Limited to specific campuses or sessions</p>
           </div>
         </div>
@@ -267,8 +267,8 @@ export default function UsersPage() {
 
       {/* Grid table */}
       <div className="card card-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
+        <div className="table-scroll">
+          <table className="w-full text-xs text-left rtable">
             <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
               <tr>
                 <th className="px-5 py-4">Name</th>
@@ -283,9 +283,9 @@ export default function UsersPage() {
             <tbody className="divide-y divide-line t-muted">
               {users.map((u) => (
                 <tr key={u._id} className="hover:bg-surface-2 transition group">
-                  <td className="px-5 py-4 font-bold t-body whitespace-nowrap">{u.name}</td>
-                  <td className="px-5 py-4 t-muted font-medium font-mono">{u.email}</td>
-                  <td className="px-5 py-4">
+                  <td data-label="Name" className="px-5 py-4 font-bold t-body md:whitespace-nowrap">{u.name}</td>
+                  <td data-label="Email" className="px-5 py-4 t-muted font-medium font-mono break-all">{u.email}</td>
+                  <td data-label="Role" className="px-5 py-4">
                     <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
                       u.role === 'Admin' ? 'bg-brand-soft t-brand border-brand-border' :
                       u.role === 'Administrator' ? 'bg-brand-soft t-brand border-brand-border' :
@@ -294,34 +294,38 @@ export default function UsersPage() {
                       {u.role}
                     </span>
                   </td>
-                  <td className="px-5 py-4 t-muted font-medium max-w-56">
-                    {summarizeGrid(u)}
-                    {/* A per-campus grid replaces the default at that campus, so
-                        the summary above is not the whole story for this account. */}
-                    {Object.keys(u.campusPermissions || {}).length > 0 && (
-                      <span className="block mt-1 text-[10px] font-bold uppercase tracking-wider t-ok">
-                        Different at {Object.keys(u.campusPermissions).length} campus
-                        {Object.keys(u.campusPermissions).length > 1 ? 'es' : ''}
+                  <td data-label="Access Granted" className="px-5 py-4 t-muted font-medium md:max-w-56">
+                    <div>
+                      {summarizeGrid(u)}
+                      {/* A per-campus grid replaces the default at that campus, so
+                          the summary above is not the whole story for this account. */}
+                      {Object.keys(u.campusPermissions || {}).length > 0 && (
+                        <span className="block mt-1 text-[10px] font-bold uppercase tracking-wider t-ok">
+                          Different at {Object.keys(u.campusPermissions).length} campus
+                          {Object.keys(u.campusPermissions).length > 1 ? 'es' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td data-label="Campus / Session" className="px-5 py-4 t-muted font-medium">
+                    <div>
+                      <span className="flex items-center gap-1.5 md:justify-start justify-end">
+                        <Building2 size={11} className="t-faint flex-shrink-0" />
+                        {scopeLabel(u, 'campusScope', 'All campuses')}
                       </span>
-                    )}
+                      <span className="flex items-center gap-1.5 mt-1 md:justify-start justify-end">
+                        <CalendarDays size={11} className="t-faint flex-shrink-0" />
+                        {scopeLabel(u, 'sessionScope', 'All sessions')}
+                      </span>
+                    </div>
                   </td>
-                  <td className="px-5 py-4 t-muted font-medium">
-                    <span className="flex items-center gap-1.5">
-                      <Building2 size={11} className="t-faint flex-shrink-0" />
-                      {scopeLabel(u, 'campusScope', 'All campuses')}
-                    </span>
-                    <span className="flex items-center gap-1.5 mt-1">
-                      <CalendarDays size={11} className="t-faint flex-shrink-0" />
-                      {scopeLabel(u, 'sessionScope', 'All sessions')}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
+                  <td data-label="Status" className="px-5 py-4">
                     <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${u.isActive ? 'bg-ok-soft t-ok border-ok-border' : 'bg-bad-soft t-bad border-bad-border'}`}>
                       {u.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
+                  <td data-actions="" className="px-5 py-4">
+                    <div className="row-actions">
                       <button onClick={() => openModal(u)} className="p-1.5 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" title="Edit access">
                         <Pencil size={14} />
                       </button>
@@ -338,7 +342,7 @@ export default function UsersPage() {
                 </tr>
               ))}
               {users.length === 0 && (
-                <tr>
+                <tr className="row-plain">
                   <td colSpan="7" className="p-12 text-center t-faint font-medium">No users found.</td>
                 </tr>
               )}
@@ -350,10 +354,10 @@ export default function UsersPage() {
       {/* Modal */}
       {isModalOpen && (
         <ModalPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="modal-shell">
             <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={closeModal} />
-            <div className="card card-lg relative w-full max-w-4xl flex flex-col max-h-[92vh] overflow-hidden animate-fade-in-up">
-              <div className="px-6 py-4 border-b border-line bg-surface-2 flex justify-between items-center flex-shrink-0">
+            <div className="card card-lg modal-box sm:max-w-4xl animate-fade-in-up">
+              <div className="px-5 sm:px-6 py-4 border-b border-line bg-surface-2 flex justify-between items-center gap-3 flex-shrink-0">
                 <div>
                   <h2 className="text-sm font-bold uppercase tracking-wider t-body">
                     {editingUser ? `Edit Access — ${editingUser.name}` : 'Create System Account'}
@@ -362,10 +366,10 @@ export default function UsersPage() {
                     Only you, as Admin, can set these
                   </p>
                 </div>
-                <button onClick={closeModal} className="t-muted hover:t-body"><X size={20} /></button>
+                <button onClick={closeModal} className="icon-btn flex-shrink-0" aria-label="Close"><X size={20} /></button>
               </div>
 
-              <form id="user-form" onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5 overflow-y-auto">
+              <form id="user-form" onSubmit={handleSubmit(onSubmit)} className="p-5 sm:p-6 space-y-5 overflow-y-auto">
                 {/* Account details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -399,16 +403,18 @@ export default function UsersPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5">
+                {/* The hint drops to its own line on a phone rather than
+                    squeezing the label it belongs to into two words a line. */}
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                   <input
                     type="checkbox" id="isActive" {...register('isActive')}
                     disabled={editingSuperAdmin}
-                    className="rounded border-line bg-surface-2 t-brand focus:ring-brand cursor-pointer w-4 h-4 disabled:opacity-50"
+                    className="rounded border-line bg-surface-2 t-brand focus:ring-brand cursor-pointer w-4 h-4 flex-shrink-0 disabled:opacity-50"
                   />
                   <label htmlFor="isActive" className="text-xs t-muted font-bold uppercase tracking-wider cursor-pointer">
                     Account is Active
                   </label>
-                  <span className="t-faint text-[10px] font-medium">An inactive account cannot log in at all.</span>
+                  <span className="t-faint text-[10px] font-medium w-full sm:w-auto">An inactive account cannot log in at all.</span>
                 </div>
 
                 {isAdminRole && (
@@ -424,7 +430,7 @@ export default function UsersPage() {
 
                 {/* Permissions */}
                 <div className="pt-1">
-                  <div className="flex items-baseline justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 mb-2">
                     <h3 className="text-[11px] font-bold t-body uppercase tracking-widest">What this user can do</h3>
                     <span className="t-faint text-[10px] font-medium">
                       Ticking a write box turns View on — you cannot change what you cannot open
@@ -476,7 +482,7 @@ export default function UsersPage() {
                     <PermissionMatrix grid={grid} onChange={setGrid} disabled={isAdminRole} />
                   ) : hasOverride(permTab) ? (
                     <>
-                      <div className="note note-info flex items-start justify-between gap-3 mb-3">
+                      <div className="note note-info flex flex-col sm:flex-row items-start sm:justify-between gap-3 mb-3">
                         <span>
                           These rights apply <strong>only at {campuses.find(c => c._id === permTab)?.name}</strong>.
                           They replace the default entirely — what is unticked here is not allowed here, even if
@@ -515,7 +521,7 @@ export default function UsersPage() {
 
                 {/* Data scope */}
                 <div className="pt-1">
-                  <div className="flex items-baseline justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 mb-2">
                     <h3 className="text-[11px] font-bold t-body uppercase tracking-widest">What data this user can see</h3>
                     <span className="t-faint text-[10px] font-medium">
                       Everything on every screen is filtered to these
@@ -544,8 +550,8 @@ export default function UsersPage() {
                 </div>
               </form>
 
-              <div className="px-6 py-4 border-t border-line bg-surface-2 flex justify-end gap-3 flex-shrink-0">
-                <button type="button" onClick={closeModal} className="px-4 py-2 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-3 rounded-xl transition">
+              <div className="px-5 sm:px-6 py-4 border-t border-line bg-surface-2 modal-actions flex-shrink-0">
+                <button type="button" onClick={closeModal} className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-3 border border-line rounded-xl transition">
                   Cancel
                 </button>
                 <button type="submit" form="user-form" className="btn btn-primary">

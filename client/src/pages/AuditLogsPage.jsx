@@ -129,15 +129,15 @@ export default function AuditLogsPage() {
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold t-body tracking-tight uppercase flex items-center gap-2">
-            <ScrollText className="t-brand" size={22} /> Activity Logs
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase flex items-center gap-2">
+            <ScrollText className="t-brand flex-shrink-0" size={22} /> Activity Logs
           </h1>
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">
             Every action taken in the system — who did it, what changed, and when
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button onClick={exportCsv} disabled={logs.length === 0} className="btn btn-ghost disabled:opacity-40">
             <Download size={14} /> Export Page
           </button>
@@ -148,14 +148,14 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="card card-lg p-5 flex items-start gap-4">
           <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-xl p-3 flex-shrink-0 shadow-md">
             <Activity className="t-body w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Total Recorded</p>
-            <p className="text-2xl font-extrabold t-brand mt-0.5 tracking-tight">
+            <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">
               {(meta.stats?.total ?? 0).toLocaleString()} entries
             </p>
             <p className="t-faint text-xs mt-1 font-medium">Since logging was switched on</p>
@@ -168,7 +168,7 @@ export default function AuditLogsPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Last 24 Hours</p>
-            <p className="text-2xl font-extrabold t-ok mt-0.5 tracking-tight">
+            <p className="text-xl sm:text-2xl font-extrabold t-ok mt-0.5 tracking-tight break-words">
               {(meta.stats?.today ?? 0).toLocaleString()} actions
             </p>
             <p className="t-faint text-xs mt-1 font-medium">Across all users and campuses</p>
@@ -181,7 +181,7 @@ export default function AuditLogsPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="t-muted text-[10px] font-bold uppercase tracking-wider">Blocked / Failed</p>
-            <p className={`text-2xl font-extrabold mt-0.5 tracking-tight ${meta.stats?.failures ? 't-warn' : 't-muted'}`}>
+            <p className={`text-xl sm:text-2xl font-extrabold mt-0.5 tracking-tight break-words ${meta.stats?.failures ? 't-warn' : 't-muted'}`}>
               {(meta.stats?.failures ?? 0).toLocaleString()} in 24h
             </p>
             <p className="t-faint text-xs mt-1 font-medium">Refused actions and failed sign-ins</p>
@@ -190,8 +190,8 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Filters */}
-      <div className="card card-lg p-4 flex flex-wrap gap-3 items-center">
-        <div className="flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs flex-1 min-w-56 items-center gap-2">
+      <div className="card card-lg p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-center">
+        <div className="sm:col-span-2 lg:col-span-4 flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs items-center gap-2">
           <Search size={14} className="t-faint" />
           <input
             type="text"
@@ -226,12 +226,12 @@ export default function AuditLogsPage() {
           ))}
         </select>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
           <input type="date" value={from} onChange={e => { setFrom(e.target.value); setPage(1); }}
-            className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer" />
-          <ArrowRight size={12} className="t-faint" />
+            className="min-w-0 flex-1 bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer" />
+          <ArrowRight size={12} className="t-faint flex-shrink-0" />
           <input type="date" value={to} onChange={e => { setTo(e.target.value); setPage(1); }}
-            className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer" />
+            className="min-w-0 flex-1 bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer" />
         </div>
 
         {anyFilter && (
@@ -250,8 +250,8 @@ export default function AuditLogsPage() {
             <p className="text-xs uppercase font-bold tracking-wider mt-3">Loading activity...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+          <div className="table-scroll">
+            <table className="w-full text-xs text-left rtable">
               <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
                 <tr>
                   <th className="px-5 py-4">When</th>
@@ -274,52 +274,63 @@ export default function AuditLogsPage() {
                         className={`hover:bg-surface-2 transition ${detailed ? 'cursor-pointer' : ''} ${!log.success ? 'bg-warn-soft/30' : ''}`}
                         onClick={() => detailed && setExpanded(open ? null : log._id)}
                       >
-                        <td className="px-5 py-3.5 whitespace-nowrap">
-                          <p className="font-bold t-body">{when.date}</p>
-                          <p className="t-faint text-[10px] font-mono mt-0.5">{when.time}</p>
+                        <td data-label="When" className="px-5 py-3.5 md:whitespace-nowrap">
+                          <div>
+                            <p className="font-bold t-body">{when.date}</p>
+                            <p className="t-faint text-[10px] font-mono mt-0.5">{when.time}</p>
+                          </div>
                         </td>
 
-                        <td className="px-5 py-3.5 whitespace-nowrap">
-                          <p className="font-bold t-body">{log.userName}</p>
-                          <p className="t-faint text-[10px] font-medium mt-0.5">
-                            {log.userRole || '—'}{log.userEmail ? ` · ${log.userEmail}` : ''}
-                          </p>
+                        <td data-label="Who" className="px-5 py-3.5 md:whitespace-nowrap">
+                          <div>
+                            <p className="font-bold t-body">{log.userName}</p>
+                            <p className="t-faint text-[10px] font-medium mt-0.5 break-all">
+                              {log.userRole || '—'}{log.userEmail ? ` · ${log.userEmail}` : ''}
+                            </p>
+                          </div>
                         </td>
 
-                        <td className="px-5 py-3.5">
+                        <td data-label="Action" className="px-5 py-3.5">
                           <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${ACTION_STYLE[log.action] || ACTION_STYLE.other}`}>
                             {ACTION_LABEL[log.action] || log.action}
                           </span>
                         </td>
 
-                        <td className="px-5 py-3.5 t-muted font-medium capitalize">
-                          {log.module}
-                          {log.campus?.name && (
-                            <span className="block t-faint text-[10px] mt-0.5">{log.campus.name}</span>
-                          )}
+                        <td data-label="Area" className="px-5 py-3.5 t-muted font-medium capitalize">
+                          <div>
+                            {log.module}
+                            {log.campus?.name && (
+                              <span className="block t-faint text-[10px] mt-0.5">{log.campus.name}</span>
+                            )}
+                          </div>
                         </td>
 
-                        <td className="px-5 py-3.5 t-body font-medium max-w-md">
-                          {log.description}
-                          {log.entityLabel && (
-                            <span className="block t-faint text-[10px] font-medium mt-0.5">{log.entityLabel}</span>
-                          )}
+                        <td data-label="What Happened" className="px-5 py-3.5 t-body font-medium md:max-w-md">
+                          <div>
+                            {log.description}
+                            {log.entityLabel && (
+                              <span className="block t-faint text-[10px] font-medium mt-0.5">{log.entityLabel}</span>
+                            )}
+                          </div>
                         </td>
 
-                        <td className="px-5 py-3.5">
+                        <td data-actions="" className="px-5 py-3.5">
                           {detailed && (
-                            <ChevronDown size={14} className={`t-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider t-faint">
+                              <span className="md:hidden">{open ? 'Hide details' : 'Show details'}</span>
+                              <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+                            </span>
                           )}
                         </td>
                       </tr>
 
                       {/* The field-by-field record of what moved. */}
                       {open && (
-                        <tr className="bg-surface-2">
-                          <td colSpan="6" className="px-5 py-4">
+                        <tr className="bg-surface-2 row-plain">
+                          <td colSpan="6" className="px-4 sm:px-5 py-4">
                             {log.changes?.length > 0 ? (
-                              <div className="border border-line rounded-xl overflow-hidden">
-                                <table className="w-full text-[11px]">
+                              <div className="border border-line rounded-xl overflow-hidden table-scroll">
+                                <table className="w-full text-[11px] min-w-[24rem]">
                                   <thead className="bg-surface-3 t-muted uppercase text-[9px] font-bold tracking-wider">
                                     <tr>
                                       <th className="px-4 py-2 text-left w-1/4">Field</th>
@@ -343,7 +354,7 @@ export default function AuditLogsPage() {
                                 <p className="t-muted text-[10px] font-bold uppercase tracking-widest mb-2">
                                   {log.action === 'delete' ? 'Record as it stood when deleted' : 'Record as created'}
                                 </p>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1.5 border border-line rounded-xl p-4 bg-surface">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5 border border-line rounded-xl p-4 bg-surface text-left">
                                   {Object.entries(log.snapshot)
                                     .filter(([, v]) => v !== null && v !== '' && typeof v !== 'object')
                                     .map(([k, v]) => (
@@ -356,7 +367,7 @@ export default function AuditLogsPage() {
                               </div>
                             ) : null}
 
-                            <p className="t-faint text-[10px] font-mono mt-3">
+                            <p className="t-faint text-[10px] font-mono mt-3 break-all">
                               {log.method} {log.path} · HTTP {log.statusCode}
                               {log.ip ? ` · from ${log.ip}` : ''}
                             </p>
@@ -368,7 +379,7 @@ export default function AuditLogsPage() {
                 })}
 
                 {logs.length === 0 && (
-                  <tr>
+                  <tr className="row-plain">
                     <td colSpan="6" className="p-12 text-center t-faint font-medium">
                       {anyFilter
                         ? 'No activity matches these filters.'
@@ -383,8 +394,8 @@ export default function AuditLogsPage() {
 
         {/* Pagination */}
         {pagination.pages > 1 && (
-          <div className="flex justify-between items-center p-4 border-t border-line bg-surface-2">
-            <p className="text-xs t-muted font-medium">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 p-4 border-t border-line bg-surface-2">
+            <p className="text-xs t-muted font-medium text-center sm:text-left">
               Page {pagination.page} of {pagination.pages} · {pagination.total.toLocaleString()} entries
             </p>
             <div className="flex gap-1">

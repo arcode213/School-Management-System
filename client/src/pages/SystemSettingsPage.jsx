@@ -204,26 +204,26 @@ export default function SystemSettingsPage() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto animate-fade-in">
-      <h1 className="text-3xl font-bold t-body mb-6">System Settings</h1>
+    <div className="max-w-6xl mx-auto animate-fade-in">
+      <h1 className="text-2xl sm:text-3xl font-bold t-body mb-6">System Settings</h1>
 
       {/* Tabs */}
-      <div className="flex space-x-4 mb-6 border-b border-line">
+      <div className="tab-strip gap-1 sm:gap-4 mb-6 border-b border-line">
         <button
-          className={`py-2 px-4 font-semibold ${activeTab === 'campuses' ? 't-brand border-b-2 border-brand' : 't-faint hover:t-body'}`}
+          className={`py-2 px-3 sm:px-4 font-semibold whitespace-nowrap ${activeTab === 'campuses' ? 't-brand border-b-2 border-brand' : 't-faint hover:t-body'}`}
           onClick={() => setActiveTab('campuses')}
         >
           Campuses
         </button>
         <button
-          className={`py-2 px-4 font-semibold ${activeTab === 'sessions' ? 't-brand border-b-2 border-brand' : 't-faint hover:t-body'}`}
+          className={`py-2 px-3 sm:px-4 font-semibold whitespace-nowrap ${activeTab === 'sessions' ? 't-brand border-b-2 border-brand' : 't-faint hover:t-body'}`}
           onClick={() => setActiveTab('sessions')}
         >
           Academic Sessions
         </button>
         {isAdmin && (
           <button
-            className={`py-2 px-4 font-semibold ${activeTab === 'danger' ? 't-bad border-b-2 border-red-600' : 't-faint hover:t-bad'}`}
+            className={`py-2 px-3 sm:px-4 font-semibold whitespace-nowrap ${activeTab === 'danger' ? 't-bad border-b-2 border-red-600' : 't-faint hover:t-bad'}`}
             onClick={() => setActiveTab('danger')}
           >
             Danger Zone
@@ -236,13 +236,13 @@ export default function SystemSettingsPage() {
       ) : activeTab === 'danger' && isAdmin ? (
         <div className="max-w-2xl">
           <div className="bg-solid border-2 border-bad-border rounded-xl overflow-hidden shadow">
-            <div className="bg-bad-soft border-b border-bad-border px-6 py-4">
+            <div className="bg-bad-soft border-b border-bad-border px-4 sm:px-6 py-4">
               <h2 className="text-lg font-bold t-bad">Delete Data</h2>
               <p className="text-sm t-bad mt-0.5">
                 Tick only what you want removed. This cannot be undone — take a database backup first.
               </p>
             </div>
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-4 sm:px-6 py-5 space-y-4">
               <div className="space-y-2">
                 {RESET_GROUPS.map(group => {
                   const isForced = resetForced.has(group.key);
@@ -320,8 +320,8 @@ export default function SystemSettingsPage() {
           {/* Read-only access shows the list alone; the editor is not drawn at all
               rather than drawn and rejected on save. */}
           {canWriteSettings && (
-          <div className="md:col-span-1 bg-solid p-6 rounded-xl shadow border border-line">
-            <h2 className="text-xl font-bold mb-4">{editingCampusId ? 'Edit Campus' : 'Add New Campus'}</h2>
+          <div className="md:col-span-1 bg-solid p-4 sm:p-6 rounded-xl shadow border border-line">
+            <h2 className="text-lg sm:text-xl font-bold mb-4">{editingCampusId ? 'Edit Campus' : 'Add New Campus'}</h2>
             <form onSubmit={handleSaveCampus} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium t-body mb-1">Campus Name</label>
@@ -343,8 +343,8 @@ export default function SystemSettingsPage() {
                 <input type="checkbox" checked={campusForm.isActive} onChange={e => setCampusForm({...campusForm, isActive: e.target.checked})} className="mr-2" id="campusActive" />
                 <label htmlFor="campusActive" className="text-sm font-medium t-body">Is Active</label>
               </div>
-              <div className="flex gap-2">
-                <button type="submit" className="flex-1 bg-brand t-body font-bold py-2 px-4 rounded hover:bg-brand transition">{editingCampusId ? 'Update Campus' : 'Create Campus'}</button>
+              <div className="flex flex-wrap gap-2">
+                <button type="submit" className="flex-1 min-w-[9rem] bg-brand t-body font-bold py-2 px-4 rounded hover:bg-brand transition">{editingCampusId ? 'Update Campus' : 'Create Campus'}</button>
                 {editingCampusId && (
                   <button type="button" onClick={resetCampusForm} className="px-4 py-2 rounded border border-line t-muted hover:bg-surface-2 transition">Cancel</button>
                 )}
@@ -353,8 +353,8 @@ export default function SystemSettingsPage() {
           </div>
           )}
           <div className={canWriteSettings ? 'md:col-span-2' : 'md:col-span-3'}>
-            <div className="bg-solid rounded-xl shadow overflow-hidden border border-line">
-              <table className="min-w-full divide-y divide-line">
+            <div className="bg-solid rounded-xl shadow overflow-hidden border border-line table-scroll">
+              <table className="min-w-full divide-y divide-line rtable">
                 <thead className="bg-surface-2">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium t-faint uppercase">Code</th>
@@ -366,14 +366,14 @@ export default function SystemSettingsPage() {
                 <tbody className="bg-solid divide-y divide-line">
                   {localCampuses.map(campus => (
                     <tr key={campus._id}>
-                      <td className="px-6 py-4 whitespace-nowrap font-medium">{campus.code}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{campus.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td data-label="Code" className="px-6 py-4 md:whitespace-nowrap font-medium">{campus.code}</td>
+                      <td data-label="Name" className="px-6 py-4 md:whitespace-nowrap">{campus.name}</td>
+                      <td data-label="Status" className="px-6 py-4 md:whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${campus.isActive ? 'bg-ok-soft t-ok' : 'bg-bad-soft t-bad'}`}>
                           {campus.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <td data-actions="" className="px-6 py-4 md:whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
                           {can('settings', 'edit') && (
                             <button onClick={() => handleEditCampus(campus)} className="px-3 py-1 text-xs font-medium t-warn bg-warn-soft hover:bg-warn-soft rounded transition">Edit</button>
@@ -393,8 +393,8 @@ export default function SystemSettingsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {canWriteSettings && (
-          <div className="md:col-span-1 bg-solid p-6 rounded-xl shadow border border-line">
-            <h2 className="text-xl font-bold mb-4">{editingSessionId ? 'Edit Session' : 'Add New Session'}</h2>
+          <div className="md:col-span-1 bg-solid p-4 sm:p-6 rounded-xl shadow border border-line">
+            <h2 className="text-lg sm:text-xl font-bold mb-4">{editingSessionId ? 'Edit Session' : 'Add New Session'}</h2>
             <form onSubmit={handleSaveSession} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium t-body mb-1">Session Name</label>
@@ -420,8 +420,8 @@ export default function SystemSettingsPage() {
                 <input type="checkbox" checked={sessionForm.isActive} onChange={e => setSessionForm({...sessionForm, isActive: e.target.checked})} className="mr-2" id="sessionActive" />
                 <label htmlFor="sessionActive" className="text-sm font-medium t-body">Set as Active Default</label>
               </div>
-              <div className="flex gap-2">
-                <button type="submit" className="flex-1 bg-brand t-body font-bold py-2 px-4 rounded hover:bg-brand transition">{editingSessionId ? 'Update Session' : 'Create Session'}</button>
+              <div className="flex flex-wrap gap-2">
+                <button type="submit" className="flex-1 min-w-[9rem] bg-brand t-body font-bold py-2 px-4 rounded hover:bg-brand transition">{editingSessionId ? 'Update Session' : 'Create Session'}</button>
                 {editingSessionId && (
                   <button type="button" onClick={resetSessionForm} className="px-4 py-2 rounded border border-line t-muted hover:bg-surface-2 transition">Cancel</button>
                 )}
@@ -430,8 +430,8 @@ export default function SystemSettingsPage() {
           </div>
           )}
           <div className={canWriteSettings ? 'md:col-span-2' : 'md:col-span-3'}>
-            <div className="bg-solid rounded-xl shadow overflow-hidden border border-line">
-              <table className="min-w-full divide-y divide-line">
+            <div className="bg-solid rounded-xl shadow overflow-hidden border border-line table-scroll">
+              <table className="min-w-full divide-y divide-line rtable">
                 <thead className="bg-surface-2">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium t-faint uppercase">Name</th>
@@ -443,14 +443,16 @@ export default function SystemSettingsPage() {
                 <tbody className="bg-solid divide-y divide-line">
                   {localSessions.map(session => (
                     <tr key={session._id}>
-                      <td className="px-6 py-4 whitespace-nowrap font-medium flex items-center">
-                        {session.name}
-                        {session.isActive && <span className="ml-2 px-2 py-0.5 text-xs bg-brand-soft t-brand rounded-full">Default</span>}
+                      <td data-label="Name" className="px-6 py-4 md:whitespace-nowrap font-medium">
+                        <span className="inline-flex items-center flex-wrap justify-end md:justify-start gap-2">
+                          {session.name}
+                          {session.isActive && <span className="px-2 py-0.5 text-xs bg-brand-soft t-brand rounded-full">Default</span>}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm t-muted">
+                      <td data-label="Start - End" className="px-6 py-4 md:whitespace-nowrap text-sm t-muted">
                         {new Date(session.startDate).toLocaleDateString()} - {new Date(session.endDate).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td data-label="Status" className="px-6 py-4 md:whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                           ${session.status === 'Ongoing' ? 'bg-ok-soft t-ok' : 
                             session.status === 'Completed' ? 'bg-surface-2 t-body' : 
@@ -458,7 +460,7 @@ export default function SystemSettingsPage() {
                           {session.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <td data-actions="" className="px-6 py-4 md:whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
                           {can('settings', 'edit') && (
                             <button onClick={() => handleEditSession(session)} className="px-3 py-1 text-xs font-medium t-warn bg-warn-soft hover:bg-warn-soft rounded transition">Edit</button>

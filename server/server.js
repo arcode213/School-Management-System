@@ -62,6 +62,12 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/expenses', require('./routes/expenseRoutes'));
 app.use('/api/logs', require('./routes/logRoutes'));
 
+// Accounts & finance
+app.use('/api/expense-categories', require('./routes/expenseCategoryRoutes'));
+app.use('/api/recurring-expenses', require('./routes/recurringExpenseRoutes'));
+app.use('/api/salaries', require('./routes/salaryRoutes'));
+app.use('/api/accounts', require('./routes/accountsRoutes'));
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'API is running', db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });

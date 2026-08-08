@@ -135,7 +135,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* ── Page header / Welcome Banner ────────────────── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900/60 via-indigo-950/80 to-[#0b0f19] border border-line p-6 md:p-8 shadow-[0_10px_35px_rgba(0,0,0,0.3)]">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-900/60 via-indigo-950/80 to-[#0b0f19] border border-line p-5 sm:p-6 md:p-8 shadow-[0_10px_35px_rgba(0,0,0,0.3)]">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-12 -right-12 w-48 h-48 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-pulse-glow" />
           <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-brand rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-pulse-glow delay-1000" />
@@ -146,14 +146,14 @@ export default function DashboardPage() {
             <span className="px-3 py-1 rounded-full bg-brand-soft border border-brand-border text-xs font-bold t-brand uppercase tracking-widest">
               Live Console
             </span>
-            <h1 className="text-2xl md:text-3xl font-extrabold t-body mt-3 tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold t-body mt-3 tracking-tight">
               Good {getGreeting()}, {user?.name?.split(' ')[0]} 👋
             </h1>
             <p className="t-muted text-sm mt-1">
               Select or synchronize metrics view.
             </p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             {activeDashboard !== 'blank' && (
               <button
                 onClick={() => setActiveDashboard('blank')}
@@ -187,7 +187,7 @@ export default function DashboardPage() {
             {/* Academics Selector Card */}
             <button
               onClick={() => setActiveDashboard('academics')}
-              className="glass-card text-left p-8 rounded-3xl border border-line hover:border-brand-border flex flex-col justify-between h-56 transition-all group duration-300"
+              className="glass-card text-left p-6 sm:p-8 rounded-3xl border border-line hover:border-brand-border flex flex-col justify-between gap-6 min-h-[13rem] transition-all group duration-300"
             >
               <div className="bg-gradient-to-tr from-blue-600/80 to-blue-400/80 rounded-2xl p-4 w-14 h-14 flex items-center justify-center shadow-lg shadow-blue-500/10 group-hover:scale-110 transition duration-300">
                 <GraduationCap className="t-body w-7 h-7" />
@@ -203,7 +203,7 @@ export default function DashboardPage() {
             {/* Finance Selector Card */}
             <button
               onClick={() => setActiveDashboard('finance')}
-              className="glass-card text-left p-8 rounded-3xl border border-line hover:border-ok-border flex flex-col justify-between h-56 transition-all group duration-300"
+              className="glass-card text-left p-6 sm:p-8 rounded-3xl border border-line hover:border-ok-border flex flex-col justify-between gap-6 min-h-[13rem] transition-all group duration-300"
             >
               <div className="bg-gradient-to-tr from-emerald-600/80 to-emerald-400/80 rounded-2xl p-4 w-14 h-14 flex items-center justify-center shadow-lg shadow-emerald-500/10 group-hover:scale-110 transition duration-300">
                 <Landmark className="t-body w-7 h-7" />
@@ -223,7 +223,7 @@ export default function DashboardPage() {
       {activeDashboard === 'academics' && (
         <div className="space-y-6 animate-fade-in-up">
           {/* Header row */}
-          <div className="flex items-center justify-between border-b border-line pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
             <span className="text-xs font-bold uppercase tracking-widest t-brand flex items-center gap-1.5">
               <GraduationCap size={16} /> Academics Metrics Dashboard
             </span>
@@ -236,11 +236,11 @@ export default function DashboardPage() {
 
           {/* Metric cards */}
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-28" />)}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <StatCard
                 title="Total Students"
                 value={stats?.students?.total ?? 0}
@@ -267,7 +267,7 @@ export default function DashboardPage() {
 
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="card card-lg lg:col-span-2 p-6 flex flex-col justify-between">
+            <div className="card card-lg lg:col-span-2 p-4 sm:p-6 flex flex-col justify-between">
               <div>
                 <h2 className="font-bold t-body text-sm tracking-wider uppercase">Class Demographics</h2>
                 <p className="text-xs t-muted mt-0.5">Active student distribution breakdown</p>
@@ -294,7 +294,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Ratios Insights */}
-            <div className="card card-lg p-6 flex flex-col justify-between">
+            <div className="card card-lg p-4 sm:p-6 flex flex-col justify-between">
               <div>
                 <h2 className="font-bold t-body text-sm tracking-wider uppercase">Student to Teacher Ratio</h2>
                 <p className="text-xs t-muted mt-0.5">Calculated metric compared to active teaching headcount.</p>
@@ -326,7 +326,7 @@ export default function DashboardPage() {
       {activeDashboard === 'finance' && (
         <div className="space-y-6 animate-fade-in-up">
           {/* Header row */}
-          <div className="flex items-center justify-between border-b border-line pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
             <span className="text-xs font-bold uppercase tracking-widest t-ok flex items-center gap-1.5">
               <Landmark size={16} /> Financial Metrics Dashboard
             </span>
@@ -363,7 +363,7 @@ export default function DashboardPage() {
 
           {/* Monthly Collection Bar Chart */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="card card-lg lg:col-span-2 p-6">
+            <div className="card card-lg lg:col-span-2 p-4 sm:p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="font-bold t-body text-sm tracking-wider uppercase">Monthly Fee Collection</h2>
@@ -400,7 +400,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Collection Efficiency Card */}
-            <div className="card card-lg p-6 flex flex-col justify-between">
+            <div className="card card-lg p-4 sm:p-6 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-bold t-body text-sm tracking-wider uppercase">Collection Efficiency</h2>
@@ -444,7 +444,7 @@ export default function DashboardPage() {
 
           {/* Fee Status Pie & Recent Transactions */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card card-lg p-6">
+            <div className="card card-lg p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="font-bold t-body text-sm tracking-wider uppercase">Fee Status</h2>
@@ -496,7 +496,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Recent Payments table inside Dashboard */}
-            <div className="card card-lg p-6">
+            <div className="card card-lg p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="font-bold t-body text-sm tracking-wider uppercase">Recent Receipts</h2>

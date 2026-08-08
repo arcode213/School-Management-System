@@ -105,21 +105,21 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
 
   return (
     <ModalPortal>
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="modal-shell">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
-      <div className="card card-lg relative w-full max-w-md flex flex-col max-h-[92vh] t-body overflow-hidden">
+      <div className="card card-lg modal-box sm:max-w-md t-body">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line bg-surface-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/10">
+        <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-line bg-surface-2 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/10 flex-shrink-0">
               <CreditCard className="t-body w-4 h-4" />
             </div>
-            <h2 className="text-sm font-bold uppercase tracking-wider t-body">Record Fee Receipt</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider t-body truncate">Record Fee Receipt</h2>
           </div>
-          <button onClick={onClose} className="t-muted hover:t-body"><X size={20} /></button>
+          <button onClick={onClose} className="icon-btn flex-shrink-0" aria-label="Close"><X size={20} /></button>
         </div>
 
-        <form id="payment-form" onSubmit={handleSubmit(onSubmit)} className="px-6 py-5 space-y-4 overflow-y-auto">
+        <form id="payment-form" onSubmit={handleSubmit(onSubmit)} className="px-5 sm:px-6 py-5 space-y-4 overflow-y-auto">
           {/* Summary Panel */}
           <div className="bg-surface-2 rounded-2xl p-4 border border-line flex flex-col gap-2.5">
             <div className="flex justify-between text-xs gap-3">
@@ -183,7 +183,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">New Discount (Rs.)</label>
               <input type="number" min="0" max={monthlyDueRaw} {...register('discount')}
@@ -231,7 +231,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Payment Method</label>
               <select {...register('paymentMethod')} className="w-full text-xs font-semibold bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body outline-none focus:ring-2 focus:ring-brand cursor-pointer">
@@ -265,8 +265,8 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
           )}
         </form>
 
-        <div className="px-6 py-4 border-t border-line flex justify-end gap-3 bg-surface-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-2 rounded-xl transition">Cancel</button>
+        <div className="px-5 sm:px-6 py-4 border-t border-line modal-actions bg-surface-2 flex-shrink-0">
+          <button type="button" onClick={onClose} className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider t-muted hover:bg-surface-3 border border-line rounded-xl transition">Cancel</button>
           <button type="submit" form="payment-form" disabled={isSubmitting || (payingTotal === 0 && newDiscount === 0)} className="btn btn-primary disabled:opacity-50">
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
             Confirm Payment

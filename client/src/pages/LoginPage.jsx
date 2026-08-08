@@ -23,7 +23,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden font-sans">
+    <div className="min-h-[100dvh] flex items-center justify-center p-4 py-8 relative overflow-hidden font-sans">
       {/* Animated background lights */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand/10 rounded-full filter blur-3xl animate-pulse-glow" />
@@ -32,22 +32,22 @@ export default function LoginPage() {
 
       <div className="relative w-full max-w-md z-10 animate-fade-in-up">
         {/* Card */}
-        <div className="card card-lg p-8 md:p-10">
+        <div className="card card-lg p-6 sm:p-8 md:p-10">
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 brand-tile">
               <BookOpen className="w-7 h-7" style={{ color: "#fff" }} />
             </div>
-            <h1 className="text-2xl font-extrabold t-body tracking-tight uppercase">School Management</h1>
+            <h1 className="text-xl sm:text-2xl font-extrabold t-body tracking-tight uppercase">School Management</h1>
             <p className="t-muted mt-1.5 text-xs font-semibold uppercase tracking-wider">Access the administration hub</p>
           </div>
 
           {/* Quick credentials hint */}
           <div className="bg-brand-soft border border-brand-border rounded-2xl p-4 mb-6 text-xs t-brand flex items-start gap-2.5">
             <div className="w-2 h-2 rounded-full bg-brand shrink-0 mt-1" />
-            <div>
+            <div className="min-w-0">
               <span className="font-bold block uppercase tracking-wider mb-0.5">Demo Account</span>
-              <span className="t-muted">admin@school.com</span>
+              <span className="t-muted break-all">admin@school.com</span>
               <span className="t-faint mx-1.5">|</span>
               <span className="t-muted">admin123</span>
             </div>

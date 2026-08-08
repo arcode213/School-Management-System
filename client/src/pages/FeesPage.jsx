@@ -95,8 +95,8 @@ export default function FeesPage() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold t-body tracking-tight uppercase">Fee Management</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase">Fee Management</h1>
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">
             {pagination.total} total invoices generated
           </p>
@@ -120,8 +120,8 @@ export default function FeesPage() {
       </div>
 
       {/* Filters */}
-      <div className="card card-lg p-4 flex flex-wrap gap-3 items-center">
-        <div className="flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs flex-1 min-w-48 items-center gap-2">
+      <div className="card card-lg p-4 filter-grid">
+        <div className="filter-search flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs items-center gap-2">
           <Search size={14} className="t-faint" />
           <input type="text" placeholder="Search by name, challan no, student ID, class, roll no..." className="bg-transparent outline-none w-full t-body placeholder-faint font-medium" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
@@ -152,8 +152,8 @@ export default function FeesPage() {
             <p className="t-muted font-bold uppercase tracking-wider text-sm">No challans found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="table-scroll">
+            <table className="w-full text-xs rtable">
               <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
                 <tr>
                   <th className="text-left px-5 py-4">Challan No</th>
@@ -179,55 +179,59 @@ export default function FeesPage() {
                   
                   return (
                     <tr key={f._id} className={`hover:bg-surface-2 transition group ${f.hasBeenCarriedForward ? 'opacity-40' : ''}`}>
-                      <td className="px-5 py-4 font-mono font-bold t-brand">{f.challanNo}</td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <div className="font-bold t-body flex items-center gap-1.5">
-                          {student?.fullName || 'Unknown'}
-                          {student?.isFreeship && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-warn-soft border border-warn-border t-warn"
-                              title="Fees waived — new challans are not generated and this one cannot be printed">
-                              FREESHIP
-                            </span>
-                          )}
-                          {f.isOpeningBalance && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-surface-3 border border-line t-muted"
-                              title="Dues brought in when the student was imported or admitted — not a challan. It is carried into the next challan you generate.">
-                              OPENING BALANCE
-                            </span>
-                          )}
+                      <td data-label="Challan No" className="px-5 py-4 font-mono font-bold t-brand">{f.challanNo}</td>
+                      <td data-label="Student" className="px-5 py-4 md:whitespace-nowrap">
+                        <div>
+                          <div className="font-bold t-body flex items-center gap-1.5 justify-end md:justify-start flex-wrap">
+                            {student?.fullName || 'Unknown'}
+                            {student?.isFreeship && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-warn-soft border border-warn-border t-warn"
+                                title="Fees waived — new challans are not generated and this one cannot be printed">
+                                FREESHIP
+                              </span>
+                            )}
+                            {f.isOpeningBalance && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-surface-3 border border-line t-muted"
+                                title="Dues brought in when the student was imported or admitted — not a challan. It is carried into the next challan you generate.">
+                                OPENING BALANCE
+                              </span>
+                            )}
+                          </div>
+                          {student?.fatherName && <div className="text-[10px] t-muted font-medium">s/o {student.fatherName}</div>}
+                          <div className="text-[10px] t-faint font-medium">Class {student?.class} {student?.section}</div>
                         </div>
-                        {student?.fatherName && <div className="text-[10px] t-muted font-medium">s/o {student.fatherName}</div>}
-                        <div className="text-[10px] t-faint font-medium">Class {student?.class} {student?.section}</div>
                       </td>
-                      <td className="px-5 py-4 t-muted font-semibold">{f.dueMonthRange}</td>
-                      <td className="px-5 py-4 t-bad font-bold">Rs {f.previousDues?.toLocaleString()}</td>
-                      <td className="px-5 py-4 t-muted font-medium">Rs {currentFee.toLocaleString()}</td>
-                      <td className="px-5 py-4">
+                      <td data-label="Due Months" className="px-5 py-4 t-muted font-semibold">{f.dueMonthRange}</td>
+                      <td data-label="Prev. Dues" className="px-5 py-4 t-bad font-bold">Rs {f.previousDues?.toLocaleString()}</td>
+                      <td data-label="Current Fee" className="px-5 py-4 t-muted font-medium">Rs {currentFee.toLocaleString()}</td>
+                      <td data-label="Annual Fee" className="px-5 py-4">
                         {annualNow === 0 && annualPrev === 0 ? (
                           <span className="t-muted">—</span>
                         ) : (
-                          <>
+                          <div>
                             {annualNow > 0 && <div className="t-brand font-bold">Rs {annualNow.toLocaleString()}</div>}
                             {annualPrev > 0 && <div className="t-bad text-[10px] font-medium">Prev: {annualPrev.toLocaleString()}</div>}
-                          </>
+                          </div>
                         )}
                       </td>
-                      <td className="px-5 py-4 font-black t-body">Rs {f.totalAmount?.toLocaleString()}</td>
-                      <td className="px-5 py-4">
-                        <div className="t-ok font-semibold">Paid: {paid}</div>
-                        {due > 0 && <div className="t-bad font-semibold">Due: {due}</div>}
-                        {f.paidUpToMonth && f.status === 'Partial' && (
-                          <div className="t-faint text-[9px] font-medium">Paid thru {f.paidUpToMonth}</div>
-                        )}
+                      <td data-label="Total Amount" className="px-5 py-4 font-black t-body">Rs {f.totalAmount?.toLocaleString()}</td>
+                      <td data-label="Paid / Due" className="px-5 py-4">
+                        <div>
+                          <div className="t-ok font-semibold">Paid: {paid}</div>
+                          {due > 0 && <div className="t-bad font-semibold">Due: {due}</div>}
+                          {f.paidUpToMonth && f.status === 'Partial' && (
+                            <div className="t-faint text-[9px] font-medium">Paid thru {f.paidUpToMonth}</div>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-1 items-start">
+                      <td data-label="Status" className="px-5 py-4">
+                        <div className="flex flex-col gap-1 items-end md:items-start">
                           <StatusBadge status={f.status} />
                           {f.hasBeenCarriedForward && <span className="text-[8px] font-bold uppercase tracking-widest t-faint bg-surface-3 border border-line px-1.5 py-0.5 rounded">Rolled Over</span>}
                         </div>
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition duration-150">
+                      <td data-actions="" className="px-5 py-4">
+                        <div className="row-actions">
                           <button
                             onClick={() => openPrint(f)}
                             disabled={student?.isFreeship || f.isOpeningBalance}
@@ -267,7 +271,7 @@ export default function FeesPage() {
         )}
         {/* Pagination */}
         {!loading && pagination.pages > 1 && (
-          <div className="px-5 py-4 border-t border-line flex items-center justify-between">
+          <div className="px-5 py-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs t-muted font-medium">Page {pagination.page} of {pagination.pages}</p>
             <div className="flex gap-1">
               <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-1.5 t-muted hover:t-body disabled:opacity-20 disabled:cursor-not-allowed border border-line rounded-xl transition bg-surface-2"><ChevronLeft size={14}/></button>

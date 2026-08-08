@@ -56,6 +56,10 @@ const MODULES = [
     hint: 'Outstanding balances across all students',
   },
   {
+    key: 'accounts', label: 'Accounts & Ledger', group: 'Finance', actions: ACTIONS,
+    hint: 'Monthly ledger, expense categories, recurring bills, approvals and month closing',
+  },
+  {
     key: 'reports', label: 'Financial Reports', group: 'Finance', actions: ['view'],
     hint: 'Income, expense and collection summaries',
   },
@@ -112,6 +116,11 @@ const ROLE_DEFAULTS = {
     expenses: ACTIONS,
     dues: ['view'],
     reports: ['view'],
+    // A capability that did not exist when these accounts were created is granted
+    // to nobody by default. Closing a month or approving a bill is not something
+    // an existing Administrator should silently acquire because the software was
+    // updated — the Admin ticks it for whoever actually does the books.
+    accounts: [],
     settings: [],
   },
   Staff: {
@@ -126,6 +135,7 @@ const ROLE_DEFAULTS = {
     expenses: ['view', 'create', 'edit'],
     dues: [],
     reports: [],
+    accounts: [],
     settings: [],
   },
 };

@@ -36,6 +36,7 @@ export const MODULES = [
   { key: 'feeStructures', label: 'Fee Structures', group: 'Finance', actions: ACTIONS, hint: 'Per-class fee amounts and per-student overrides' },
   { key: 'expenses', label: 'Expenses', group: 'Finance', actions: ACTIONS, hint: 'School expense entries' },
   { key: 'dues', label: 'Dues Report', group: 'Finance', actions: ['view'], hint: 'Outstanding balances across all students' },
+  { key: 'accounts', label: 'Accounts & Ledger', group: 'Finance', actions: ACTIONS, hint: 'Monthly ledger, expense categories, recurring bills, approvals and month closing' },
   { key: 'reports', label: 'Financial Reports', group: 'Finance', actions: ['view'], hint: 'Income, expense and collection summaries' },
   { key: 'settings', label: 'System Settings', group: 'Administration', actions: ACTIONS, hint: 'Campuses and academic sessions' },
 ];

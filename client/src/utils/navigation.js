@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserCog, DollarSign, FileText, BarChart2,
-  Settings, Wallet, ArrowUpNarrowWide, ScrollText,
+  Settings, Wallet, ArrowUpNarrowWide, ScrollText, Landmark, HandCoins,
 } from 'lucide-react';
 
 /**
@@ -36,7 +36,10 @@ export const NAV_GROUPS = [
       { to: '/fees', label: 'Fee Management', icon: DollarSign, module: 'fees' },
       { to: '/challans', label: 'Challans', icon: FileText, module: 'challans' },
       { to: '/fee-structures', label: 'Fee Structures', icon: Wallet, module: 'feeStructures' },
-      { to: '/expenses', label: 'Expenses', icon: Wallet, module: 'expenses' },
+      // The expense register is a tab inside Accounts & Ledger rather than a
+      // screen of its own, so this entry is offered to either grant.
+      { to: '/accounts', label: 'Accounts & Ledger', icon: Landmark, anyModule: ['accounts', 'expenses'] },
+      { to: '/salaries', label: 'Salary Sheet', icon: HandCoins, module: 'salaries' },
       { to: '/dues', label: 'Dues Report', icon: BarChart2, module: 'dues' },
       { to: '/reports', label: 'Reports', icon: BarChart2, module: 'reports' },
     ],
@@ -55,8 +58,11 @@ export const NAV_GROUPS = [
   },
 ];
 
-const isVisible = (item, user, can) =>
-  item.adminOnly ? user?.role === 'Admin' : can(item.module, 'view');
+const isVisible = (item, user, can) => {
+  if (item.adminOnly) return user?.role === 'Admin';
+  if (item.anyModule) return item.anyModule.some(m => can(m, 'view'));
+  return can(item.module, 'view');
+};
 
 /** The groups this account may actually see, empty groups dropped. */
 export const visibleNavGroups = (user, can) =>
