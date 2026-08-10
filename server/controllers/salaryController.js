@@ -106,6 +106,7 @@ const getSalarySheet = async (req, res) => {
           taxDeduction: record.taxDeduction || 0,
           otherDeduction: record.otherDeduction || 0,
           absentDays: record.absentDays || 0,
+          attendanceBonus: record.attendanceBonus || 0,
           deductions: record.deductions || 0,
           netSalary: record.netSalary,
           amountPaid: doc.paidAmount(),
@@ -122,7 +123,23 @@ const getSalarySheet = async (req, res) => {
       const base = emp.salary || 0;
       const allowances = emp.allowances || 0;
       const standing = emp.deductions || 0;
-      const deductions = round2(standing + advanceDue);
+
+      let proposedAbsenceDeduction = 0;
+      let proposedAttendanceBonus = 0;
+
+      if (emp.designation === 'Teacher') {
+        const parts = partsOf(monthKey);
+        if (parts) {
+          const totalDays = new Date(parts.year, parts.month, 0).getDate();
+          const oneDaySalary = round2(base / totalDays);
+          // Default unposted has 0 absentDays, yielding 1 day bonus
+          proposedAttendanceBonus = oneDaySalary;
+        }
+      }
+
+      const deductions = round2(standing + advanceDue + proposedAbsenceDeduction);
+      const net = round2(base + allowances + proposedAttendanceBonus - deductions);
+
       return {
         employee: { _id: emp._id, employeeId: emp.employeeId, fullName: emp.fullName, designation: emp.designation, department: emp.department },
         salaryRecord: null,
@@ -130,14 +147,15 @@ const getSalarySheet = async (req, res) => {
         baseSalary: base,
         allowances,
         advanceDeduction: advanceDue,
-        absenceDeduction: 0,
+        absenceDeduction: proposedAbsenceDeduction,
         taxDeduction: 0,
         otherDeduction: standing,
         absentDays: 0,
+        attendanceBonus: proposedAttendanceBonus,
         deductions,
-        netSalary: round2(base + allowances - deductions),
+        netSalary: net,
         amountPaid: 0,
-        outstanding: round2(base + allowances - deductions),
+        outstanding: net,
         status: 'Pending',
         paymentDate: null,
         paymentMethod: null,
@@ -236,18 +254,42 @@ const paySalary = async (req, res) => {
         });
       }
 
+      let calcAbsenceDeduction = Number(absenceDeduction || 0);
+      let calcAttendanceBonus = 0;
+
+      if (employee.designation === 'Teacher') {
+        const parts = partsOf(month);
+        if (parts) {
+          const totalDays = new Date(parts.year, parts.month, 0).getDate();
+          const oneDaySalary = round2(base / totalDays);
+          const absDays = Number(absentDays || 0);
+
+          if (absDays === 0) {
+            calcAttendanceBonus = oneDaySalary;
+            calcAbsenceDeduction = 0;
+          } else if (absDays === 1) {
+            calcAttendanceBonus = 0;
+            calcAbsenceDeduction = 0;
+          } else {
+            calcAttendanceBonus = 0;
+            calcAbsenceDeduction = round2((absDays - 1) * oneDaySalary);
+          }
+        }
+      }
+
       // The record's figures are settled BEFORE anything is validated against
       // them. Advances accumulate onto whatever this sheet already recovered, so
       // topping up a part-paid salary cannot deduct the same advance twice.
       record.baseSalary = base;
       record.allowances = allow;
-      record.absenceDeduction = Number(absenceDeduction);
+      record.absenceDeduction = calcAbsenceDeduction;
+      record.attendanceBonus = calcAttendanceBonus;
       record.taxDeduction = Number(taxDeduction);
       record.otherDeduction = otherDed;
       record.absentDays = Number(absentDays);
       record.advanceDeduction = round2((record.advanceDeduction || 0) + advanceDeduction);
       record.deductions = round2(
-        Number(absenceDeduction) + Number(taxDeduction) + otherDed + record.advanceDeduction
+        calcAbsenceDeduction + Number(taxDeduction) + otherDed + record.advanceDeduction
       );
 
       /**
@@ -259,7 +301,7 @@ const paySalary = async (req, res) => {
        * gets to compute the value. The existing salary screen sidesteps this the
        * same way, by computing the net itself before create().
        */
-      const net = round2(base + allow - record.deductions);
+      const net = round2(base + allow + calcAttendanceBonus - record.deductions);
       if (net < 0) {
         throw Object.assign(
           new Error('Deductions exceed the salary — net pay cannot be negative'),

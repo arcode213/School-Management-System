@@ -19,7 +19,7 @@ const getStats = async (req, res) => {
     // document itself has no status field and is not session-scoped.
     const recordFilter = { isDeleted: false };
     const empFilter = { isDeleted: false };
-    const feeFilter = { isDeleted: false };
+    const feeFilter = { isDeleted: false, isOpeningBalance: { $ne: true } };
 
     if (currentCampus) {
       recordFilter.campus = new mongoose.Types.ObjectId(currentCampus);
@@ -114,7 +114,7 @@ const getStats = async (req, res) => {
 const getMonthlyFees = async (req, res) => {
   try {
     const { currentCampus, currentSession } = req;
-    const feeFilter = { isDeleted: false };
+    const feeFilter = { isDeleted: false, isOpeningBalance: { $ne: true } };
     if (currentCampus) feeFilter.campus = new mongoose.Types.ObjectId(currentCampus);
     if (currentSession) feeFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
 
@@ -192,7 +192,7 @@ const getClassDistribution = async (req, res) => {
 const getFeeStatus = async (req, res) => {
   try {
     const { currentCampus, currentSession } = req;
-    const feeFilter = { isDeleted: false };
+    const feeFilter = { isDeleted: false, isOpeningBalance: { $ne: true } };
     if (currentCampus) feeFilter.campus = new mongoose.Types.ObjectId(currentCampus);
     if (currentSession) feeFilter.academicSession = new mongoose.Types.ObjectId(currentSession);
 
@@ -225,7 +225,7 @@ const getFeeStatus = async (req, res) => {
 const getRecentPayments = async (req, res) => {
   try {
     const { currentCampus, currentSession } = req;
-    const feeFilter = { isDeleted: false, status: { $ne: 'Unpaid' } };
+    const feeFilter = { isDeleted: false, isOpeningBalance: { $ne: true }, status: { $ne: 'Unpaid' } };
     if (currentCampus) feeFilter.campus = currentCampus;
     if (currentSession) feeFilter.academicSession = currentSession;
 

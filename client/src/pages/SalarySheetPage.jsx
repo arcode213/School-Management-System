@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users, Wallet, HandCoins, Printer, Plus, X, Check, Trash2, RefreshCw, Lock, AlertCircle,
 } from 'lucide-react';
@@ -156,8 +157,17 @@ export default function SalarySheetPage() {
   );
 }
 
+const getDaysInMonth = (m) => {
+  if (!m) return 30;
+  const parts = m.split('-');
+  const year = Number(parts[0]);
+  const monthNum = Number(parts[1]);
+  return new Date(year, monthNum, 0).getDate();
+};
+
 // ─── Sheet ───────────────────────────────────────────────────────────────────
 function SheetTable({ sheet, loading, isClosed, canPay, onPay, onSlip }) {
+  const { can } = useAuth();
   const rows = sheet?.rows || [];
 
   if (loading) {
@@ -199,9 +209,20 @@ function SheetTable({ sheet, loading, isClosed, canPay, onPay, onSlip }) {
               <tr key={r.employee._id} className="hover:bg-surface-2 transition">
                 <td data-label="Employee" className="px-5 py-4 font-bold t-body">
                   <div>
-                    {r.employee.fullName}
+                    {can('employees', 'read') ? (
+                      <Link to={`/employees/${r.employee._id}`} className="hover:underline hover:text-brand transition-colors">
+                        {r.employee.fullName}
+                      </Link>
+                    ) : (
+                      r.employee.fullName
+                    )}
                     <span className="block text-[10px] t-faint font-mono mt-0.5">
                       {r.employee.employeeId} · {r.employee.designation}
+                      {r.attendanceBonus > 0 && (
+                        <span className="text-ok font-semibold ml-1.5" title="No absences bonus">
+                          (incl. bonus {fmtPKR(r.attendanceBonus)})
+                        </span>
+                      )}
                     </span>
                   </div>
                 </td>
@@ -256,15 +277,44 @@ function PayModal({ row, month, onClose, onSaved }) {
     taxDeduction: row.taxDeduction || 0,
     otherDeduction: row.otherDeduction || 0,
     absentDays: row.absentDays || 0,
+    attendanceBonus: row.attendanceBonus || 0,
     amountPaid: '',
     paymentMethod: 'Bank Transfer',
     remarks: '',
   });
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (row.employee.designation === 'Teacher') {
+      const baseSalaryNum = Number(form.baseSalary) || 0;
+      const days = getDaysInMonth(month);
+      const oneDaySalary = Math.round((baseSalaryNum / days) * 100) / 100;
+      const absDays = Number(form.absentDays) || 0;
+
+      let deduction = 0;
+      let bonus = 0;
+
+      if (absDays === 0) {
+        bonus = oneDaySalary;
+        deduction = 0;
+      } else if (absDays === 1) {
+        bonus = 0;
+        deduction = 0;
+      } else {
+        bonus = 0;
+        deduction = Math.round((absDays - 1) * oneDaySalary * 100) / 100;
+      }
+
+      setForm(prev => {
+        if (prev.absenceDeduction === deduction && prev.attendanceBonus === bonus) return prev;
+        return { ...prev, absenceDeduction: deduction, attendanceBonus: bonus };
+      });
+    }
+  }, [form.absentDays, form.baseSalary, row.employee.designation, month]);
+
   const n = (v) => Number(v) || 0;
   const deductions = n(form.absenceDeduction) + n(form.taxDeduction) + n(form.otherDeduction) + n(row.advanceDeduction);
-  const net = n(form.baseSalary) + n(form.allowances) - deductions;
+  const net = n(form.baseSalary) + n(form.allowances) + n(form.attendanceBonus) - deductions;
   const paying = form.amountPaid === '' ? net : n(form.amountPaid);
   const isPartial = paying > 0 && paying < net;
 
@@ -281,6 +331,7 @@ function PayModal({ row, month, onClose, onSaved }) {
         taxDeduction: n(form.taxDeduction),
         otherDeduction: n(form.otherDeduction),
         absentDays: n(form.absentDays),
+        attendanceBonus: n(form.attendanceBonus),
         ...(form.amountPaid === '' ? {} : { amountPaid: n(form.amountPaid) }),
         paymentMethod: form.paymentMethod,
         remarks: form.remarks || undefined,
@@ -327,6 +378,7 @@ function PayModal({ row, month, onClose, onSaved }) {
               <div>
                 <label className="label">Absence deduction</label>
                 <input type="number" min="0" value={form.absenceDeduction}
+                  disabled={row.employee.designation === 'Teacher'}
                   onChange={e => setForm({ ...form, absenceDeduction: e.target.value })} className="field" />
               </div>
               <div>
@@ -354,6 +406,9 @@ function PayModal({ row, month, onClose, onSaved }) {
 
             <div className="surface-muted rounded-2xl p-4 space-y-2">
               <Line label="Gross" value={n(form.baseSalary) + n(form.allowances)} />
+              {n(form.attendanceBonus) > 0 && (
+                <Line label="Attendance Bonus" value={n(form.attendanceBonus)} tone="t-ok" />
+              )}
               <Line label="Total deductions" value={-deductions} tone="t-bad" />
               <div className="divider" />
               <div className="flex justify-between items-center">

@@ -43,8 +43,11 @@ const run = async () => {
   console.log(APPLY ? '\nBACKFILL — writing receipts\n' : '\nBACKFILL — dry run, nothing will be written\n');
 
   // Only challans that actually took money. A zero-paid challan has no receipt to
-  // write, and `isDeleted` ones are out of the books entirely.
-  const filter = { isDeleted: false, amountPaid: { $gt: 0 } };
+  // write, and `isDeleted` ones are out of the books entirely. Opening balance
+  // challans are synthetic records from import whose `amountPaid` is a statement
+  // of what was already settled before the system — not cash that arrived through
+  // the system, so they must never produce a receipt that the ledger would count.
+  const filter = { isDeleted: false, amountPaid: { $gt: 0 }, isOpeningBalance: { $ne: true } };
 
   const total = await FeeRecord.countDocuments(filter);
   console.log(`${total} challan(s) with payments recorded.`);

@@ -68,17 +68,34 @@ export default function EmployeeProfilePage() {
           <div className="table-scroll">
             <table className="w-full text-sm rtable">
               <thead className="bg-surface-2 t-faint uppercase text-xs text-left">
-                <tr><th className="p-3">Month</th><th className="p-3">Base</th><th className="p-3">Net Paid</th><th className="p-3">Date</th></tr>
+                <tr>
+                  <th className="p-3">Month</th>
+                  <th className="p-3 text-right">Base</th>
+                  <th className="p-3 text-center">Leaves</th>
+                  <th className="p-3 text-right">Bonus / Ded.</th>
+                  <th className="p-3 text-right">Net Paid</th>
+                  <th className="p-3">Date</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {history.map(h => (
-                  <tr key={h._id}>
-                    <td data-label="Month" className="p-3 font-medium">{h.salaryMonth} {h.salaryYear}</td>
-                    <td data-label="Base" className="p-3 t-faint">Rs. {h.baseSalary.toLocaleString()}</td>
-                    <td data-label="Net Paid" className="p-3 t-ok font-bold">Rs. {h.netSalary.toLocaleString()}</td>
-                    <td data-label="Date" className="p-3 t-faint">{new Date(h.paymentDate).toLocaleDateString()}</td>
-                  </tr>
-                ))}
+                {history.map(h => {
+                  const bonus = h.attendanceBonus || 0;
+                  const deds = h.absenceDeduction || 0;
+                  return (
+                    <tr key={h._id}>
+                      <td data-label="Month" className="p-3 font-medium">{h.salaryMonth} {h.salaryYear}</td>
+                      <td data-label="Base" className="p-3 text-right t-faint">Rs. {h.baseSalary.toLocaleString()}</td>
+                      <td data-label="Leaves" className="p-3 text-center">{h.absentDays ?? 0} d</td>
+                      <td data-label="Bonus / Ded." className="p-3 text-right">
+                        {bonus > 0 && <span className="t-ok font-semibold">+Rs. {bonus.toLocaleString()}</span>}
+                        {deds > 0 && <span className="t-bad font-semibold">-Rs. {deds.toLocaleString()}</span>}
+                        {bonus === 0 && deds === 0 && <span className="t-muted">—</span>}
+                      </td>
+                      <td data-label="Net Paid" className="p-3 text-right t-ok font-bold">Rs. {h.netSalary.toLocaleString()}</td>
+                      <td data-label="Date" className="p-3 t-faint">{new Date(h.paymentDate).toLocaleDateString()}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

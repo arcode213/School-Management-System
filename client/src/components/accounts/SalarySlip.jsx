@@ -78,8 +78,9 @@ const slipHTML = (rec, month, campusName) => {
       <h3>Earnings</h3>
       <table>
         ${row('Basic Salary', fmtPKR(rec.baseSalary), 'pos')}
-        ${row('Allowances', fmtPKR(rec.allowances || 0), 'pos')}
-        ${row('Gross', fmtPKR((rec.baseSalary || 0) + (rec.allowances || 0)), 'pos')}
+        ${rec.allowances > 0 ? row('Allowances', fmtPKR(rec.allowances), 'pos') : ''}
+        ${rec.attendanceBonus > 0 ? row('Attendance Bonus (0 leaves)', fmtPKR(rec.attendanceBonus), 'pos') : ''}
+        ${row('Gross', fmtPKR((rec.baseSalary || 0) + (rec.allowances || 0) + (rec.attendanceBonus || 0)), 'pos')}
       </table>
 
       <h3>Deductions</h3>

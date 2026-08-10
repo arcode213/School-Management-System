@@ -61,6 +61,7 @@ const salaryRecordSchema = new mongoose.Schema(
     taxDeduction: { type: Number, default: 0 },
     otherDeduction: { type: Number, default: 0 },
     absentDays: { type: Number, default: 0 },
+    attendanceBonus: { type: Number, default: 0 },
 
     // Advances this sheet clawed back, so a reversal knows what to give back.
     recoveredAdvances: [{
@@ -107,7 +108,7 @@ salaryRecordSchema.statics.paidAmountExpr = () => ({
 
 // Auto-calculate netSalary before save
 salaryRecordSchema.pre('save', function (next) {
-  this.netSalary = this.baseSalary + this.allowances - this.deductions;
+  this.netSalary = this.baseSalary + this.allowances + (this.attendanceBonus || 0) - this.deductions;
   next();
 });
 

@@ -34,6 +34,16 @@ const feeIncomeByMonth = async (campus, from, to) => {
   const range = { $gte: monthRange(from).start, $lt: monthRange(to).end };
   return FeePayment.aggregate([
     { $match: { campus: oid(campus), isDeleted: false, receivedOn: range } },
+    {
+      $lookup: {
+        from: 'feerecords',
+        localField: 'feeRecord',
+        foreignField: '_id',
+        as: 'feeRecordDoc'
+      }
+    },
+    { $unwind: { path: '$feeRecordDoc', preserveNullAndEmptyArrays: true } },
+    { $match: { 'feeRecordDoc.isOpeningBalance': { $ne: true } } },
     { $group: { _id: monthKeyExpr('$receivedOn'), total: { $sum: '$amount' }, count: { $sum: 1 } } },
   ]);
 };
@@ -87,6 +97,16 @@ const openingBalanceFor = async (campus, monthKey) => {
   const [income, expense] = await Promise.all([
     FeePayment.aggregate([
       { $match: { campus: oid(campus), isDeleted: false, receivedOn: { $lt: start } } },
+      {
+        $lookup: {
+          from: 'feerecords',
+          localField: 'feeRecord',
+          foreignField: '_id',
+          as: 'feeRecordDoc'
+        }
+      },
+      { $unwind: { path: '$feeRecordDoc', preserveNullAndEmptyArrays: true } },
+      { $match: { 'feeRecordDoc.isOpeningBalance': { $ne: true } } },
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]),
     Expense.aggregate([
@@ -231,6 +251,16 @@ const getSummary = async (req, res) => {
     const [feeAgg, expenseAgg, pendingAgg, byCategory, opening, closed] = await Promise.all([
       FeePayment.aggregate([
         { $match: { campus: campusId, isDeleted: false, receivedOn: dateRange } },
+        {
+          $lookup: {
+            from: 'feerecords',
+            localField: 'feeRecord',
+            foreignField: '_id',
+            as: 'feeRecordDoc'
+          }
+        },
+        { $unwind: { path: '$feeRecordDoc', preserveNullAndEmptyArrays: true } },
+        { $match: { 'feeRecordDoc.isOpeningBalance': { $ne: true } } },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
       Expense.aggregate([
@@ -345,6 +375,16 @@ const closeMonth = async (req, res) => {
     const [feeAgg, expenseAgg, pendingAgg, salaryAgg, opening] = await Promise.all([
       FeePayment.aggregate([
         { $match: { campus: campusId, isDeleted: false, receivedOn: dateRange } },
+        {
+          $lookup: {
+            from: 'feerecords',
+            localField: 'feeRecord',
+            foreignField: '_id',
+            as: 'feeRecordDoc'
+          }
+        },
+        { $unwind: { path: '$feeRecordDoc', preserveNullAndEmptyArrays: true } },
+        { $match: { 'feeRecordDoc.isOpeningBalance': { $ne: true } } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       Expense.aggregate([

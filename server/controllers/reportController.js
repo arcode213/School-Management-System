@@ -11,7 +11,7 @@ const getFinancialReport = async (req, res) => {
     const { year } = req.query;
     const filterYear = year ? Number(year) : new Date().getFullYear();
 
-    const feeFilter = { feeYear: filterYear, isDeleted: false, status: { $in: ['Paid', 'Partial'] } };
+    const feeFilter = { feeYear: filterYear, isDeleted: false, isOpeningBalance: { $ne: true }, status: { $in: ['Paid', 'Partial'] } };
     const salaryFilter = { salaryYear: filterYear, isDeleted: false, status: 'Paid' };
     const expenseFilter = { isDeleted: false, type: 'Expense' };
     const incomeFilter = { isDeleted: false, type: 'Income' };

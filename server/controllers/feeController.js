@@ -730,9 +730,10 @@ const getFees = async (req, res) => {
     } = req.query;
 
     const matchStage = { isDeleted: false };
-    // Opening balances are a record of dues brought in at admission/import, not a
-    // challan the school issued — the printing screen asks for them to be left out.
-    if (excludeOpening === 'true') matchStage.isOpeningBalance = { $ne: true };
+    // Opening balances are synthetic records created at import/admission to seed
+    // the carry-forward chain — not challans the school issued. Always hidden from
+    // Fee Management; carry-forward logic and student-profile still read them.
+    matchStage.isOpeningBalance = { $ne: true };
     if (currentCampus) matchStage.campus = new mongoose.Types.ObjectId(currentCampus);
     if (currentSession) matchStage.academicSession = new mongoose.Types.ObjectId(currentSession);
     if (feeMonth) matchStage.feeMonth = feeMonth;
@@ -935,8 +936,12 @@ const updateFee = async (req, res) => {
 
       const delta = (Number(fee.amountPaid) || 0) - before.amountPaid;
       // A pure charge edit (changing the tuition fee, the due date, the month)
-      // moves no money and must not create a receipt.
-      if (delta === 0) return;
+      // moves no money and must not create a receipt. Opening balance challans
+      // are synthetic — any payment recorded on them is a statement of what was
+      // already settled before the import, not cash that arrived now, so it must
+      // never create a FeePayment receipt (which the accounts ledger counts as
+      // income).
+      if (delta === 0 || fee.isOpeningBalance) return;
 
       const annualDelta = (Number(fee.annualPaid) || 0) - before.annualPaid;
       // The annual share cannot exceed the money that moved, and cannot flip sign
