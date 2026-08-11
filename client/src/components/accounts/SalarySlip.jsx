@@ -22,7 +22,7 @@ const slipHTML = (rec, month, campusName) => {
 
   const deductionRows = [
     rec.advanceDeduction > 0 ? row('Salary Advance Recovery', fmtPKR(rec.advanceDeduction), 'neg') : '',
-    rec.absenceDeduction > 0 ? row(`Absence (${rec.absentDays || 0} day${rec.absentDays === 1 ? '' : 's'})`, fmtPKR(rec.absenceDeduction), 'neg') : '',
+    rec.absenceDeduction > 0 ? row(rec.employee?.designation === 'Teacher' ? `Penalty (${rec.absentDays || 0} day${rec.absentDays === 1 ? '' : 's'})` : `Absence (${rec.absentDays || 0} day${rec.absentDays === 1 ? '' : 's'})`, fmtPKR(rec.absenceDeduction), 'neg') : '',
     rec.taxDeduction > 0 ? row('Tax', fmtPKR(rec.taxDeduction), 'neg') : '',
     rec.otherDeduction > 0 ? row('Other', fmtPKR(rec.otherDeduction), 'neg') : '',
   ].filter(Boolean).join('');
@@ -79,7 +79,7 @@ const slipHTML = (rec, month, campusName) => {
       <table>
         ${row('Basic Salary', fmtPKR(rec.baseSalary), 'pos')}
         ${rec.allowances > 0 ? row('Allowances', fmtPKR(rec.allowances), 'pos') : ''}
-        ${rec.attendanceBonus > 0 ? row('Attendance Bonus (0 leaves)', fmtPKR(rec.attendanceBonus), 'pos') : ''}
+        ${rec.attendanceBonus > 0 ? row(rec.employee?.designation === 'Teacher' ? 'Reward' : 'Attendance Bonus (0 leaves)', fmtPKR(rec.attendanceBonus), 'pos') : ''}
         ${row('Gross', fmtPKR((rec.baseSalary || 0) + (rec.allowances || 0) + (rec.attendanceBonus || 0)), 'pos')}
       </table>
 

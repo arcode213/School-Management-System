@@ -165,6 +165,22 @@ const getDaysInMonth = (m) => {
   return new Date(year, monthNum, 0).getDate();
 };
 
+const getWorkingDaysInMonth = (m) => {
+  if (!m) return 26;
+  const parts = m.split('-');
+  const year = Number(parts[0]);
+  const monthNum = Number(parts[1]);
+  const totalDays = new Date(year, monthNum, 0).getDate();
+  let workingDays = 0;
+  for (let day = 1; day <= totalDays; day++) {
+    const date = new Date(year, monthNum - 1, day);
+    if (date.getDay() !== 0) { // 0 is Sunday
+      workingDays++;
+    }
+  }
+  return workingDays;
+};
+
 // ─── Sheet ───────────────────────────────────────────────────────────────────
 function SheetTable({ sheet, loading, isClosed, canPay, onPay, onSlip }) {
   const { can } = useAuth();
@@ -219,8 +235,8 @@ function SheetTable({ sheet, loading, isClosed, canPay, onPay, onSlip }) {
                     <span className="block text-[10px] t-faint font-mono mt-0.5">
                       {r.employee.employeeId} · {r.employee.designation}
                       {r.attendanceBonus > 0 && (
-                        <span className="text-ok font-semibold ml-1.5" title="No absences bonus">
-                          (incl. bonus {fmtPKR(r.attendanceBonus)})
+                        <span className="text-ok font-semibold ml-1.5" title={r.employee.designation === 'Teacher' ? "No absences reward" : "No absences bonus"}>
+                          (incl. {r.employee.designation === 'Teacher' ? 'reward' : 'bonus'} {fmtPKR(r.attendanceBonus)})
                         </span>
                       )}
                     </span>
@@ -287,8 +303,8 @@ function PayModal({ row, month, onClose, onSaved }) {
   useEffect(() => {
     if (row.employee.designation === 'Teacher') {
       const baseSalaryNum = Number(form.baseSalary) || 0;
-      const days = getDaysInMonth(month);
-      const oneDaySalary = Math.round((baseSalaryNum / days) * 100) / 100;
+      const days = getWorkingDaysInMonth(month);
+      const oneDaySalary = Math.round((baseSalaryNum / days) / 10) * 10;
       const absDays = Number(form.absentDays) || 0;
 
       let deduction = 0;
@@ -302,7 +318,7 @@ function PayModal({ row, month, onClose, onSaved }) {
         deduction = 0;
       } else {
         bonus = 0;
-        deduction = Math.round((absDays - 1) * oneDaySalary * 100) / 100;
+        deduction = Math.round(((absDays - 1) * oneDaySalary) / 10) * 10;
       }
 
       setForm(prev => {
@@ -376,7 +392,7 @@ function PayModal({ row, month, onClose, onSaved }) {
                   onChange={e => setForm({ ...form, absentDays: e.target.value })} className="field" />
               </div>
               <div>
-                <label className="label">Absence deduction</label>
+                <label className="label">{row.employee.designation === 'Teacher' ? 'Penalty' : 'Absence deduction'}</label>
                 <input type="number" min="0" value={form.absenceDeduction}
                   disabled={row.employee.designation === 'Teacher'}
                   onChange={e => setForm({ ...form, absenceDeduction: e.target.value })} className="field" />
@@ -407,7 +423,7 @@ function PayModal({ row, month, onClose, onSaved }) {
             <div className="surface-muted rounded-2xl p-4 space-y-2">
               <Line label="Gross" value={n(form.baseSalary) + n(form.allowances)} />
               {n(form.attendanceBonus) > 0 && (
-                <Line label="Attendance Bonus" value={n(form.attendanceBonus)} tone="t-ok" />
+                <Line label={row.employee.designation === 'Teacher' ? 'Reward' : 'Attendance Bonus'} value={n(form.attendanceBonus)} tone="t-ok" />
               )}
               <Line label="Total deductions" value={-deductions} tone="t-bad" />
               <div className="divider" />

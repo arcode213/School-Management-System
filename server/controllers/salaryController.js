@@ -28,6 +28,18 @@ const {
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
+const getWorkingDaysInMonth = (year, month) => {
+  const totalDays = new Date(year, month, 0).getDate();
+  let workingDays = 0;
+  for (let day = 1; day <= totalDays; day++) {
+    const date = new Date(year, month - 1, day);
+    if (date.getDay() !== 0) { // 0 is Sunday
+      workingDays++;
+    }
+  }
+  return workingDays;
+};
+
 /** The Salaries category for a campus, used to file salary payments in the ledger. */
 const salaryCategoryFor = async (campusId, session = null) => {
   const q = ExpenseCategory.findOne({ campus: campusId, legacyKey: 'Salary', isDeleted: false }).select('_id');
@@ -130,8 +142,8 @@ const getSalarySheet = async (req, res) => {
       if (emp.designation === 'Teacher') {
         const parts = partsOf(monthKey);
         if (parts) {
-          const totalDays = new Date(parts.year, parts.month, 0).getDate();
-          const oneDaySalary = round2(base / totalDays);
+          const totalDays = getWorkingDaysInMonth(parts.year, parts.month);
+          const oneDaySalary = Math.round((base / totalDays) / 10) * 10;
           // Default unposted has 0 absentDays, yielding 1 day bonus
           proposedAttendanceBonus = oneDaySalary;
         }
@@ -260,8 +272,8 @@ const paySalary = async (req, res) => {
       if (employee.designation === 'Teacher') {
         const parts = partsOf(month);
         if (parts) {
-          const totalDays = new Date(parts.year, parts.month, 0).getDate();
-          const oneDaySalary = round2(base / totalDays);
+          const totalDays = getWorkingDaysInMonth(parts.year, parts.month);
+          const oneDaySalary = Math.round((base / totalDays) / 10) * 10;
           const absDays = Number(absentDays || 0);
 
           if (absDays === 0) {
@@ -272,7 +284,7 @@ const paySalary = async (req, res) => {
             calcAbsenceDeduction = 0;
           } else {
             calcAttendanceBonus = 0;
-            calcAbsenceDeduction = round2((absDays - 1) * oneDaySalary);
+            calcAbsenceDeduction = Math.round(((absDays - 1) * oneDaySalary) / 10) * 10;
           }
         }
       }
