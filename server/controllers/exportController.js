@@ -2,11 +2,12 @@ const mongoose = require('mongoose');
 const Expense = require('../models/Expense');
 const SalaryRecord = require('../models/SalaryRecord');
 const Campus = require('../models/Campus');
+const FeeRecord = require('../models/FeeRecord');
 const { sendWorkbook, sendPdf } = require('../utils/exporters');
 const { getLedgerRows } = require('./accountsController');
 const {
   monthRange, formatMonthKey, currentMonthKey, monthsOfYear,
-  monthKeyExpr, TIMEZONE, MONTH_NAMES, partsOf,
+  monthKeyExpr, TIMEZONE, MONTH_NAMES, partsOf, ledgerMonthOf,
 } = require('../utils/ledgerMonth');
 
 /**
@@ -288,4 +289,143 @@ const exportSalarySheet = async (req, res) => {
   }
 };
 
-module.exports = { exportPnl, exportExpenses, exportSalarySheet };
+// @desc    The fee summary report (opening balance + details + summary)
+// @route   GET /api/fees/exports/summary?month=&startDate=&endDate=&format=
+const exportFeeSummary = async (req, res) => {
+  try {
+    const { currentCampus, currentSession } = req;
+    if (!currentCampus) return res.status(400).json({ message: 'An active campus is required' });
+
+    const format = req.query.format === 'pdf' ? 'pdf' : 'xlsx';
+    const { month, startDate, endDate } = req.query;
+
+    const query = { campus: oid(currentCampus), isDeleted: false, isOpeningBalance: { $ne: true } };
+    if (currentSession) query.academicSession = oid(currentSession);
+
+    let periodLabel = 'All records';
+    let monthKey = currentMonthKey();
+
+    if (month) {
+      const parts = partsOf(month);
+      if (parts) {
+        query.feeMonth = MONTH_NAMES[parts.month - 1];
+        query.feeYear = parts.year;
+        periodLabel = formatMonthKey(month);
+        monthKey = month;
+      }
+    } else if (startDate || endDate) {
+      query.issueDate = {};
+      if (startDate) {
+        query.issueDate.$gte = new Date(startDate);
+        monthKey = ledgerMonthOf(new Date(startDate));
+      }
+      if (endDate) {
+        const e = new Date(endDate);
+        e.setHours(23, 59, 59, 999);
+        query.issueDate.$lte = e;
+        if (!monthKey) monthKey = ledgerMonthOf(e);
+      }
+      periodLabel = `${startDate || 'start'} to ${endDate || 'today'}`;
+    }
+
+    const { openingBalanceFor } = require('./accountsController');
+    const opening = await openingBalanceFor(currentCampus, monthKey);
+
+    const fees = await FeeRecord.aggregate([
+      { $match: query },
+      { $lookup: { from: 'studentacademicrecords', localField: 'studentAcademicRecord', foreignField: '_id', as: 'academicInfo' } },
+      { $unwind: { path: '$academicInfo', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'students', localField: 'student', foreignField: '_id', as: 'studentInfo' } },
+      { $unwind: { path: '$studentInfo', preserveNullAndEmptyArrays: true } },
+      { $sort: { challanNo: 1 } },
+      {
+        $project: {
+          _id: 0,
+          challanNo: 1,
+          studentId: { $ifNull: ['$studentInfo.studentId', ''] },
+          fullName: { $ifNull: ['$studentInfo.fullName', ''] },
+          className: { $ifNull: ['$academicInfo.className', ''] },
+          section: { $ifNull: ['$academicInfo.section', ''] },
+          dueMonthRange: 1,
+          previousDues: { $ifNull: ['$previousDues', 0] },
+          tuitionFee: { $ifNull: ['$tuitionFee', 0] },
+          transportFee: { $ifNull: ['$transportFee', 0] },
+          miscFee: { $ifNull: ['$miscFee', 0] },
+          examFee: { $ifNull: ['$examFee', 0] },
+          annualFee: { $ifNull: ['$annualFee', 0] },
+          previousAnnualDues: { $ifNull: ['$previousAnnualDues', 0] },
+          totalAmount: { $ifNull: ['$totalAmount', 0] },
+          amountPaid: { $ifNull: ['$amountPaid', 0] },
+          balance: { $ifNull: ['$balance', 0] },
+          status: 1,
+          paymentDate: 1,
+        }
+      }
+    ]);
+
+    const formattedRows = fees.map(f => {
+      const classText = `Class ${f.className || ''} ${f.section || ''}`.trim();
+      const pDate = f.paymentDate ? new Date(f.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+      return {
+        ...f,
+        classSection: classText,
+        currentFees: f.tuitionFee + f.transportFee + f.miscFee + f.examFee,
+        totalAnnualFee: f.annualFee + f.previousAnnualDues,
+        payDate: pDate,
+      };
+    });
+
+    const totals = formattedRows.reduce((a, r) => ({
+      previousDues: a.previousDues + r.previousDues,
+      currentFees: a.currentFees + r.currentFees,
+      totalAnnualFee: a.totalAnnualFee + r.totalAnnualFee,
+      totalAmount: a.totalAmount + r.totalAmount,
+      amountPaid: a.amountPaid + r.amountPaid,
+      balance: a.balance + r.balance,
+    }), { previousDues: 0, currentFees: 0, totalAnnualFee: 0, totalAmount: 0, amountPaid: 0, balance: 0 });
+
+    const { campusName, meta } = await metaFor(req, [
+      `Period: ${periodLabel}`,
+      `Monthly Opening Balance: Rs. ${opening.amount.toLocaleString()}`,
+      `Total Fee Collected: Rs. ${totals.amountPaid.toLocaleString()}`,
+      `Closing Cash Balance: Rs. ${(opening.amount + totals.amountPaid).toLocaleString()}`,
+      `Total Dues Outstanding: Rs. ${totals.balance.toLocaleString()}`,
+      `${formattedRows.length} challans`,
+    ]);
+
+    await dispatch(res, format, {
+      name: 'Fee Summary',
+      title: campusName,
+      subtitle: `Fee Collection & Dues Summary — ${periodLabel}`,
+      meta,
+      columns: [
+        { header: 'Challan No', key: 'challanNo', width: 14, weight: 1 },
+        { header: 'Student ID', key: 'studentId', width: 12, weight: 0.9 },
+        { header: 'Student Name', key: 'fullName', width: 22, weight: 1.6 },
+        { header: 'Class', key: 'classSection', width: 14, weight: 1 },
+        { header: 'Due Months', key: 'dueMonthRange', width: 14, weight: 1 },
+        { header: 'Prev. Dues', key: 'previousDues', width: 12, money: true, weight: 0.9 },
+        { header: 'Monthly Fees', key: 'currentFees', width: 12, money: true, weight: 0.9 },
+        { header: 'Annual Fee', key: 'totalAnnualFee', width: 12, money: true, weight: 0.9 },
+        { header: 'Total Amount', key: 'totalAmount', width: 13, money: true, weight: 1 },
+        { header: 'Paid', key: 'amountPaid', width: 12, money: true, weight: 0.9 },
+        { header: 'Dues', key: 'balance', width: 12, money: true, weight: 0.9 },
+        { header: 'Status', key: 'status', width: 10, weight: 0.8 },
+        { header: 'Payment Date', key: 'payDate', width: 14, weight: 1.1 },
+      ],
+      rows: formattedRows,
+      totals,
+      footNote:
+        `Monthly Opening Balance: Rs. ${opening.amount.toLocaleString()}  |  ` +
+        `Total Fee Collected: Rs. ${totals.amountPaid.toLocaleString()}  |  ` +
+        `Closing Cash Balance: Rs. ${(opening.amount + totals.amountPaid).toLocaleString()}  |  ` +
+        `Total Dues Outstanding: Rs. ${totals.balance.toLocaleString()}\n` +
+        `Only non-opening-balance active challans are included.`,
+    }, `Fee_Summary_${month || 'all'}`);
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { exportPnl, exportExpenses, exportSalarySheet, exportFeeSummary };

@@ -726,7 +726,7 @@ const getFees = async (req, res) => {
     const { currentCampus, currentSession } = req;
     const {
       feeMonth, feeYear, status, class: studentClass, challanNo, search,
-      excludeOpening, page = 1, limit = 15,
+      excludeOpening, page = 1, limit = 15, startDate, endDate,
     } = req.query;
 
     const matchStage = { isDeleted: false };
@@ -740,6 +740,16 @@ const getFees = async (req, res) => {
     if (feeYear) matchStage.feeYear = Number(feeYear);
     if (status) matchStage.status = status;
     if (challanNo) matchStage.challanNo = { $regex: challanNo, $options: 'i' };
+
+    if (startDate || endDate) {
+      matchStage.issueDate = {};
+      if (startDate) matchStage.issueDate.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        matchStage.issueDate.$lte = end;
+      }
+    }
 
     const pipeline = [
       { $match: matchStage },
@@ -779,6 +789,21 @@ const getFees = async (req, res) => {
     const totalResult = await FeeRecord.aggregate(countPipeline);
     const total = totalResult.length > 0 ? totalResult[0].total : 0;
 
+    // Run summary aggregation to get total sums of the filtered subset
+    const summaryPipeline = [
+      ...pipeline,
+      {
+        $group: {
+          _id: null,
+          totalGenerated: { $sum: '$totalAmount' },
+          totalPaid: { $sum: '$amountPaid' },
+          totalDues: { $sum: '$balance' },
+        }
+      }
+    ];
+    const summaryResult = await FeeRecord.aggregate(summaryPipeline);
+    const summary = summaryResult[0] || { totalGenerated: 0, totalPaid: 0, totalDues: 0 };
+
     pipeline.push({ $sort: { createdAt: -1 } });
     pipeline.push({ $skip: (Number(page) - 1) * Number(limit) });
     pipeline.push({ $limit: Number(limit) });
@@ -798,7 +823,8 @@ const getFees = async (req, res) => {
 
     res.json({
       fees: formatted,
-      pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) }
+      pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
+      summary,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

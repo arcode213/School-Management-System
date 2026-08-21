@@ -16,6 +16,25 @@ const monthlyDueOf = (d) =>
 const annualDueOf = (d) =>
   d.annualBalance === undefined || d.annualBalance === null ? 0 : d.annualBalance;
 
+const getRemainingMonths = (d) => {
+  const mDue = monthlyDueOf(d);
+  if (mDue <= 0) return '—';
+  if (!d.paidUpToMonth) return d.dueMonthRange || d.feeMonth;
+  
+  const startIndex = MONTHS.indexOf(d.paidUpToMonth);
+  const endIndex = MONTHS.indexOf(d.feeMonth);
+  
+  if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
+    return `${d.feeMonth} ${d.feeYear}`;
+  }
+  
+  const firstUnpaidMonth = MONTHS[startIndex + 1];
+  if (firstUnpaidMonth === d.feeMonth) {
+    return `${d.feeMonth} ${d.feeYear}`;
+  }
+  return `${firstUnpaidMonth} - ${d.feeMonth} ${d.feeYear}`;
+};
+
 export default function DuesPage() {
   const { currentCampus, currentSession, campuses, sessions } = useAppContext();
   const [dues, setDues] = useState([]);
@@ -71,13 +90,12 @@ export default function DuesPage() {
   }, [filteredDues]);
 
   const exportCSV = () => {
-    const headers = ['Challan No', 'Student ID', 'Student Name', 'Father Name', 'Class', 'Month', 'Total Fee', 'Paid', 'Discount', 'Monthly Due', 'Annual Due', 'Total Due'];
+    const headers = ['Challan No', 'Student ID', 'Student Name', 'Father Name', 'Class', 'Remaining Months', 'Monthly Due', 'Annual Due', 'Total Outstanding'];
     const rows = filteredDues.map(d => {
       const remaining = d.balance || 0;
       return [
         d.challanNo, d.student?.studentId, d.student?.fullName, d.student?.fatherName, `${d.student?.class} ${d.student?.section || ''}`,
-        `${d.dueMonthRange || d.feeMonth} ${d.feeYear}`, d.totalAmount, d.amountPaid || 0, d.discount || 0,
-        monthlyDueOf(d), annualDueOf(d), remaining
+        getRemainingMonths(d), monthlyDueOf(d), annualDueOf(d), remaining
       ];
     });
     const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ''}"`).join(',')).join('\n');
@@ -101,7 +119,6 @@ export default function DuesPage() {
 
     const rows = filteredDues.map((d, i) => {
       const remaining = d.balance || 0;
-      const paidDisc = (d.amountPaid || 0) + (d.discount || 0);
       return `
         <tr>
           <td class="c">${i + 1}</td>
@@ -109,9 +126,7 @@ export default function DuesPage() {
           <td>${escapeHtml(d.student?.studentId)}</td>
           <td>${escapeHtml(d.student?.fullName)}${d.student?.fatherName ? `<br/><span class="sub">s/o ${escapeHtml(d.student.fatherName)}</span>` : ''}</td>
           <td>${escapeHtml(`${d.student?.class || ''} ${d.student?.section || ''}`)}</td>
-          <td>${escapeHtml(`${d.dueMonthRange || d.feeMonth} ${d.feeYear}`)}</td>
-          <td class="r">${(d.totalAmount || 0).toLocaleString()}</td>
-          <td class="r">${paidDisc.toLocaleString()}</td>
+          <td>${escapeHtml(getRemainingMonths(d))}</td>
           <td class="r">${monthlyDueOf(d).toLocaleString()}</td>
           <td class="r">${annualDueOf(d).toLocaleString()}</td>
           <td class="r due">${remaining.toLocaleString()}</td>
@@ -161,18 +176,16 @@ export default function DuesPage() {
               <th>Student ID</th>
               <th>Student</th>
               <th>Class</th>
-              <th>Month</th>
-              <th class="r">Total Fee</th>
-              <th class="r">Paid/Disc</th>
+              <th>Remaining Months</th>
               <th class="r">Monthly Due</th>
               <th class="r">Annual Due</th>
-              <th class="r">Total Due</th>
+              <th class="r">Total Outstanding</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
           <tfoot>
             <tr>
-              <td colspan="8" class="r">Total Outstanding</td>
+              <td colspan="6" class="r">Total Outstanding</td>
               <td class="r">Rs. ${totals.monthly.toLocaleString()}</td>
               <td class="r">Rs. ${totals.annual.toLocaleString()}</td>
               <td class="r due">Rs. ${totals.all.toLocaleString()}</td>
@@ -313,12 +326,10 @@ export default function DuesPage() {
                   <th className="px-5 py-4">Challan No.</th>
                   <th className="px-5 py-4">Student</th>
                   <th className="px-5 py-4">Class</th>
-                  <th className="px-5 py-4">Month</th>
-                  <th className="text-right px-5 py-4">Total Fee</th>
-                  <th className="text-right px-5 py-4">Paid/Disc</th>
+                  <th className="px-5 py-4">Remaining Months</th>
                   <th className="text-right px-5 py-4">Monthly Due</th>
                   <th className="text-right px-5 py-4">Annual Due</th>
-                  <th className="text-right px-5 py-4">Total Due</th>
+                  <th className="text-right px-5 py-4">Total Outstanding</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line t-muted">
@@ -337,16 +348,14 @@ export default function DuesPage() {
                         </div>
                       </td>
                       <td data-label="Class" className="px-5 py-4 t-muted font-medium">Class {d.student?.class} {d.student?.section || ''}</td>
-                      <td data-label="Month" className="px-5 py-4 t-muted font-semibold">{d.dueMonthRange || d.feeMonth} {d.feeYear}</td>
-                      <td data-label="Total Fee" className="px-5 py-4 text-right">Rs. {d.totalAmount?.toLocaleString()}</td>
-                      <td data-label="Paid / Disc" className="px-5 py-4 text-right t-faint">Rs. {((d.amountPaid || 0) + (d.discount || 0)).toLocaleString()}</td>
+                      <td data-label="Remaining Months" className="px-5 py-4 t-muted font-semibold">{getRemainingMonths(d)}</td>
                       <td data-label="Monthly Due" className="px-5 py-4 text-right font-medium">
                         {monthlyDue > 0 ? `Rs. ${monthlyDue.toLocaleString()}` : <span className="t-muted">—</span>}
                       </td>
                       <td data-label="Annual Due" className="px-5 py-4 text-right font-medium t-brand">
                         {annualDue > 0 ? `Rs. ${annualDue.toLocaleString()}` : <span className="t-muted">—</span>}
                       </td>
-                      <td data-label="Total Due" className="px-5 py-4 text-right font-black t-bad">Rs. {remaining.toLocaleString()}</td>
+                      <td data-label="Total Outstanding" className="px-5 py-4 text-right font-black t-bad">Rs. {remaining.toLocaleString()}</td>
                     </tr>
                   );
                 })}

@@ -5,11 +5,13 @@ const { restrictFeeToScope, restrictStudentToScope } = require('../middleware/sc
 const {
   addFee, addBulkFees, getFees, getStudentFees, getDues, updateFee, deleteFee, getFee
 } = require('../controllers/feeController');
+const { exportFeeSummary } = require('../controllers/exportController');
 
 router.use(protect);
 
 router.post('/bulk', requirePermission('fees', 'create'), addBulkFees);
 router.get('/dues', requirePermission('dues', 'view'), getDues);
+router.get('/exports/summary', requirePermission('fees', 'view'), exportFeeSummary);
 // Addressed by student id rather than campus, so the student has to be checked
 // against the caller's scope as well — the controller then filters the records.
 router.get('/student/:id', requirePermission('fees', 'view'), restrictStudentToScope, getStudentFees);

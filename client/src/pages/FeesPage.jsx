@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getFees, deleteFee } from '../api/fees';
+import { getFees, deleteFee, exportFeeSummary } from '../api/fees';
 import { getClasses } from '../api/students';
 import FeePaymentModal from '../components/FeePaymentModal';
 import GenerateFeeModal from '../components/GenerateFeeModal';
@@ -7,10 +7,11 @@ import IndividualChallanModal from '../components/IndividualChallanModal';
 import ChallanPrintPreview from '../components/ChallanPrintPreview';
 import QuickPayTab from '../components/QuickPayTab';
 import toast from 'react-hot-toast';
-import { CreditCard, Printer, Search, ChevronLeft, ChevronRight, CopyPlus, Wallet, FilePlus, Edit2, Trash2 } from 'lucide-react';
+import { CreditCard, Printer, Search, ChevronLeft, ChevronRight, CopyPlus, Wallet, FilePlus, Edit2, Trash2, Check, AlertCircle, FileDown } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
+import api from '../api/axios';
 
 const STATUSES = ['Paid', 'Partial', 'Unpaid', 'Overdue'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -27,7 +28,7 @@ const StatusBadge = ({ status }) => {
 
 export default function FeesPage() {
   const { can } = useAuth();
-  const { currentCampus, currentSession } = useAppContext();
+  const { currentCampus, currentSession, sessions } = useAppContext();
   const [fees, setFees] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -39,6 +40,9 @@ export default function FeesPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [summary, setSummary] = useState({ totalGenerated: 0, totalPaid: 0, totalDues: 0 });
 
   // Modals
   const [generateOpen, setGenerateOpen] = useState(false);
@@ -60,20 +64,29 @@ export default function FeesPage() {
     setLoading(true);
     try {
       const { data } = await getFees({
-        feeMonth: filterMonth, class: filterClass, status: filterStatus, search: debouncedSearch, page, limit: 10
+        feeMonth: filterMonth,
+        class: filterClass,
+        status: filterStatus,
+        search: debouncedSearch,
+        page,
+        limit: 10,
+        startDate,
+        endDate
       });
       setFees(data.fees);
       setPagination(data.pagination);
+      setSummary(data.summary || { totalGenerated: 0, totalPaid: 0, totalDues: 0 });
     } catch {
       toast.error('Failed to load fees');
     } finally {
       setLoading(false);
     }
-  }, [filterMonth, filterClass, filterStatus, debouncedSearch, page]);
+  }, [filterMonth, filterClass, filterStatus, debouncedSearch, page, startDate, endDate]);
 
   useEffect(() => {
     if (currentCampus && currentSession) fetchFees();
   }, [fetchFees, currentCampus, currentSession]);
+
   useEffect(() => {
     if (currentCampus && currentSession) getClasses().then(r => setClasses(r.data)).catch(() => {});
   }, [currentCampus, currentSession]);
@@ -94,6 +107,56 @@ export default function FeesPage() {
     }
   };
 
+  const handlePrint = async () => {
+    const t = toast.loading('Preparing print view...');
+    try {
+      const activeSessionObj = sessions.find(s => s._id === currentSession);
+      const sessionYear = activeSessionObj ? activeSessionObj.name.split('-')[0] : new Date().getFullYear();
+      const monthParam = filterMonth ? `${sessionYear}-${String(MONTHS.indexOf(filterMonth) + 1).padStart(2, '0')}` : undefined;
+
+      const params = {
+        format: 'pdf',
+        month: monthParam,
+        startDate,
+        endDate,
+      };
+
+      const res = await api.get('/fees/exports/summary', { params, responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const href = URL.createObjectURL(blob);
+      const win = window.open(href, '_blank');
+      if (win) {
+        win.focus();
+      } else {
+        toast.error('Pop-up blocked. Please allow pop-ups for this site.');
+      }
+      toast.success('Print document loaded', { id: t });
+    } catch (err) {
+      toast.error('Failed to generate print document', { id: t });
+    }
+  };
+
+  const handleExportExcel = async () => {
+    const t = toast.loading('Generating Excel sheet...');
+    try {
+      const activeSessionObj = sessions.find(s => s._id === currentSession);
+      const sessionYear = activeSessionObj ? activeSessionObj.name.split('-')[0] : new Date().getFullYear();
+      const monthParam = filterMonth ? `${sessionYear}-${String(MONTHS.indexOf(filterMonth) + 1).padStart(2, '0')}` : undefined;
+
+      const params = {
+        format: 'xlsx',
+        month: monthParam,
+        startDate,
+        endDate,
+      };
+
+      await exportFeeSummary(params);
+      toast.success('Excel sheet downloaded', { id: t });
+    } catch {
+      toast.error('Failed to generate Excel sheet', { id: t });
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -104,6 +167,22 @@ export default function FeesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          {activeTab === 'registry' && (
+            <>
+              <button onClick={handlePrint}
+                className="btn btn-ghost"
+                title="Print Fee Summary Report"
+              >
+                <Printer size={14} /> Print Summary
+              </button>
+              <button onClick={handleExportExcel}
+                className="btn btn-ghost"
+                title="Export Fee Summary to Excel"
+              >
+                <FileDown size={14} /> Export Summary
+              </button>
+            </>
+          )}
           {activeTab === 'registry' && can('fees', 'create') && (
             <>
               <button onClick={openIndividual}
@@ -147,6 +226,46 @@ export default function FeesPage() {
               <option value="">All Statuses</option>
               {STATUSES.map(s => <option key={s} className="bg-surface-2">{s}</option>)}
             </select>
+            {/* Date range filters */}
+            <div className="flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs items-center gap-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider t-muted">Start:</span>
+              <input type="date" className="bg-transparent outline-none w-full t-body focus:outline-none cursor-pointer font-medium" value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1); }} />
+            </div>
+            <div className="flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs items-center gap-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider t-muted">End:</span>
+              <input type="date" className="bg-transparent outline-none w-full t-body focus:outline-none cursor-pointer font-medium" value={endDate} onChange={e => { setEndDate(e.target.value); setPage(1); }} />
+            </div>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="card p-4 flex items-center justify-between bg-surface-2 border border-line rounded-xl shadow-sm">
+              <div>
+                <p className="t-muted text-[10px] uppercase font-bold tracking-wider">Total Invoiced (Filtered)</p>
+                <h3 className="text-lg font-extrabold t-body mt-1">Rs {summary.totalGenerated?.toLocaleString()}</h3>
+              </div>
+              <div className="p-2.5 bg-brand-soft rounded-xl text-brand border border-brand-border">
+                <Wallet size={16} />
+              </div>
+            </div>
+            <div className="card p-4 flex items-center justify-between bg-surface-2 border border-line rounded-xl shadow-sm">
+              <div>
+                <p className="t-muted text-[10px] uppercase font-bold tracking-wider">Total Paid (Filtered)</p>
+                <h3 className="text-lg font-extrabold t-ok mt-1">Rs {summary.totalPaid?.toLocaleString()}</h3>
+              </div>
+              <div className="p-2.5 bg-ok-soft rounded-xl text-ok border border-ok-border">
+                <Check size={16} />
+              </div>
+            </div>
+            <div className="card p-4 flex items-center justify-between bg-surface-2 border border-line rounded-xl shadow-sm">
+              <div>
+                <p className="t-muted text-[10px] uppercase font-bold tracking-wider">Total Outstanding (Filtered)</p>
+                <h3 className="text-lg font-extrabold t-bad mt-1">Rs {summary.totalDues?.toLocaleString()}</h3>
+              </div>
+              <div className="p-2.5 bg-bad-soft rounded-xl text-bad border border-bad-border">
+                <AlertCircle size={16} />
+              </div>
+            </div>
           </div>
 
           {/* Table */}
@@ -231,6 +350,11 @@ export default function FeesPage() {
                               {due > 0 && <div className="t-bad font-semibold">Due: {due}</div>}
                               {f.paidUpToMonth && f.status === 'Partial' && (
                                 <div className="t-faint text-[9px] font-medium">Paid thru {f.paidUpToMonth}</div>
+                              )}
+                              {f.paymentDate && (
+                                <div className="text-[9px] t-muted font-medium mt-0.5" title="Payment Date">
+                                  Paid on: {new Date(f.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </div>
                               )}
                             </div>
                           </td>
