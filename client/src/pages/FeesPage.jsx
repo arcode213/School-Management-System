@@ -8,6 +8,7 @@ import ChallanPrintPreview from '../components/ChallanPrintPreview';
 import QuickPayTab from '../components/QuickPayTab';
 import toast from 'react-hot-toast';
 import { CreditCard, Printer, Search, ChevronLeft, ChevronRight, CopyPlus, Wallet, FilePlus, Edit2, Trash2, Check, AlertCircle, FileDown } from 'lucide-react';
+import { formatDueMonths } from '../utils/feeMonths';
 
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
@@ -330,7 +331,7 @@ export default function FeesPage() {
                               <div className="text-[10px] t-faint font-medium">Class {student?.class} {student?.section}</div>
                             </div>
                           </td>
-                          <td data-label="Due Months" className="px-5 py-4 t-muted font-semibold">{f.dueMonthRange}</td>
+                          <td data-label="Due Months" className="px-5 py-4 t-muted font-semibold">{formatDueMonths(f.dueMonthRange, f.feeMonth, f.feeYear, f)}</td>
                           <td data-label="Prev. Dues" className="px-5 py-4 t-bad font-bold">Rs {f.previousDues?.toLocaleString()}</td>
                           <td data-label="Current Fee" className="px-5 py-4 t-muted font-medium">Rs {currentFee.toLocaleString()}</td>
                           <td data-label="Annual Fee" className="px-5 py-4">

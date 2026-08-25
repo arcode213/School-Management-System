@@ -4,7 +4,10 @@ const FeeStructure = require('../models/FeeStructure');
 const StudentFeeOverride = require('../models/StudentFeeOverride');
 const StudentAcademicRecord = require('../models/StudentAcademicRecord');
 const FeePayment = require('../models/FeePayment');
-const { MONTHS, parseStartMonth, buildDueMonthRange, absMonth, monthAfter } = require('../utils/feeMonths');
+const {
+  MONTHS, parseStartMonth, parseStartYear, buildDueMonthRange, absMonth, monthAfter,
+  resolveAccurateDueMonthRange,
+} = require('../utils/feeMonths');
 const { withTransaction, sessionOpts } = require('../utils/transaction');
 
 // Client errors carry a statusCode so the handler can answer 400 instead of a
@@ -101,9 +104,11 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     const feeIdx = MONTHS.indexOf(challan.feeMonth);
     const candidate = outstandingStartMonth(challan);
     const candidateIdx = MONTHS.indexOf(candidate);
-    // If the range wraps the calendar year ("December - January"), the start month
-    // belongs to the previous calendar year.
-    const startYear = candidateIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
+    // If the range carries an explicit year, use it; otherwise, if the range wraps
+    // the calendar year ("December - January"), the start month belongs to the
+    // previous calendar year.
+    const defaultStartYear = candidateIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
+    const startYear = parseStartYear(challan.dueMonthRange, defaultStartYear);
     return { abs: absMonth(candidate, startYear), month: candidate };
   };
 
@@ -234,12 +239,17 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
   const lumpSumAnnual = [...priorAnnualBySession.values()].reduce((sum, v) => sum + v, 0);
   const totalAnnualDue = Math.max(lumpSumAnnual, carriedPriorAnnual);
 
+  const startYear = globalDisplayStartAbs !== Infinity ? Math.floor(globalDisplayStartAbs / 12) : null;
+  const endYear = globalDisplayEndAbs !== -Infinity ? Math.floor(globalDisplayEndAbs / 12) : null;
+
   return {
     previousDues: totalDue,
     previousAnnualDues: totalAnnualDue,
     currentAnnualCarryForward,
     startMonth: displayStartMonth,
+    startYear,
     endMonth: displayEndMonth,
+    endYear,
     gapMonths,
     challansToCarryForward,
   };
@@ -453,9 +463,9 @@ const addFee = async (req, res) => {
     // The annual fee is deliberately excluded from the recurring rate — it is a
     // one-off, so it must not be used to price skipped months.
     const monthlyRecurring = (tuitionFee || 0) + (transportFee || 0) + (miscFee || 0);
-    const { previousDues, previousAnnualDues, currentAnnualCarryForward, startMonth, endMonth, challansToCarryForward } =
+    const { previousDues, previousAnnualDues, currentAnnualCarryForward, startMonth, startYear, endMonth, challansToCarryForward } =
       await getPreviousDues(student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
-    const dueMonthRange = buildDueMonthRange(startMonth, feeMonth);
+    const dueMonthRange = buildDueMonthRange(startMonth, startYear, feeMonth, Number(feeYear));
     const arrears = arrearsPeriod(previousDues, startMonth, endMonth);
 
     // Unpaid annual fee from an earlier challan of this same session joins the annual
@@ -628,9 +638,9 @@ const addBulkFees = async (req, res) => {
       // Calculate previous dues and carry forward. Skipped months are billed at
       // the recurring monthly rate (tuition + transport + misc) for this student.
       const monthlyRecurring = tFee + tTrans + tMisc;
-      const { previousDues, previousAnnualDues, currentAnnualCarryForward, startMonth, endMonth, challansToCarryForward } =
+      const { previousDues, previousAnnualDues, currentAnnualCarryForward, startMonth, startYear, endMonth, challansToCarryForward } =
         await getPreviousDues(record.student, currentSession, session, feeMonth, Number(feeYear), monthlyRecurring);
-      const dueMonthRange = buildDueMonthRange(startMonth, feeMonth);
+      const dueMonthRange = buildDueMonthRange(startMonth, startYear, feeMonth, Number(feeYear));
       const arrears = arrearsPeriod(previousDues, startMonth, endMonth);
 
       // This session's own unpaid annual fee stays on the "Annual Fee" line (see the
@@ -818,6 +828,7 @@ const getFees = async (req, res) => {
         // Surfaced so the UI can exclude Freeship students from challan printing.
         f.studentInfo.isFreeship = !!f.academicInfo?.isFreeship;
       }
+      f.dueMonthRange = resolveAccurateDueMonthRange(f);
       return f;
     });
 
@@ -851,7 +862,14 @@ const getStudentFees = async (req, res) => {
     const fees = await FeeRecord.find(filter)
       .populate('academicSession', 'name')
       .sort({ feeYear: -1, createdAt: -1 });
-    res.json(fees);
+
+    const formatted = fees.map(f => {
+      const doc = f.toJSON();
+      doc.dueMonthRange = resolveAccurateDueMonthRange(doc);
+      return doc;
+    });
+      
+    res.json(formatted);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -933,16 +951,15 @@ const updateFee = async (req, res) => {
     if (req.body.previousAnnualDues !== undefined) fee.previousAnnualDues = req.body.previousAnnualDues;
     if (req.body.dueDate) fee.dueDate = req.body.dueDate;
     if (req.body.feeMonth) {
-      // A multi-month range ("April - June") comes from carried-forward dues and
-      // must survive an edit — only its END month moves. The previous guard tested
-      // for ' to ', but buildDueMonthRange emits ' - ', so it never matched and
-      // every edit silently flattened the range to a single month (which then threw
-      // off the printed arrears label and the paidUpToMonth split).
+      // A multi-month range ("April to August") comes from carried-forward dues and
+      // must survive an edit — only its END month moves.
       const startMonth = parseStartMonth(fee.dueMonthRange, fee.feeMonth);
-      const isSpan = !!fee.dueMonthRange && startMonth !== fee.feeMonth;
+      const startYear = parseStartYear(fee.dueMonthRange, fee.feeYear);
+      const isSpan = !!fee.dueMonthRange && (startMonth !== fee.feeMonth || startYear !== fee.feeYear);
 
       fee.feeMonth = req.body.feeMonth;
-      fee.dueMonthRange = isSpan ? buildDueMonthRange(startMonth, req.body.feeMonth) : req.body.feeMonth;
+      if (req.body.feeYear) fee.feeYear = Number(req.body.feeYear);
+      fee.dueMonthRange = isSpan ? buildDueMonthRange(startMonth, startYear, fee.feeMonth, fee.feeYear) : fee.feeMonth;
     }
     if (req.body.feeYear) fee.feeYear = Number(req.body.feeYear);
 
@@ -1054,13 +1071,13 @@ const getFee = async (req, res) => {
     if (!fee) return res.status(404).json({ message: 'Fee record not found' });
 
     const doc = fee.toJSON();
+    doc.dueMonthRange = resolveAccurateDueMonthRange(doc);
     if (doc.student) {
       doc.student.class = doc.studentAcademicRecord?.className;
       doc.student.section = doc.studentAcademicRecord?.section;
       doc.student.rollNumber = doc.studentAcademicRecord?.rollNumber;
       doc.student.isFreeship = !!doc.studentAcademicRecord?.isFreeship;
     }
-    
     res.json(doc);
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -12,9 +12,60 @@ const parseStartMonth = (range, fallback) => {
   return match || fallback;
 };
 
-// Build a clean range label, e.g. "April" (single month) or "April - June" (span).
-const buildDueMonthRange = (startMonth, feeMonth) =>
-  startMonth && startMonth !== feeMonth ? `${startMonth} - ${feeMonth}` : feeMonth;
+const shortMonth = (monthName) => {
+  if (!monthName) return '';
+  const m = monthName.trim().toLowerCase();
+  if (m.startsWith('jan')) return 'Jan';
+  if (m.startsWith('feb')) return 'Feb';
+  if (m.startsWith('mar')) return 'Mar';
+  if (m.startsWith('apr')) return 'April'; // Match user's "April"
+  if (m.startsWith('may')) return 'May';
+  if (m.startsWith('jun')) return 'June';
+  if (m.startsWith('jul')) return 'July';
+  if (m.startsWith('aug')) return 'Aug';
+  if (m.startsWith('sep')) return 'Sept';
+  if (m.startsWith('oct')) return 'Oct';
+  if (m.startsWith('nov')) return 'Nov';
+  if (m.startsWith('dec')) return 'Dec';
+  return monthName;
+};
+
+const shortYear = (year) => {
+  if (!year) return '';
+  return String(year).slice(-2);
+};
+
+const formatMonthYear = (month, year) => {
+  if (!month) return '';
+  return `${shortMonth(month)} ${shortYear(year)}`; // Space between month and year!
+};
+
+const parseStartYear = (range, fallbackYear) => {
+  if (!range) return fallbackYear;
+  const m = String(range).match(/^[A-Za-z]+\s*(\d{2}|\d{4})/);
+  if (m) {
+    const y = Number(m[1]);
+    return y < 100 ? 2000 + y : y;
+  }
+  return fallbackYear;
+};
+
+// Build a clean range label, e.g. "April 26" (single month) or "April 25 to Aug 26" (span).
+// Year suffix is always included on all month names in the range.
+const buildDueMonthRange = (startMonth, startYear, feeMonth, feeYear) => {
+  if (!startMonth) {
+    return feeYear !== undefined && feeYear !== null ? formatMonthYear(feeMonth, feeYear) : feeMonth;
+  }
+  if (startYear === undefined || startYear === null || feeYear === undefined || feeYear === null) {
+    return startMonth !== feeMonth ? `${startMonth} to ${feeMonth}` : feeMonth;
+  }
+  const startsSame = startMonth === feeMonth;
+  const yearsSame = startYear === feeYear;
+  if (startsSame && yearsSame) {
+    return formatMonthYear(feeMonth, feeYear);
+  }
+  return `${formatMonthYear(startMonth, startYear)} to ${formatMonthYear(feeMonth, feeYear)}`;
+};
 
 // Absolute month number so months can be compared/ranged across calendar-year
 // boundaries (e.g. an academic session running December -> January).
@@ -64,7 +115,7 @@ const EXCEL_EPOCH_MS = Date.UTC(1899, 11, 30);
 const MS_PER_DAY = 86400000;
 
 // Tolerant date parser for form + spreadsheet input. Accepts a Date, an ISO or
-// otherwise parseable string, "January 2026" / "Jan-2026", "2026-01", a bare year,
+// otherwise parseable string, "January 2026" / "Jan 2026" / "Jan-2026", "2026-01", a bare year,
 // or a raw Excel serial number. Returns null when nothing sensible is present.
 const parseFlexibleDate = (value) => {
   if (value === null || value === undefined || value === '') return null;
@@ -81,11 +132,26 @@ const parseFlexibleDate = (value) => {
     return null;
   }
 
-  // "January 2026" / "Jan 2026" / "Jan-2026" / "March/2026"
-  const monthYear = text.match(/^([A-Za-z]{3,})[\s\-/,]+(\d{4})$/);
+  // "January 2026" / "Jan 2026" / "Jan-2026" / "March/2026" / "April 25" / "Apr-25" / "Apr/25"
+  const monthYear = text.match(/^([A-Za-z]{3,})[\s\-/,]+(\d{2}|\d{4})$/);
   if (monthYear) {
     const idx = MONTHS.findIndex(m => m.toLowerCase().startsWith(monthYear[1].toLowerCase().substring(0, 3)));
-    if (idx >= 0) return new Date(Date.UTC(Number(monthYear[2]), idx, 1));
+    if (idx >= 0) {
+      const rawYear = Number(monthYear[2]);
+      const fullYear = rawYear < 100 ? 2000 + rawYear : rawYear;
+      return new Date(Date.UTC(fullYear, idx, 1));
+    }
+  }
+
+  // "25-Jan" / "2025-Jan" / "25/January"
+  const yearMonthText = text.match(/^(\d{2}|\d{4})[\s\-/,]+([A-Za-z]{3,})$/);
+  if (yearMonthText) {
+    const idx = MONTHS.findIndex(m => m.toLowerCase().startsWith(yearMonthText[2].toLowerCase().substring(0, 3)));
+    if (idx >= 0) {
+      const rawYear = Number(yearMonthText[1]);
+      const fullYear = rawYear < 100 ? 2000 + rawYear : rawYear;
+      return new Date(Date.UTC(fullYear, idx, 1));
+    }
   }
 
   // "2026-01" / "2026/1" (year-month, no day)
@@ -93,6 +159,17 @@ const parseFlexibleDate = (value) => {
   if (yearMonth) {
     const m = Number(yearMonth[2]);
     if (m >= 1 && m <= 12) return new Date(Date.UTC(Number(yearMonth[1]), m - 1, 1));
+  }
+
+  // "01-2026" / "01/2026" / "04/25" / "04-25" (month-year, no day)
+  const monthYearNum = text.match(/^(\d{1,2})[-/](\d{2}|\d{4})$/);
+  if (monthYearNum) {
+    const m = Number(monthYearNum[1]);
+    if (m >= 1 && m <= 12) {
+      const rawYear = Number(monthYearNum[2]);
+      const fullYear = rawYear < 100 ? 2000 + rawYear : rawYear;
+      return new Date(Date.UTC(fullYear, m - 1, 1));
+    }
   }
 
   const parsed = new Date(text);
@@ -163,7 +240,7 @@ const buildArrearsPeriod = (from, to) => {
   return {
     feeMonth: end.month,
     feeYear: end.year,
-    dueMonthRange: start ? buildDueMonthRange(start.month, end.month) : end.month,
+    dueMonthRange: start ? buildDueMonthRange(start.month, start.year, end.month, end.year) : end.month,
     // The exact months the arrears cover, printed verbatim on the challan instead
     // of being re-derived (and mis-derived) from the range label.
     startMonth: start ? start.month : null,
@@ -171,7 +248,56 @@ const buildArrearsPeriod = (from, to) => {
   };
 };
 
+// Resolve accurate dueMonthRange dynamically for a fee record.
+// If an older challan had its startYear saved as feeYear (e.g. "April 26 to Aug 26")
+// even though its large previous dues span back to previous year (April 2025), this computes
+// the accurate start year from the dues amount and monthly recurring fee.
+const resolveAccurateDueMonthRange = (fee) => {
+  if (!fee) return '';
+  const range = fee.dueMonthRange;
+  if (range === 'Previous Arrears') return 'Previous Arrears';
+  const feeMonth = fee.feeMonth;
+  const feeYear = Number(fee.feeYear) || new Date().getFullYear();
+  const prevDues = Number(fee.previousDues) || 0;
+  const recurring = (Number(fee.tuitionFee) || 0) + (Number(fee.transportFee) || 0) + (Number(fee.miscFee) || 0);
+
+  const startMonth = fee.arrearsFromMonth || parseStartMonth(range, feeMonth);
+  const startIdx = MONTHS.indexOf(startMonth);
+  const feeIdx = MONTHS.indexOf(feeMonth);
+
+  if (startIdx < 0 || feeIdx < 0) return range || `${feeMonth} ${shortYear(feeYear)}`;
+
+  let startYear = parseStartYear(range, null);
+
+  if (prevDues > 0 && recurring > 0) {
+    const monthsOfDues = Math.round(prevDues / recurring);
+    const hasCurrentMonth = recurring > 0 && ((fee.tuitionFee || 0) + (fee.transportFee || 0) + (fee.miscFee || 0)) > 0;
+    const totalMonths = hasCurrentMonth ? monthsOfDues + 1 : monthsOfDues;
+    
+    if (totalMonths > 1) {
+      const currentAbs = absMonth(feeMonth, feeYear);
+      const inferredStartAbs = currentAbs - totalMonths + 1;
+      const calculatedStartYear = Math.floor(inferredStartAbs / 12);
+      
+      const spanInSameYear = (feeIdx - startIdx + 1 + 12) % 12 || 12;
+      if (totalMonths > spanInSameYear || calculatedStartYear < feeYear) {
+        startYear = calculatedStartYear;
+      }
+    }
+  }
+
+  if (!startYear) {
+    startYear = startIdx <= feeIdx ? feeYear : feeYear - 1;
+  }
+
+  if (startMonth === feeMonth && startYear === feeYear) {
+    return `${shortMonth(feeMonth)} ${shortYear(feeYear)}`;
+  }
+
+  return `${shortMonth(startMonth)} ${shortYear(startYear)} to ${shortMonth(feeMonth)} ${shortYear(feeYear)}`;
+};
+
 module.exports = {
-  MONTHS, parseStartMonth, buildDueMonthRange, absMonth, monthAfter, computePaidUpToMonth,
-  parseFlexibleDate, buildArrearsPeriod, monthNameIndex,
+  MONTHS, parseStartMonth, parseStartYear, buildDueMonthRange, absMonth, monthAfter, computePaidUpToMonth,
+  parseFlexibleDate, buildArrearsPeriod, monthNameIndex, resolveAccurateDueMonthRange,
 };

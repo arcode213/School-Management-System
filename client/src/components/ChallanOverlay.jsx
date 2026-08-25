@@ -62,7 +62,9 @@ const normalize = (fee) => {
     fatherName: s.fatherName || '',
     className: s.class || '',
     section: s.section || '',
-    month: `${fee.dueMonthRange || fee.feeMonth} ${fee.feeYear}`,
+    month: fee.dueMonthRange && (fee.dueMonthRange.includes('-') || fee.dueMonthRange.toLowerCase().includes('to') || /\d/.test(fee.dueMonthRange))
+      ? fee.dueMonthRange
+      : `${fee.dueMonthRange || fee.feeMonth} ${fee.feeYear}`,
 
     // Fee summary. Only the current-month line and the total always print; the
     // arrears and annual lines appear only when there is an amount for them.

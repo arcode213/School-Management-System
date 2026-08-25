@@ -4,8 +4,7 @@ import { getClasses } from '../api/students';
 import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
 import { AlertCircle, Download, Search, Printer, Layers, Landmark } from 'lucide-react';
-
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+import { MONTHS, parseDueMonthRange, formatDueMonths, formatMonthYear } from '../utils/feeMonths';
 
 const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, c => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -19,20 +18,36 @@ const annualDueOf = (d) =>
 const getRemainingMonths = (d) => {
   const mDue = monthlyDueOf(d);
   if (mDue <= 0) return '—';
-  if (!d.paidUpToMonth) return d.dueMonthRange || d.feeMonth;
   
-  const startIndex = MONTHS.indexOf(d.paidUpToMonth);
-  const endIndex = MONTHS.indexOf(d.feeMonth);
+  if (!d.paidUpToMonth) {
+    return formatDueMonths(d.dueMonthRange, d.feeMonth, d.feeYear, d);
+  }
+
+  const parsedRange = parseDueMonthRange(d.dueMonthRange, d.feeMonth, d.feeYear);
+  const absStart = parsedRange.startYear * 12 + MONTHS.indexOf(parsedRange.startMonth);
+  const absEnd = parsedRange.endYear * 12 + MONTHS.indexOf(parsedRange.endMonth);
   
-  if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
+  let absPaidUp = -1;
+  for (let m = absStart; m <= absEnd; m++) {
+    if (MONTHS[m % 12] === d.paidUpToMonth) {
+      absPaidUp = m;
+      break;
+    }
+  }
+
+  if (absPaidUp === -1 || absPaidUp + 1 > absEnd) {
     return `${d.feeMonth} ${d.feeYear}`;
   }
-  
-  const firstUnpaidMonth = MONTHS[startIndex + 1];
-  if (firstUnpaidMonth === d.feeMonth) {
+
+  const firstUnpaidAbs = absPaidUp + 1;
+  const firstUnpaidMonth = MONTHS[firstUnpaidAbs % 12];
+  const firstUnpaidYear = Math.floor(firstUnpaidAbs / 12);
+
+  if (firstUnpaidAbs === absEnd) {
     return `${d.feeMonth} ${d.feeYear}`;
   }
-  return `${firstUnpaidMonth} - ${d.feeMonth} ${d.feeYear}`;
+
+  return `${formatMonthYear(firstUnpaidMonth, firstUnpaidYear)} to ${formatMonthYear(parsedRange.endMonth, parsedRange.endYear)}`;
 };
 
 export default function DuesPage() {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getFees, updateFee } from '../api/fees';
-import { MONTHS, parseStartMonth, monthAt } from '../utils/feeMonths';
+import { MONTHS, parseStartMonth, monthAt, formatDueMonths } from '../utils/feeMonths';
 import toast from 'react-hot-toast';
 import { Search, Wallet, CreditCard, Loader2 } from 'lucide-react';
 
@@ -227,7 +227,7 @@ export default function QuickPayTab({ onPaymentSaved }) {
                   </div>
                   <div className="text-right md:text-right flex md:flex-col justify-between w-full md:w-auto items-center md:items-end">
                     <span className="font-bold text-xs t-bad">{fmtPKR(r.balance)}</span>
-                    <span className="text-[9px] t-faint font-semibold uppercase">{r.dueMonthRange}</span>
+                    <span className="text-[9px] t-faint font-semibold uppercase">{formatDueMonths(r.dueMonthRange, r.feeMonth, r.feeYear, r)}</span>
                   </div>
                 </button>
               ))}
@@ -255,7 +255,7 @@ export default function QuickPayTab({ onPaymentSaved }) {
               </div>
               <div className="text-right">
                 <span className="font-mono font-bold text-xs t-brand bg-brand-soft border border-brand-border px-2.5 py-1 rounded-lg">{selectedChallan.challanNo}</span>
-                <p className="text-[9px] t-faint font-semibold uppercase tracking-wider mt-1">{selectedChallan.dueMonthRange}</p>
+                <p className="text-[9px] t-faint font-semibold uppercase tracking-wider mt-1">{formatDueMonths(selectedChallan.dueMonthRange, selectedChallan.feeMonth, selectedChallan.feeYear, selectedChallan)}</p>
               </div>
             </div>
 
