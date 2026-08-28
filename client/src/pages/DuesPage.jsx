@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import * as xlsx from 'xlsx';
 import { getDues } from '../api/fees';
 import { getClasses } from '../api/students';
 import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
-import { AlertCircle, Download, Search, Printer, Layers, Landmark } from 'lucide-react';
+import { AlertCircle, Download, Search, Printer, Layers, Landmark, ChevronDown, FileSpreadsheet } from 'lucide-react';
 import { MONTHS, parseDueMonthRange, formatDueMonths, formatMonthYear } from '../utils/feeMonths';
+import { formatClassName } from '../utils/constants';
 
 const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, c => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -61,6 +63,20 @@ export default function DuesPage() {
   const [filterMonth, setFilterMonth] = useState('');
   const [search, setSearch] = useState('');
 
+  // Print menu state
+  const [showPrintMenu, setShowPrintMenu] = useState(false);
+  const printMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (printMenuRef.current && !printMenuRef.current.contains(e.target)) {
+        setShowPrintMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     if (!currentCampus || !currentSession) return;
     getClasses().then(r => setClasses(r.data)).catch(() => {});
@@ -104,30 +120,93 @@ export default function DuesPage() {
       .slice(0, 4); // Display top 4 classes with highest dues
   }, [filteredDues]);
 
-  const exportCSV = () => {
-    const headers = ['Challan No', 'Student ID', 'Student Name', 'Father Name', 'Class', 'Remaining Months', 'Monthly Due', 'Annual Due', 'Total Outstanding'];
-    const rows = filteredDues.map(d => {
-      const remaining = d.balance || 0;
-      return [
-        d.challanNo, d.student?.studentId, d.student?.fullName, d.student?.fatherName, `${d.student?.class} ${d.student?.section || ''}`,
-        getRemainingMonths(d), monthlyDueOf(d), annualDueOf(d), remaining
-      ];
+  const exportExcel = () => {
+    if (filteredDues.length === 0) return;
+
+    const data = [
+      ['Challan No.', 'Student ID', 'Student Name', 'Father Name', 'Class', 'Section', 'Remaining Months', 'Monthly Due (Rs.)', 'Annual Due (Rs.)', 'Total Outstanding (Rs.)']
+    ];
+
+    filteredDues.forEach((d) => {
+      const cls = formatClassName(d.student?.class);
+      const sec = d.student?.section || '';
+      const monthlyDue = monthlyDueOf(d);
+      const annualDue = annualDueOf(d);
+      const totalRemaining = d.balance || 0;
+      const remainingMonths = getRemainingMonths(d);
+
+      data.push([
+        String(d.challanNo || ''),
+        String(d.student?.studentId || ''),
+        String(d.student?.fullName || ''),
+        String(d.student?.fatherName || ''),
+        String(cls || ''),
+        String(sec || ''),
+        String(remainingMonths || ''),
+        monthlyDue,
+        annualDue,
+        totalRemaining
+      ]);
     });
-    const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ''}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'Outstanding_Dues.csv'; a.click();
-    URL.revokeObjectURL(url);
+
+    // Summary row
+    data.push([
+      'TOTAL', '', '', '', '', '', '',
+      totals.monthly,
+      totals.annual,
+      totals.all
+    ]);
+
+    const ws = xlsx.utils.aoa_to_sheet(data);
+
+    // Set explicit cell types:
+    // Columns 0-6: String type ('s') to prevent Excel from interpreting classes (e.g. 1, 1-A), IDs, or date ranges as Times/Dates.
+    // Columns 7-9: Numeric type ('n') with standard thousand separator format.
+    const range = xlsx.utils.decode_range(ws['!ref']);
+    for (let R = 1; R <= range.e.r; ++R) {
+      for (let C = 0; C <= 6; ++C) {
+        const cellRef = xlsx.utils.encode_cell({ r: R, c: C });
+        if (ws[cellRef]) {
+          ws[cellRef].t = 's';
+        }
+      }
+      for (let C = 7; C <= 9; ++C) {
+        const cellRef = xlsx.utils.encode_cell({ r: R, c: C });
+        if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
+          ws[cellRef].t = 'n';
+          ws[cellRef].z = '#,##0';
+        }
+      }
+    }
+
+    // Set auto-proportioned readable column widths
+    ws['!cols'] = [
+      { wch: 16 }, // Challan No.
+      { wch: 14 }, // Student ID
+      { wch: 24 }, // Student Name
+      { wch: 22 }, // Father Name
+      { wch: 12 }, // Class
+      { wch: 10 }, // Section
+      { wch: 28 }, // Remaining Months
+      { wch: 18 }, // Monthly Due
+      { wch: 18 }, // Annual Due
+      { wch: 22 }, // Total Outstanding
+    ];
+
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, 'Outstanding Dues');
+    xlsx.writeFile(wb, 'Outstanding_Dues.xlsx');
+    toast.success('Dues report exported to Excel');
   };
 
-  const printReport = () => {
+  const printReport = (orientation = 'portrait') => {
     if (filteredDues.length === 0) return;
 
     const campusName = campuses.find(c => c._id === currentCampus)?.name || 'All Campuses';
     const sessionName = sessions.find(s => s._id === currentSession)?.name || '';
     const printedOn = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const appliedFilters = [
-      filterClass && `Class: ${filterClass}`,
+      filterClass && `Class: ${formatClassName(filterClass)}`,
       filterMonth && `Month: ${filterMonth}`,
       search && `Search: "${search}"`,
     ].filter(Boolean).join('  •  ');
@@ -140,7 +219,7 @@ export default function DuesPage() {
           <td class="mono">${escapeHtml(d.challanNo)}</td>
           <td>${escapeHtml(d.student?.studentId)}</td>
           <td>${escapeHtml(d.student?.fullName)}${d.student?.fatherName ? `<br/><span class="sub">s/o ${escapeHtml(d.student.fatherName)}</span>` : ''}</td>
-          <td>${escapeHtml(`${d.student?.class || ''} ${d.student?.section || ''}`)}</td>
+          <td>${escapeHtml(`${formatClassName(d.student?.class)} ${d.student?.section || ''}`.trim())}</td>
           <td>${escapeHtml(getRemainingMonths(d))}</td>
           <td class="r">${monthlyDueOf(d).toLocaleString()}</td>
           <td class="r">${annualDueOf(d).toLocaleString()}</td>
@@ -148,30 +227,33 @@ export default function DuesPage() {
         </tr>`;
     }).join('');
 
+    const isLandscape = orientation === 'landscape';
+
     const html = `<!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8" />
-        <title>Outstanding Dues Report</title>
+        <title>Outstanding Dues Report (${isLandscape ? 'Landscape' : 'Portrait'})</title>
         <style>
           * { box-sizing: border-box; }
-          body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 24px; }
+          @page { size: ${orientation}; margin: 10mm; }
+          body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 16px; }
           .head { text-align: center; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-bottom: 6px; }
-          .head h1 { margin: 0; font-size: 20px; }
-          .head h2 { margin: 4px 0 0; font-size: 14px; font-weight: 600; }
+          .head h1 { margin: 0; font-size: ${isLandscape ? '20px' : '18px'}; }
+          .head h2 { margin: 4px 0 0; font-size: ${isLandscape ? '14px' : '13px'}; font-weight: 600; }
           .meta { display: flex; justify-content: space-between; font-size: 11px; color: #475569; margin: 8px 0 14px; }
           .filters { font-size: 11px; color: #475569; }
-          table { width: 100%; border-collapse: collapse; font-size: 11px; }
-          th, td { border: 1px solid #cbd5e1; padding: 5px 7px; text-align: left; vertical-align: top; }
-          thead th { background: #f1f5f9; text-transform: uppercase; font-size: 10px; letter-spacing: .04em; }
+          table { width: 100%; border-collapse: collapse; font-size: ${isLandscape ? '11px' : '10px'}; }
+          th, td { border: 1px solid #cbd5e1; padding: ${isLandscape ? '5px 7px' : '4px 6px'}; text-align: left; vertical-align: top; }
+          thead th { background: #f1f5f9; text-transform: uppercase; font-size: ${isLandscape ? '10px' : '9px'}; letter-spacing: .04em; }
           td.r, th.r { text-align: right; }
           td.c, th.c { text-align: center; }
-          td.mono { font-family: 'Courier New', monospace; }
+          td.mono { font-family: 'Courier New', monospace; font-size: ${isLandscape ? '11px' : '9.5px'}; }
           td.due { font-weight: bold; color: #b91c1c; }
-          td.sub, .sub { color: #64748b; font-weight: normal; font-size: 10px; }
-          tfoot td { font-weight: bold; background: #fef2f2; font-size: 12px; }
+          td.sub, .sub { color: #64748b; font-weight: normal; font-size: 9px; }
+          tfoot td { font-weight: bold; background: #fef2f2; font-size: ${isLandscape ? '12px' : '11px'}; }
           .foot { margin-top: 18px; font-size: 10px; color: #94a3b8; text-align: center; }
-          @media print { body { margin: 10mm; } }
+          @media print { body { margin: 0; } }
         </style>
       </head>
       <body>
@@ -181,7 +263,7 @@ export default function DuesPage() {
         </div>
         <div class="meta">
           <span class="filters">${appliedFilters || 'All records'}</span>
-          <span>Printed: ${printedOn}&nbsp;&nbsp;|&nbsp;&nbsp;${filteredDues.length} record(s)</span>
+          <span>Printed: ${printedOn}&nbsp;&nbsp;|&nbsp;&nbsp;${filteredDues.length} record(s)&nbsp;&nbsp;|&nbsp;&nbsp;Orientation: ${isLandscape ? 'Landscape' : 'Portrait'}</span>
         </div>
         <table>
           <thead>
@@ -230,15 +312,60 @@ export default function DuesPage() {
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">{filteredDues.length} matching unpaid invoices</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <button onClick={printReport} disabled={filteredDues.length === 0}
-            className="btn btn-ghost disabled:opacity-50"
+          {/* Print Dropdown with Orientation Selection */}
+          <div className="relative inline-block" ref={printMenuRef}>
+            <button 
+              type="button"
+              onClick={() => setShowPrintMenu(prev => !prev)} 
+              disabled={filteredDues.length === 0}
+              className="btn btn-ghost disabled:opacity-50 flex items-center gap-1.5"
+              title="Print Dues Report"
+            >
+              <Printer size={14} /> 
+              <span>Print Report</span>
+              <ChevronDown size={13} className={`transition-transform duration-200 ${showPrintMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showPrintMenu && (
+              <div className="absolute right-0 mt-1.5 w-52 bg-solid border border-line rounded-xl shadow-2xl z-50 py-1.5 animate-fade-in">
+                <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider t-faint border-b border-line">
+                  Choose Orientation
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setShowPrintMenu(false); printReport('portrait'); }}
+                  className="w-full text-left px-3.5 py-2.5 flex items-center gap-3 hover:bg-surface-2 t-body transition text-xs font-medium"
+                >
+                  <div className="w-5 h-6 border-2 border-brand rounded-sm flex items-center justify-center text-[9px] font-bold t-brand">
+                    P
+                  </div>
+                  <div>
+                    <div className="font-semibold t-body">Portrait</div>
+                    <div className="text-[10px] t-muted">Vertical (Standard A4)</div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowPrintMenu(false); printReport('landscape'); }}
+                  className="w-full text-left px-3.5 py-2.5 flex items-center gap-3 hover:bg-surface-2 t-body transition text-xs font-medium"
+                >
+                  <div className="w-6 h-5 border-2 border-brand rounded-sm flex items-center justify-center text-[9px] font-bold t-brand">
+                    L
+                  </div>
+                  <div>
+                    <div className="font-semibold t-body">Landscape</div>
+                    <div className="text-[10px] t-muted">Horizontal (Wide tables)</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button onClick={exportExcel} disabled={filteredDues.length === 0}
+            className="btn btn-ghost disabled:opacity-50 flex items-center gap-1.5"
+            title="Export Excel Report"
           >
-            <Printer size={14} /> Print Report
-          </button>
-          <button onClick={exportCSV} disabled={filteredDues.length === 0}
-            className="btn btn-ghost disabled:opacity-50"
-          >
-            <Download size={14} /> Export CSV
+            <FileSpreadsheet size={14} /> Export Excel
           </button>
         </div>
       </div>
@@ -291,7 +418,7 @@ export default function DuesPage() {
               return (
                 <div key={cd.className} className="bg-surface-2 border border-line rounded-2xl p-4">
                   <div className="flex justify-between items-center text-xs font-bold mb-2">
-                    <span className="t-muted">Class {cd.className}</span>
+                    <span className="t-muted">Class {formatClassName(cd.className)}</span>
                     <span className="t-bad">{pct}% share</span>
                   </div>
                   <p className="text-sm font-black t-body">{fmtRs(cd.amount)}</p>
@@ -317,7 +444,7 @@ export default function DuesPage() {
         </select>
         <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer min-w-32">
           <option value="">All Classes</option>
-          {classes.map(c => <option key={c} value={c} className="bg-surface-2">Class {c}</option>)}
+          {classes.map(c => <option key={c} value={c} className="bg-surface-2">Class {formatClassName(c)}</option>)}
         </select>
       </div>
 
@@ -362,7 +489,7 @@ export default function DuesPage() {
                           <div className="text-[10px] font-mono t-faint mt-0.5">{d.student?.studentId}</div>
                         </div>
                       </td>
-                      <td data-label="Class" className="px-5 py-4 t-muted font-medium">Class {d.student?.class} {d.student?.section || ''}</td>
+                      <td data-label="Class" className="px-5 py-4 t-muted font-medium">Class {formatClassName(d.student?.class)} {d.student?.section || ''}</td>
                       <td data-label="Remaining Months" className="px-5 py-4 t-muted font-semibold">{getRemainingMonths(d)}</td>
                       <td data-label="Monthly Due" className="px-5 py-4 text-right font-medium">
                         {monthlyDue > 0 ? `Rs. ${monthlyDue.toLocaleString()}` : <span className="t-muted">—</span>}
