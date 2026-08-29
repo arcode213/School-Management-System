@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getFees, updateFee } from '../api/fees';
-import { MONTHS, parseStartMonth, monthAt, formatDueMonths } from '../utils/feeMonths';
+import { MONTHS, parseStartMonth, monthAt, formatDueMonths, absMonth, parseStartYear } from '../utils/feeMonths';
 import toast from 'react-hot-toast';
 import { Search, Wallet, CreditCard, Loader2 } from 'lucide-react';
 
@@ -41,28 +41,35 @@ export default function QuickPayTab({ onPaymentSaved }) {
   const totalDue = monthlyDue + annualDue;
   const hasAnnual = annualDue > 0;
 
-  const recurring = selectedChallan ? (selectedChallan.tuitionFee || 0) + (selectedChallan.transportFee || 0) + (selectedChallan.miscFee || 0) : 0;
+  const recurring = selectedChallan ? (Number(selectedChallan.tuitionFee) || 0) + (Number(selectedChallan.transportFee) || 0) + (Number(selectedChallan.miscFee) || 0) : 0;
   const rangeStart = selectedChallan ? parseStartMonth(selectedChallan.dueMonthRange, selectedChallan.feeMonth) : '';
   const startIdx = MONTHS.indexOf(rangeStart);
   const feeIdx = selectedChallan ? MONTHS.indexOf(selectedChallan.feeMonth) : -1;
-  
-  let totalMonths = 1;
-  if (startIdx >= 0 && feeIdx >= 0) {
-    let s = feeIdx - startIdx;
-    if (s < 0) s += 12;
-    totalMonths = s + 1;
-  }
+  const feeYear = Number(selectedChallan?.feeYear) || new Date().getFullYear();
+  const defaultStartYear = startIdx <= feeIdx ? feeYear : feeYear - 1;
+  const startYear = parseStartYear(selectedChallan?.dueMonthRange, defaultStartYear);
+  const startAbs = absMonth(rangeStart, startYear);
+  const feeAbs = absMonth(selectedChallan?.feeMonth || '', feeYear);
+  const totalMonths = Math.max(1, feeAbs - startAbs + 1);
 
   const monthlyTotal = selectedChallan?.monthlyTotal ?? Math.max(0, (selectedChallan?.totalAmount || 0) - (selectedChallan?.annualTotal || 0));
-  const monthlyAlreadyPaid = Math.max(0, monthlyTotal - monthlyDueRaw);
-  const alreadyPaidMonths = recurring > 0 ? Math.min(totalMonths, Math.floor(monthlyAlreadyPaid / recurring)) : 0;
+  const priorPaidMonthly = Math.max(0, (Number(selectedChallan?.amountPaid) || 0) - (Number(selectedChallan?.annualPaid) || 0));
+  const priorDiscount = Number(selectedChallan?.discount || 0);
+  const priorSettledMonthly = priorPaidMonthly + priorDiscount;
+
+  const alreadyPaidMonths = recurring > 0 ? Math.min(totalMonths, Math.floor(priorSettledMonthly / recurring)) : 0;
   const remainingMonths = Math.max(0, totalMonths - alreadyPaidMonths);
   const canPayByMonth = recurring > 0 && remainingMonths > 1;
 
-  const monthlyPaidAfter = Math.min(Math.max(0, monthlyTotal - newDiscount), monthlyAlreadyPaid + monthlyPay);
-  const monthsPaidAfter = recurring > 0 ? Math.min(totalMonths, Math.floor(monthlyPaidAfter / recurring)) : 0;
-  const settlesThrough = monthsPaidAfter > 0 ? monthAt(startIdx + monthsPaidAfter - 1) : null;
-  const carriesFrom = monthsPaidAfter < totalMonths ? monthAt(startIdx + monthsPaidAfter) : null;
+  const finalDiscount = priorDiscount + newDiscount;
+  const finalMonthlyPaid = priorPaidMonthly + monthlyPay;
+  const finalMonthlySettled = finalMonthlyPaid + finalDiscount;
+  const monthsPaidAfter = recurring > 0 ? Math.min(totalMonths, Math.floor(finalMonthlySettled / recurring)) : 0;
+  
+  const settlesThrough = monthsPaidAfter >= totalMonths
+    ? selectedChallan?.feeMonth
+    : (monthsPaidAfter > 0 ? MONTHS[(((startAbs + monthsPaidAfter - 1) % 12) + 12) % 12] : null);
+  const carriesFrom = monthsPaidAfter < totalMonths ? MONTHS[(((startAbs + monthsPaidAfter) % 12) + 12) % 12] : null;
 
   // Reset form and edited states when selectedChallan changes
   useEffect(() => {
@@ -124,7 +131,9 @@ export default function QuickPayTab({ onPaymentSaved }) {
   const selectMonths = (value) => {
     const n = Number(value);
     if (!n) return;
-    const amt = n >= remainingMonths ? monthlyDue : Math.min(monthlyDue, recurring * n);
+    const targetSettledAmount = (alreadyPaidMonths + n) * recurring;
+    const netCashNeeded = Math.max(0, targetSettledAmount - priorPaidMonthly - (priorDiscount + newDiscount));
+    const amt = n >= remainingMonths ? monthlyDue : Math.min(monthlyDue, netCashNeeded);
     setEdited(e => ({ ...e, monthly: true }));
     setForm(prev => ({ ...prev, monthlyPay: amt }));
   };
@@ -287,7 +296,7 @@ export default function QuickPayTab({ onPaymentSaved }) {
                 >
                   <option value="" disabled>Select months to pay…</option>
                   {Array.from({ length: remainingMonths }, (_, i) => i + 1).map(n => {
-                    const thru = monthAt(startIdx + alreadyPaidMonths + n - 1);
+                    const thru = (alreadyPaidMonths + n >= totalMonths) ? selectedChallan?.feeMonth : monthAt(startAbs + alreadyPaidMonths + n - 1);
                     const isAll = n === remainingMonths;
                     return (
                       <option key={n} value={n} className="bg-surface-2">

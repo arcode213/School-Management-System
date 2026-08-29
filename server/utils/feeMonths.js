@@ -84,25 +84,41 @@ const monthAfter = (monthName) => MONTHS[(MONTHS.indexOf(monthName) + 1) % 12];
 // inflate the month count. Falls back to amountPaid when not supplied.
 const computePaidUpToMonth = (fee, monthlyPaid) => {
   if (!fee) return null;
-  const paid = monthlyPaid === undefined || monthlyPaid === null ? fee.amountPaid : monthlyPaid;
-  if (!paid || paid <= 0) return null;
-  if (fee.balance <= 0) return fee.feeMonth; // fully settled
+  // If the monthly balance is already 0 (or less), all monthly charges on this challan are settled
+  if (fee.monthlyBalance !== undefined && fee.monthlyBalance !== null && fee.monthlyBalance <= 0) {
+    return fee.feeMonth;
+  }
+  if (fee.balance !== undefined && fee.balance !== null && fee.balance <= 0) {
+    return fee.feeMonth;
+  }
 
-  const recurring = (fee.tuitionFee || 0) + (fee.transportFee || 0) + (fee.miscFee || 0);
+  const paid = monthlyPaid === undefined || monthlyPaid === null ? fee.amountPaid : monthlyPaid;
+  const recurring = (Number(fee.tuitionFee) || 0) + (Number(fee.transportFee) || 0) + (Number(fee.miscFee) || 0);
   if (recurring <= 0) return null;
 
-  const startIdx = MONTHS.indexOf(parseStartMonth(fee.dueMonthRange, fee.feeMonth));
+  const startMonth = parseStartMonth(fee.dueMonthRange, fee.feeMonth);
+  const startIdx = MONTHS.indexOf(startMonth);
   const feeIdx = MONTHS.indexOf(fee.feeMonth);
   if (startIdx < 0 || feeIdx < 0) return null;
 
-  let span = feeIdx - startIdx;
-  if (span < 0) span += 12; // range wrapped the calendar year
-  const totalMonths = span + 1;
+  const feeYear = Number(fee.feeYear) || new Date().getFullYear();
+  const defaultStartYear = startIdx <= feeIdx ? feeYear : feeYear - 1;
+  const startYear = parseStartYear(fee.dueMonthRange, defaultStartYear);
 
-  const monthsPaid = Math.floor(paid / recurring);
+  const startAbs = absMonth(startMonth, startYear);
+  const feeAbs = absMonth(fee.feeMonth, feeYear);
+  const totalMonths = Math.max(1, feeAbs - startAbs + 1);
+
+  // Discounts waive monthly fee obligations, so discount + paid = total settled monthly amount
+  const effectiveSettled = (Number(paid) || 0) + (Number(fee.discount) || 0);
+  if (effectiveSettled <= 0) return null;
+
+  const monthsPaid = Math.floor(effectiveSettled / recurring);
   if (monthsPaid < 1) return null;
   if (monthsPaid >= totalMonths) return fee.feeMonth;
-  return MONTHS[(startIdx + monthsPaid - 1) % 12];
+
+  const paidUpAbs = startAbs + monthsPaid - 1;
+  return MONTHS[((paidUpAbs % 12) + 12) % 12];
 };
 
 // ─── Opening-arrears period helpers ────────────────────────────────────────────

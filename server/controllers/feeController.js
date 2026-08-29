@@ -6,7 +6,7 @@ const StudentAcademicRecord = require('../models/StudentAcademicRecord');
 const FeePayment = require('../models/FeePayment');
 const {
   MONTHS, parseStartMonth, parseStartYear, buildDueMonthRange, absMonth, monthAfter,
-  resolveAccurateDueMonthRange,
+  resolveAccurateDueMonthRange, computePaidUpToMonth,
 } = require('../utils/feeMonths');
 const { withTransaction, sessionOpts } = require('../utils/transaction');
 
@@ -17,8 +17,10 @@ const badRequest = (message) => Object.assign(new Error(message), { statusCode: 
 // The first still-unpaid month of a challan. When some months have already been
 // paid (paidUpToMonth set), the outstanding balance begins the month after; the
 // remainder of the range falls back to the labelled start month.
-const outstandingStartMonth = (challan) =>
-  challan.paidUpToMonth ? monthAfter(challan.paidUpToMonth) : parseStartMonth(challan.dueMonthRange, challan.feeMonth);
+const outstandingStartMonth = (challan) => {
+  const paidUp = computePaidUpToMonth(challan, (challan.amountPaid || 0) - (challan.annualPaid || 0)) || challan.paidUpToMonth;
+  return paidUp ? monthAfter(paidUp) : parseStartMonth(challan.dueMonthRange, challan.feeMonth);
+};
 
 // Outstanding per bucket. Challans written before the annual-fee split existed have
 // no monthlyBalance/annualBalance, so fall back to treating the whole balance as
@@ -829,6 +831,8 @@ const getFees = async (req, res) => {
         f.studentInfo.isFreeship = !!f.academicInfo?.isFreeship;
       }
       f.dueMonthRange = resolveAccurateDueMonthRange(f);
+      const computedPaidUp = computePaidUpToMonth(f, (Number(f.amountPaid) || 0) - (Number(f.annualPaid) || 0));
+      if (computedPaidUp) f.paidUpToMonth = computedPaidUp;
       return f;
     });
 
@@ -866,6 +870,8 @@ const getStudentFees = async (req, res) => {
     const formatted = fees.map(f => {
       const doc = f.toJSON();
       doc.dueMonthRange = resolveAccurateDueMonthRange(doc);
+      const computedPaidUp = computePaidUpToMonth(doc, (Number(doc.amountPaid) || 0) - (Number(doc.annualPaid) || 0));
+      if (computedPaidUp) doc.paidUpToMonth = computedPaidUp;
       return doc;
     });
       
@@ -896,6 +902,9 @@ const getDues = async (req, res) => {
         doc.student.class = doc.studentAcademicRecord?.className;
         doc.student.section = doc.studentAcademicRecord?.section;
       }
+      doc.dueMonthRange = resolveAccurateDueMonthRange(doc);
+      const computedPaidUp = computePaidUpToMonth(doc, (Number(doc.amountPaid) || 0) - (Number(doc.annualPaid) || 0));
+      if (computedPaidUp) doc.paidUpToMonth = computedPaidUp;
       return doc;
     });
       
@@ -1072,6 +1081,8 @@ const getFee = async (req, res) => {
 
     const doc = fee.toJSON();
     doc.dueMonthRange = resolveAccurateDueMonthRange(doc);
+    const computedPaidUp = computePaidUpToMonth(doc, (Number(doc.amountPaid) || 0) - (Number(doc.annualPaid) || 0));
+    if (computedPaidUp) doc.paidUpToMonth = computedPaidUp;
     if (doc.student) {
       doc.student.class = doc.studentAcademicRecord?.className;
       doc.student.section = doc.studentAcademicRecord?.section;

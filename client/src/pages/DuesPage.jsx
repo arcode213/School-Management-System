@@ -5,7 +5,7 @@ import { getClasses } from '../api/students';
 import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
 import { AlertCircle, Download, Search, Printer, Layers, Landmark, ChevronDown, FileSpreadsheet } from 'lucide-react';
-import { MONTHS, parseDueMonthRange, formatDueMonths, formatMonthYear } from '../utils/feeMonths';
+import { MONTHS, parseDueMonthRange, formatDueMonths, formatMonthYear, computePaidUpToMonth } from '../utils/feeMonths';
 import { formatClassName } from '../utils/constants';
 
 const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, c => (
@@ -21,7 +21,9 @@ const getRemainingMonths = (d) => {
   const mDue = monthlyDueOf(d);
   if (mDue <= 0) return '—';
   
-  if (!d.paidUpToMonth) {
+  const paidUpToMonth = computePaidUpToMonth(d, (d.amountPaid || 0) - (d.annualPaid || 0)) || d.paidUpToMonth;
+
+  if (!paidUpToMonth) {
     return formatDueMonths(d.dueMonthRange, d.feeMonth, d.feeYear, d);
   }
 
@@ -31,14 +33,14 @@ const getRemainingMonths = (d) => {
   
   let absPaidUp = -1;
   for (let m = absStart; m <= absEnd; m++) {
-    if (MONTHS[m % 12] === d.paidUpToMonth) {
+    if (MONTHS[m % 12] === paidUpToMonth) {
       absPaidUp = m;
       break;
     }
   }
 
   if (absPaidUp === -1 || absPaidUp + 1 > absEnd) {
-    return `${d.feeMonth} ${d.feeYear}`;
+    return formatMonthYear(d.feeMonth, d.feeYear);
   }
 
   const firstUnpaidAbs = absPaidUp + 1;
@@ -46,7 +48,7 @@ const getRemainingMonths = (d) => {
   const firstUnpaidYear = Math.floor(firstUnpaidAbs / 12);
 
   if (firstUnpaidAbs === absEnd) {
-    return `${d.feeMonth} ${d.feeYear}`;
+    return formatMonthYear(d.feeMonth, d.feeYear);
   }
 
   return `${formatMonthYear(firstUnpaidMonth, firstUnpaidYear)} to ${formatMonthYear(parsedRange.endMonth, parsedRange.endYear)}`;

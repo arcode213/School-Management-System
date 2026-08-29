@@ -8,7 +8,7 @@ import ChallanPrintPreview from '../components/ChallanPrintPreview';
 import QuickPayTab from '../components/QuickPayTab';
 import toast from 'react-hot-toast';
 import { CreditCard, Printer, Search, ChevronLeft, ChevronRight, CopyPlus, Wallet, FilePlus, Edit2, Trash2, Check, AlertCircle, FileDown } from 'lucide-react';
-import { formatDueMonths } from '../utils/feeMonths';
+import { formatDueMonths, computePaidUpToMonth } from '../utils/feeMonths';
 
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
@@ -349,9 +349,12 @@ export default function FeesPage() {
                             <div>
                               <div className="t-ok font-semibold">Paid: {paid}</div>
                               {due > 0 && <div className="t-bad font-semibold">Due: {due}</div>}
-                              {f.paidUpToMonth && f.status === 'Partial' && (
-                                <div className="t-faint text-[9px] font-medium">Paid thru {f.paidUpToMonth}</div>
-                              )}
+                              {(() => {
+                                const paidUp = computePaidUpToMonth(f, (f.amountPaid || 0) - (f.annualPaid || 0)) || f.paidUpToMonth;
+                                return paidUp && f.status === 'Partial' ? (
+                                  <div className="t-faint text-[9px] font-medium">Paid thru {paidUp}</div>
+                                ) : null;
+                              })()}
                               {f.paymentDate && (
                                 <div className="text-[9px] t-muted font-medium mt-0.5" title="Payment Date">
                                   Paid on: {new Date(f.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}

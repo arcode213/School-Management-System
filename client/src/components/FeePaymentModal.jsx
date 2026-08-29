@@ -4,7 +4,7 @@ import { X, Loader2, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { updateFee } from '../api/fees';
 import ModalPortal from './ModalPortal';
-import { MONTHS, parseStartMonth, monthAt } from '../utils/feeMonths';
+import { MONTHS, parseStartMonth, monthAt, absMonth, parseStartYear } from '../utils/feeMonths';
 
 export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
   const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm();
@@ -24,34 +24,47 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
     ? (feeRecord.annualCarriedForward || 0) + (feeRecord.previousAnnualDues || 0)
     : 0;
 
-  const recurring = feeRecord ? (feeRecord.tuitionFee || 0) + (feeRecord.transportFee || 0) + (feeRecord.miscFee || 0) : 0;
+  const recurring = feeRecord ? (Number(feeRecord.tuitionFee) || 0) + (Number(feeRecord.transportFee) || 0) + (Number(feeRecord.miscFee) || 0) : 0;
   const rangeStart = feeRecord ? parseStartMonth(feeRecord.dueMonthRange, feeRecord.feeMonth) : '';
   const startIdx = MONTHS.indexOf(rangeStart);
   const feeIdx = feeRecord ? MONTHS.indexOf(feeRecord.feeMonth) : -1;
-  let totalMonths = 1;
-  if (startIdx >= 0 && feeIdx >= 0) { let s = feeIdx - startIdx; if (s < 0) s += 12; totalMonths = s + 1; }
+  const feeYear = Number(feeRecord?.feeYear) || new Date().getFullYear();
+  const defaultStartYear = startIdx <= feeIdx ? feeYear : feeYear - 1;
+  const startYear = parseStartYear(feeRecord?.dueMonthRange, defaultStartYear);
+  const startAbs = absMonth(rangeStart, startYear);
+  const feeAbs = absMonth(feeRecord?.feeMonth || '', feeYear);
+  const totalMonths = Math.max(1, feeAbs - startAbs + 1);
 
   const monthlyTotal = feeRecord?.monthlyTotal ?? Math.max(0, (feeRecord?.totalAmount || 0) - (feeRecord?.annualTotal || 0));
-  const monthlyAlreadyPaid = Math.max(0, monthlyTotal - monthlyDueRaw);
-  const alreadyPaidMonths = recurring > 0 ? Math.min(totalMonths, Math.floor(monthlyAlreadyPaid / recurring)) : 0;
+  const priorPaidMonthly = Math.max(0, (Number(feeRecord?.amountPaid) || 0) - (Number(feeRecord?.annualPaid) || 0));
+  const priorDiscount = Number(feeRecord?.discount || 0);
+  const priorSettledMonthly = priorPaidMonthly + priorDiscount;
+
+  const alreadyPaidMonths = recurring > 0 ? Math.min(totalMonths, Math.floor(priorSettledMonthly / recurring)) : 0;
   const remainingMonths = Math.max(0, totalMonths - alreadyPaidMonths);
   const canPayByMonth = recurring > 0 && remainingMonths > 1;
 
-  const monthlyPaidAfter = Math.min(Math.max(0, monthlyTotal - newDiscount), monthlyAlreadyPaid + monthlyPay);
-  const monthsPaidAfter = recurring > 0 ? Math.min(totalMonths, Math.floor(monthlyPaidAfter / recurring)) : 0;
-  const settlesThrough = monthsPaidAfter > 0 ? monthAt(startIdx + monthsPaidAfter - 1) : null;
-  const carriesFrom = monthsPaidAfter < totalMonths ? monthAt(startIdx + monthsPaidAfter) : null;
+  const finalDiscount = priorDiscount + newDiscount;
+  const finalMonthlyPaid = priorPaidMonthly + monthlyPay;
+  const finalMonthlySettled = finalMonthlyPaid + finalDiscount;
+  const monthsPaidAfter = recurring > 0 ? Math.min(totalMonths, Math.floor(finalMonthlySettled / recurring)) : 0;
+  
+  const settlesThrough = monthsPaidAfter >= totalMonths
+    ? feeRecord?.feeMonth
+    : (monthsPaidAfter > 0 ? MONTHS[(((startAbs + monthsPaidAfter - 1) % 12) + 12) % 12] : null);
+  const carriesFrom = monthsPaidAfter < totalMonths ? MONTHS[(((startAbs + monthsPaidAfter) % 12) + 12) % 12] : null;
 
   const selectMonths = (value) => {
     const n = Number(value);
     if (!n) return;
-    const amt = n >= remainingMonths ? monthlyDue : Math.min(monthlyDue, recurring * n);
+    const targetSettledAmount = (alreadyPaidMonths + n) * recurring;
+    const netCashNeeded = Math.max(0, targetSettledAmount - priorPaidMonthly - (priorDiscount + newDiscount));
+    const amt = n >= remainingMonths ? monthlyDue : Math.min(monthlyDue, netCashNeeded);
     setEdited(e => ({ ...e, monthly: true }));
     setValue('monthlyPay', amt, { shouldValidate: true });
   };
 
-  const finalDiscount = (feeRecord?.discount || 0) + newDiscount;
-  const finalPaid = (feeRecord?.amountPaid || 0) + payingTotal;
+  const finalPaid = (Number(feeRecord?.amountPaid) || 0) + payingTotal;
   const netPayable = feeRecord ? feeRecord.totalAmount - newDiscount : 0;
   let nextStatus = 'Unpaid';
   if (finalPaid >= netPayable && netPayable > 0) nextStatus = 'Paid';
@@ -168,7 +181,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
               >
                 <option value="" disabled className="bg-surface-2">Select months to pay…</option>
                 {Array.from({ length: remainingMonths }, (_, i) => i + 1).map(n => {
-                  const thru = monthAt(startIdx + alreadyPaidMonths + n - 1);
+                  const thru = (alreadyPaidMonths + n >= totalMonths) ? feeRecord.feeMonth : monthAt(startAbs + alreadyPaidMonths + n - 1);
                   const isAll = n === remainingMonths;
                   return (
                     <option key={n} value={n} className="bg-surface-2">

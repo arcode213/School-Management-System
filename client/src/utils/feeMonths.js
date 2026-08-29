@@ -45,6 +45,43 @@ export const formatMonthYear = (month, year) => {
 export const absMonth = (monthName, year) => Number(year) * 12 + MONTHS.indexOf(monthName);
 export const monthAfter = (monthName) => MONTHS[(MONTHS.indexOf(monthName) + 1) % 12];
 
+export const computePaidUpToMonth = (fee, monthlyPaid) => {
+  if (!fee) return null;
+  if (fee.monthlyBalance !== undefined && fee.monthlyBalance !== null && fee.monthlyBalance <= 0) {
+    return fee.feeMonth;
+  }
+  if (fee.balance !== undefined && fee.balance !== null && fee.balance <= 0) {
+    return fee.feeMonth;
+  }
+
+  const paid = monthlyPaid === undefined || monthlyPaid === null ? fee.amountPaid : monthlyPaid;
+  const recurring = (Number(fee.tuitionFee) || 0) + (Number(fee.transportFee) || 0) + (Number(fee.miscFee) || 0);
+  if (recurring <= 0) return null;
+
+  const startMonth = parseStartMonth(fee.dueMonthRange, fee.feeMonth);
+  const startIdx = MONTHS.indexOf(startMonth);
+  const feeIdx = MONTHS.indexOf(fee.feeMonth);
+  if (startIdx < 0 || feeIdx < 0) return null;
+
+  const feeYear = Number(fee.feeYear) || new Date().getFullYear();
+  const defaultStartYear = startIdx <= feeIdx ? feeYear : feeYear - 1;
+  const startYear = parseStartYear(fee.dueMonthRange, defaultStartYear);
+
+  const startAbs = absMonth(startMonth, startYear);
+  const feeAbs = absMonth(fee.feeMonth, feeYear);
+  const totalMonths = Math.max(1, feeAbs - startAbs + 1);
+
+  const effectiveSettled = (Number(paid) || 0) + (Number(fee.discount) || 0);
+  if (effectiveSettled <= 0) return null;
+
+  const monthsPaid = Math.floor(effectiveSettled / recurring);
+  if (monthsPaid < 1) return null;
+  if (monthsPaid >= totalMonths) return fee.feeMonth;
+
+  const paidUpAbs = startAbs + monthsPaid - 1;
+  return MONTHS[((paidUpAbs % 12) + 12) % 12];
+};
+
 export const parseStartYear = (range, fallbackYear) => {
   if (!range) return fallbackYear;
   const m = String(range).match(/^[A-Za-z]+\s*(\d{2}|\d{4})/);
