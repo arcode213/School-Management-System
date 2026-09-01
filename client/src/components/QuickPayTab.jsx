@@ -15,6 +15,7 @@ export default function QuickPayTab({ onPaymentSaved }) {
     discount: 0,
     monthlyPay: 0,
     annualPay: 0,
+    paymentDate: new Date().toISOString().split('T')[0],
     paymentMethod: 'Cash',
     remarks: '',
   });
@@ -78,6 +79,7 @@ export default function QuickPayTab({ onPaymentSaved }) {
         discount: 0,
         monthlyPay: Math.max(0, selectedChallan.monthlyBalance ?? selectedChallan.balance ?? 0),
         annualPay: selectedChallan.annualBalance ?? 0,
+        paymentDate: new Date().toISOString().split('T')[0],
         paymentMethod: 'Cash',
         remarks: '',
       });
@@ -158,7 +160,7 @@ export default function QuickPayTab({ onPaymentSaved }) {
         discount: finalDiscount,
         amountPaid: (selectedChallan.amountPaid || 0) + monthlyPart + annualPart,
         annualPaid: (selectedChallan.annualPaid || 0) + annualPart,
-        paymentDate: new Date(),
+        paymentDate: form.paymentDate || new Date().toISOString().split('T')[0],
         paymentMethod: form.paymentMethod,
         remarks: form.remarks,
       };
@@ -323,7 +325,7 @@ export default function QuickPayTab({ onPaymentSaved }) {
                     min="0" 
                     max={monthlyDueRaw} 
                     value={form.discount}
-                    onChange={e => handleDiscountChange(e.target.value)}
+                    onChange={e => setForm(prev => ({ ...prev, discount: e.target.value }))}
                     className="field font-bold text-xs"
                   />
                   <span className="text-[9px] t-faint font-semibold mt-1 block">Monthly Due: {fmtPKR(monthlyDueRaw)}</span>
@@ -363,7 +365,16 @@ export default function QuickPayTab({ onPaymentSaved }) {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="label">Payment Date</label>
+                  <input 
+                    type="date" 
+                    value={form.paymentDate}
+                    onChange={e => setForm({ ...form, paymentDate: e.target.value })}
+                    className="field font-semibold text-xs cursor-pointer"
+                  />
+                </div>
                 <div>
                   <label className="label">Payment Method</label>
                   <select 

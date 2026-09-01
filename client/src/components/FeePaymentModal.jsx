@@ -76,6 +76,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
         discount: 0,
         monthlyPay: Math.max(0, feeRecord.monthlyBalance ?? feeRecord.balance ?? 0),
         annualPay: feeRecord.annualBalance ?? 0,
+        paymentDate: new Date().toISOString().split('T')[0],
         paymentMethod: 'Cash',
         remarks: '',
       });
@@ -100,7 +101,7 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
         discount: finalDiscount,
         amountPaid: (feeRecord.amountPaid || 0) + monthlyPart + annualPart,
         annualPaid: (feeRecord.annualPaid || 0) + annualPart,
-        paymentDate: new Date(),
+        paymentDate: data.paymentDate || new Date().toISOString().split('T')[0],
         paymentMethod: data.paymentMethod,
         remarks: data.remarks
       };
@@ -246,6 +247,14 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
+              <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Payment Date</label>
+              <input
+                type="date"
+                {...register('paymentDate')}
+                className="w-full text-xs font-semibold bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body outline-none focus:ring-2 focus:ring-brand cursor-pointer"
+              />
+            </div>
+            <div>
               <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Payment Method</label>
               <select {...register('paymentMethod')} className="w-full text-xs font-semibold bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body outline-none focus:ring-2 focus:ring-brand cursor-pointer">
                 <option value="Cash" className="bg-surface-2">Cash</option>
@@ -253,10 +262,11 @@ export default function FeePaymentModal({ open, onClose, feeRecord, onSaved }) {
                 <option value="Online" className="bg-surface-2">Online Transfer</option>
               </select>
             </div>
-            <div>
-              <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Remarks / Details</label>
-              <input {...register('remarks')} className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Challan slip no." />
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold t-muted uppercase tracking-widest mb-1.5">Remarks / Details</label>
+            <input {...register('remarks')} className="w-full text-xs bg-surface-2 border border-line rounded-xl px-3 py-2.5 t-body focus:outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Challan slip no." />
           </div>
 
           <div className="flex justify-between items-center bg-surface-2 border border-line px-4 py-2.5 rounded-xl text-xs">

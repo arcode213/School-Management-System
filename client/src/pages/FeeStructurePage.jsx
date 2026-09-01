@@ -35,6 +35,7 @@ export default function FeeStructurePage() {
   // Set when an existing override is opened — the student is then fixed, since the
   // override is keyed by student and changing it would silently target someone else.
   const [editingOverride, setEditingOverride] = useState(false);
+  const [overrideSearch, setOverrideSearch] = useState('');
 
   useEffect(() => {
     if (currentCampus && currentSession) fetchData();
@@ -210,6 +211,16 @@ export default function FeeStructurePage() {
     ? [...structures].sort((a,b) => b.tuitionFee - a.tuitionFee)[0]
     : null;
 
+  const filteredOverrides = overrides.filter(o => {
+    if (!overrideSearch.trim()) return true;
+    const q = overrideSearch.toLowerCase().trim();
+    const name = (o.student?.fullName || '').toLowerCase();
+    const sId = (o.student?.studentId || '').toLowerCase();
+    const father = (o.student?.fatherName || '').toLowerCase();
+    const reason = (o.reason || '').toLowerCase();
+    return name.includes(q) || sId.includes(q) || father.includes(q) || reason.includes(q);
+  });
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
@@ -340,53 +351,105 @@ export default function FeeStructurePage() {
       )}
 
       {activeTab === 'override' && (
-        <div className="card card-lg overflow-hidden">
-          <div className="table-scroll">
-            <table className="w-full text-xs text-left rtable">
-              <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
-                <tr>
-                  <th className="p-4">Student</th>
-                  <th className="p-4">Custom Tuition</th>
-                  <th className="p-4">Custom Transport</th>
-                  <th className="p-4">Custom Misc</th>
-                  <th className="p-4">Custom Annual</th>
-                  <th className="p-4">Reason</th>
-                  <th className="p-4">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line t-muted">
-                {overrides.map(o => (
-                  <tr key={o._id} className="hover:bg-surface-2 transition">
-                    <td data-label="Student" className="p-4">
-                      <div>
-                        <p className="font-bold t-body">{o.student?.fullName}</p>
-                        <p className="text-[10px] font-mono t-faint mt-0.5">{o.student?.studentId}</p>
-                      </div>
-                    </td>
-                    <td data-label="Custom Tuition" className="p-4 font-bold t-brand">{fmtOverride(o.customTuitionFee)}</td>
-                    <td data-label="Custom Transport" className="p-4 font-semibold t-muted">{fmtOverride(o.customTransportFee)}</td>
-                    <td data-label="Custom Misc" className="p-4 font-semibold t-muted">{fmtOverride(o.customMiscFee)}</td>
-                    <td data-label="Custom Annual" className="p-4 font-bold t-brand">{fmtOverride(o.customAnnualFee)}</td>
-                    <td data-label="Reason" className="p-4 t-muted">{o.reason || '—'}</td>
-                    <td data-actions="" className="p-4">
-                      <div className="flex items-center gap-1">
-                        {can('feeStructures', 'edit') && (
-                          <button onClick={() => openOverrideModal(o)} className="p-2 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" title="Edit override"><Edit size={14} /></button>
-                        )}
-                        {can('feeStructures', 'delete') && (
-                          <button onClick={() => handleDeleteOverride(o._id)} className="p-2 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" title="Delete override"><Trash2 size={14} /></button>
-                        )}
-                      </div>
-                    </td>
+        <div className="space-y-3">
+          {/* Search bar for student overrides */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-2 border border-line rounded-2xl p-3 sm:px-4">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0 bg-surface-1 border border-line rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand">
+              <Search size={15} className="t-faint flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Search overrides by student name, ID, father name, or reason..."
+                className="bg-transparent outline-none w-full text-xs t-body placeholder-faint font-semibold"
+                value={overrideSearch}
+                onChange={e => setOverrideSearch(e.target.value)}
+              />
+              {overrideSearch && (
+                <button
+                  type="button"
+                  onClick={() => setOverrideSearch('')}
+                  className="t-faint hover:t-body p-0.5 rounded transition"
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="text-[11px] font-bold t-muted uppercase tracking-wider whitespace-nowrap pl-1 sm:pl-0">
+              {overrideSearch.trim() ? (
+                <span>Showing {filteredOverrides.length} of {overrides.length}</span>
+              ) : (
+                <span>Total Overrides: {overrides.length}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="card card-lg overflow-hidden">
+            <div className="table-scroll">
+              <table className="w-full text-xs text-left rtable">
+                <thead className="bg-surface-2 border-b border-line t-muted uppercase text-[10px] font-bold tracking-wider">
+                  <tr>
+                    <th className="p-4">Student</th>
+                    <th className="p-4">Custom Tuition</th>
+                    <th className="p-4">Custom Transport</th>
+                    <th className="p-4">Custom Misc</th>
+                    <th className="p-4">Custom Annual</th>
+                    <th className="p-4">Reason</th>
+                    <th className="p-4">Action</th>
                   </tr>
-                ))}
-                {overrides.length === 0 && (
-                  <tr className="row-plain">
-                    <td colSpan="7" className="p-12 text-center t-faint font-medium">No student overrides defined yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-line t-muted">
+                  {filteredOverrides.map(o => (
+                    <tr key={o._id} className="hover:bg-surface-2 transition">
+                      <td data-label="Student" className="p-4">
+                        <div>
+                          <p className="font-bold t-body">{o.student?.fullName}</p>
+                          <p className="text-[10px] font-mono t-faint mt-0.5">
+                            {o.student?.studentId}
+                            {o.student?.fatherName && ` • s/o ${o.student.fatherName}`}
+                          </p>
+                        </div>
+                      </td>
+                      <td data-label="Custom Tuition" className="p-4 font-bold t-brand">{fmtOverride(o.customTuitionFee)}</td>
+                      <td data-label="Custom Transport" className="p-4 font-semibold t-muted">{fmtOverride(o.customTransportFee)}</td>
+                      <td data-label="Custom Misc" className="p-4 font-semibold t-muted">{fmtOverride(o.customMiscFee)}</td>
+                      <td data-label="Custom Annual" className="p-4 font-bold t-brand">{fmtOverride(o.customAnnualFee)}</td>
+                      <td data-label="Reason" className="p-4 t-muted">{o.reason || '—'}</td>
+                      <td data-actions="" className="p-4">
+                        <div className="flex items-center gap-1">
+                          {can('feeStructures', 'edit') && (
+                            <button onClick={() => openOverrideModal(o)} className="p-2 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition" title="Edit override"><Edit size={14} /></button>
+                          )}
+                          {can('feeStructures', 'delete') && (
+                            <button onClick={() => handleDeleteOverride(o._id)} className="p-2 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" title="Delete override"><Trash2 size={14} /></button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {overrides.length === 0 && (
+                    <tr className="row-plain">
+                      <td colSpan="7" className="p-12 text-center t-faint font-medium">No student overrides defined yet.</td>
+                    </tr>
+                  )}
+                  {overrides.length > 0 && filteredOverrides.length === 0 && (
+                    <tr className="row-plain">
+                      <td colSpan="7" className="p-12 text-center t-faint font-medium">
+                        No student overrides found matching &ldquo;{overrideSearch}&rdquo;.
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setOverrideSearch('')}
+                            className="text-xs t-brand font-bold uppercase tracking-wider hover:underline"
+                          >
+                            Clear search
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
