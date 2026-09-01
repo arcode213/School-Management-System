@@ -767,7 +767,12 @@
 /* Printing must stay black-on-white whatever the screen theme is — challans go
    onto pre-printed bank paper and the dues report onto plain paper. */
 @media print {
-  body {
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
     background: #fff !important;
     background-image: none !important;
     color: #000 !important;

@@ -8,7 +8,13 @@ const monthBefore = (m) => MONTHS[(MONTHS.indexOf(m) + 11) % 12];
 // Accepts the fee object from either getFee (fee.student.*) or the getFees
 // aggregate (fee.studentInfo.*) and returns a flat shape.
 const normalize = (fee) => {
-  const s = fee.student || fee.studentInfo || {};
+  const s = (fee.student && typeof fee.student === 'object' && (fee.student.fullName || fee.student.name))
+    ? fee.student
+    : (fee.studentInfo && typeof fee.studentInfo === 'object')
+      ? fee.studentInfo
+      : (fee.student && typeof fee.student === 'object')
+        ? fee.student
+        : {};
 
   // Current month net charges (this month only — arrears handled separately).
   const currentAmount =
@@ -54,14 +60,19 @@ const normalize = (fee) => {
 
   const total = currentAmount + arrearsAmount + annualAmount + prevAnnualAmount;
 
+  const studentName = s.fullName || s.name || '';
+  const fatherName = s.fatherName || '';
+  const className = s.class || s.className || fee.academicInfo?.className || '';
+  const section = s.section || fee.academicInfo?.section || '';
+
   return {
     challanNo: fee.challanNo,
     issueDate: fmtDate(fee.issueDate),
     dueDate: fmtDate(fee.dueDate),
-    studentName: s.fullName || '',
-    fatherName: s.fatherName || '',
-    className: s.class || '',
-    section: s.section || '',
+    studentName,
+    fatherName,
+    className,
+    section,
     month: fee.dueMonthRange && (fee.dueMonthRange.includes('-') || fee.dueMonthRange.toLowerCase().includes('to') || /\d/.test(fee.dueMonthRange))
       ? fee.dueMonthRange
       : `${fee.dueMonthRange || fee.feeMonth} ${fee.feeYear}`,
