@@ -215,7 +215,9 @@ const basePermissions = (user) => {
   if (user.role === 'Admin') return gridFrom('all');
 
   const stored = plain(user.permissions);
-  if (isEmptyGrid(stored)) return defaultPermissionsForRole(user.role);
+  if (user.permissions === undefined || user.permissions === null) {
+    return defaultPermissionsForRole(user.role);
+  }
   return normalizeGrid(stored);
 };
 
@@ -233,7 +235,9 @@ const effectivePermissions = (user, campusId = null) => {
 
   const overrides = plain(user.campusPermissions);
   const forCampus = campusId ? overrides?.[campusId.toString()] : null;
-  if (forCampus && !isEmptyGrid(forCampus)) return normalizeGrid(forCampus);
+  if (forCampus && typeof forCampus === 'object' && Object.keys(forCampus).length > 0) {
+    return normalizeGrid(forCampus);
+  }
 
   return basePermissions(user);
 };

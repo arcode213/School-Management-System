@@ -67,7 +67,17 @@ const isVisible = (item, user, can) => {
 /** The groups this account may actually see, empty groups dropped. */
 export const visibleNavGroups = (user, can) =>
   NAV_GROUPS
-    .map(g => ({ ...g, items: g.items.filter(i => isVisible(i, user, can)) }))
+    .map(g => ({
+      ...g,
+      items: g.items
+        .filter(i => isVisible(i, user, can))
+        .map(i => {
+          if (i.to === '/accounts' && !can('accounts', 'view') && can('expenses', 'view')) {
+            return { ...i, label: 'Expenses' };
+          }
+          return i;
+        }),
+    }))
     .filter(g => g.items.length > 0);
 
 /**

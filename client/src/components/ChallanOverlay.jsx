@@ -1,5 +1,6 @@
 import { COPY_OFFSET_X, DEFAULT_CALIBRATION } from '../utils/challanCalibration';
 import { MONTHS, parseStartMonth } from '../utils/feeMonths';
+import { useAppContext } from '../context/AppContext';
 
 const fmt = (n) => Number(n || 0).toLocaleString();
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB') : '');
@@ -7,7 +8,7 @@ const monthBefore = (m) => MONTHS[(MONTHS.indexOf(m) + 11) % 12];
 
 // Accepts the fee object from either getFee (fee.student.*) or the getFees
 // aggregate (fee.studentInfo.*) and returns a flat shape.
-const normalize = (fee) => {
+const normalize = (fee, campuses = [], currentCampusId = null) => {
   const s = (fee.student && typeof fee.student === 'object' && (fee.student.fullName || fee.student.name))
     ? fee.student
     : (fee.studentInfo && typeof fee.studentInfo === 'object')
@@ -24,14 +25,6 @@ const normalize = (fee) => {
   // Arrears = dues carried in from earlier unpaid months. The months they cover are
   // recorded on the challan when it is generated (arrearsFromMonth/arrearsToMonth),
   // so the printed period is exactly the period that was billed.
-  //
-  // Challans created before those fields existed fall back to the old inference:
-  // the arrears run from the range's start month up to the month BEFORE the current
-  // fee month, since feeMonth's own charges are billed on the "current" line
-  // (e.g. current "April" -> arrears "February - March"). An arrears-only challan
-  // (an opening balance from admission/import, with no current charges at all) is
-  // the exception — there is no current line to exclude, so its arrears cover the
-  // whole labelled range including feeMonth.
   const arrearsAmount = fee.previousDues || 0;
   const arrearsOnly = currentAmount === 0 && arrearsAmount > 0;
   let arrearsLabel = 'Arrears';
@@ -65,7 +58,64 @@ const normalize = (fee) => {
   const className = s.class || s.className || fee.academicInfo?.className || '';
   const section = s.section || fee.academicInfo?.section || '';
 
+  // Multi-tier fallback ladder to guarantee campus name is found
+  let campusName =
+    fee.campusName ||
+    (typeof fee.campus === 'object' && fee.campus?.name ? fee.campus.name : null) ||
+    (typeof fee.campusInfo === 'object' && fee.campusInfo?.name ? fee.campusInfo.name : null) ||
+    (typeof fee.student?.currentCampus === 'object' && fee.student?.currentCampus?.name ? fee.student.currentCampus.name : null) ||
+    (typeof fee.studentInfo?.currentCampus === 'object' && fee.studentInfo?.currentCampus?.name ? fee.studentInfo.currentCampus.name : null);
+
+  if (!campusName && Array.isArray(campuses) && campuses.length > 0) {
+    const rawCampusId =
+      (typeof fee.campus === 'string' ? fee.campus : fee.campus?._id) ||
+      (typeof fee.student?.currentCampus === 'string' ? fee.student.currentCampus : fee.student?.currentCampus?._id) ||
+      (typeof fee.studentInfo?.currentCampus === 'string' ? fee.studentInfo.currentCampus : fee.studentInfo?.currentCampus?._id);
+
+    if (rawCampusId) {
+      const match = campuses.find((c) => String(c._id) === String(rawCampusId));
+      if (match?.name) campusName = match.name;
+    }
+  }
+
+  // Fallback to active campus in session / context
+  if (!campusName && currentCampusId && Array.isArray(campuses) && campuses.length > 0) {
+    const activeMatch = campuses.find((c) => String(c._id) === String(currentCampusId));
+    if (activeMatch?.name) campusName = activeMatch.name;
+  }
+
+  // Fallback to localStorage sms_campus
+  if (!campusName && Array.isArray(campuses) && campuses.length > 0) {
+    try {
+      const storedCampusId = localStorage.getItem('sms_campus');
+      if (storedCampusId) {
+        const match = campuses.find((c) => String(c._id) === String(storedCampusId));
+        if (match?.name) campusName = match.name;
+      }
+    } catch {}
+  }
+
+  // Fallback to single campus setup
+  if (!campusName && Array.isArray(campuses) && campuses.length === 1 && campuses[0]?.name) {
+    campusName = campuses[0].name;
+  }
+
+  // Fallback to stored user campus
+  if (!campusName) {
+    try {
+      const storedUser = JSON.parse(localStorage.getItem('sms_user') || '{}');
+      if (storedUser?.campus?.name) {
+        campusName = storedUser.campus.name;
+      } else if (storedUser?.campusName) {
+        campusName = storedUser.campusName;
+      }
+    } catch {}
+  }
+
+  campusName = campusName || '';
+
   return {
+    campusName,
     challanNo: fee.challanNo,
     issueDate: fmtDate(fee.issueDate),
     dueDate: fmtDate(fee.dueDate),
@@ -101,22 +151,25 @@ const normalize = (fee) => {
 // One printed copy (left = Student, right = School). `dx` shifts the right copy.
 function Copy({ d, dx, fontMm, calib, onDragUpdate }) {
   const at = (x, y) => ({ position: 'absolute', left: `${x + dx}%`, top: `${y}%` });
-  const textStyle = (align) => ({
-    fontSize: `${fontMm}mm`,
+  const textStyle = (align, isCampus) => ({
+    fontSize: isCampus ? `${fontMm * 1.1}mm` : `${fontMm}mm`,
     lineHeight: 1,
     whiteSpace: 'nowrap',
     transform: align === 'right' ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
-    fontWeight: 600,
+    fontWeight: isCampus ? 700 : 600,
     color: '#000',
+    letterSpacing: isCampus ? '0.02em' : 'normal',
   });
 
   const fieldMap = calib?.fieldMap || DEFAULT_CALIBRATION.fieldMap;
 
-  const Field = ({ k, value }) => {
+  const Field = ({ k, value, isCampus = false }) => {
     const f = fieldMap[k];
     if (!f) return null;
 
     const isDraggable = onDragUpdate && dx === 0;
+    const displayValue = value || (isDraggable && isCampus ? '(Campus Name)' : '');
+    if (!displayValue && !isDraggable) return null;
 
     const handlePointerDown = (e) => {
       if (!isDraggable) return;
@@ -157,22 +210,23 @@ function Copy({ d, dx, fontMm, calib, onDragUpdate }) {
         onPointerDown={handlePointerDown}
         style={{ 
           ...at(f.x, f.y), 
-          ...textStyle(f.align),
+          ...textStyle(f.align, isCampus),
           cursor: isDraggable ? 'move' : 'default',
           outline: isDraggable ? '1px dotted rgba(59, 130, 246, 0.5)' : 'none',
           padding: isDraggable ? '2px' : '0',
-          background: isDraggable ? 'rgba(255, 255, 255, 0.4)' : 'transparent',
+          background: isDraggable ? 'rgba(255, 255, 255, 0.6)' : 'transparent',
           zIndex: isDraggable ? 10 : 1,
         }}
         title={isDraggable ? `Drag to move ${k}` : undefined}
       >
-        {value}
+        {displayValue}
       </span>
     );
   };
 
   return (
     <>
+      <Field k="campusName" value={d.campusName} isCampus />
       <Field k="challanNo" value={d.challanNo} />
       <Field k="issueDate" value={d.issueDate} />
       <Field k="studentName" value={d.studentName} />
@@ -202,7 +256,10 @@ function Copy({ d, dx, fontMm, calib, onDragUpdate }) {
 // Renders one full challan sheet (both copies) sized to the physical paper.
 export default function ChallanOverlay({ fee, calib, showBackground = false, onDragUpdate }) {
   if (!fee) return null;
-  const d = normalize(fee);
+  const appContext = useAppContext?.() || {};
+  const campuses = appContext.campuses || [];
+  const currentCampus = appContext.currentCampus || null;
+  const d = normalize(fee, campuses, currentCampus);
   // Base text size scales with the sheet width; user can fine-tune via fontScale.
   const fontMm = ((calib.paperWidth * 0.024) * (calib.fontScale || 100)) / 100;
 

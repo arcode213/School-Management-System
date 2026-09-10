@@ -21,6 +21,7 @@ export const DEFAULT_CALIBRATION = {
   printBackground: false, // print the form image too (for plain paper)
 
   fieldMap: {
+    campusName:  { x: 45.0, y: 6.5, align: 'right' },
     challanNo:   { x: 14.2, y: 42.0, align: 'left' },
     issueDate:   { x: 35.0, y: 42.0, align: 'left' },
     studentName: { x: 18.0, y: 45.7, align: 'left' },
@@ -61,12 +62,17 @@ export const loadCalibration = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     // Merge deeply so new fields added later don't crash old saves
-    return { 
+    const calib = { 
       ...DEFAULT_CALIBRATION, 
       ...(saved || {}),
       fieldMap: { ...DEFAULT_CALIBRATION.fieldMap, ...(saved?.fieldMap || {}) },
       tableMap: { ...DEFAULT_CALIBRATION.tableMap, ...(saved?.tableMap || {}) }
     };
+    // If campusName was missing or saved at y < 5.0 (clipped/dark top edge), migrate to clear corner
+    if (!calib.fieldMap.campusName || calib.fieldMap.campusName.y < 5.0) {
+      calib.fieldMap.campusName = { ...DEFAULT_CALIBRATION.fieldMap.campusName };
+    }
+    return calib;
   } catch {
     return { ...DEFAULT_CALIBRATION };
   }

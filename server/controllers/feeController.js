@@ -754,13 +754,32 @@ const getFees = async (req, res) => {
     if (challanNo) matchStage.challanNo = { $regex: challanNo, $options: 'i' };
 
     if (startDate || endDate) {
-      matchStage.issueDate = {};
-      if (startDate) matchStage.issueDate.$gte = new Date(startDate);
+      const payDateCond = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        payDateCond.$gte = start;
+      }
       if (endDate) {
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
-        matchStage.issueDate.$lte = end;
+        payDateCond.$lte = end;
       }
+
+      const paymentQuery = {
+        receivedOn: payDateCond,
+        isDeleted: { $ne: true },
+        amount: { $gt: 0 },
+      };
+      if (currentCampus) paymentQuery.campus = new mongoose.Types.ObjectId(currentCampus);
+      if (currentSession) paymentQuery.academicSession = new mongoose.Types.ObjectId(currentSession);
+
+      const paymentFeeIds = await FeePayment.distinct('feeRecord', paymentQuery);
+
+      matchStage.$or = [
+        { paymentDate: payDateCond },
+        { _id: { $in: paymentFeeIds } },
+      ];
     }
 
     const pipeline = [
@@ -768,7 +787,9 @@ const getFees = async (req, res) => {
       { $lookup: { from: 'studentacademicrecords', localField: 'studentAcademicRecord', foreignField: '_id', as: 'academicInfo' } },
       { $unwind: { path: '$academicInfo', preserveNullAndEmptyArrays: true } },
       { $lookup: { from: 'students', localField: 'student', foreignField: '_id', as: 'studentInfo' } },
-      { $unwind: { path: '$studentInfo', preserveNullAndEmptyArrays: true } }
+      { $unwind: { path: '$studentInfo', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'campuses', localField: 'campus', foreignField: '_id', as: 'campusInfo' } },
+      { $unwind: { path: '$campusInfo', preserveNullAndEmptyArrays: true } }
     ];
 
     if (studentClass) {
@@ -830,6 +851,8 @@ const getFees = async (req, res) => {
         // Surfaced so the UI can exclude Freeship students from challan printing.
         f.studentInfo.isFreeship = !!f.academicInfo?.isFreeship;
       }
+      f.campusName = f.campusInfo?.name || '';
+      if (f.campusInfo) f.campus = f.campusInfo;
       f.dueMonthRange = resolveAccurateDueMonthRange(f);
       const computedPaidUp = computePaidUpToMonth(f, (Number(f.amountPaid) || 0) - (Number(f.annualPaid) || 0));
       if (computedPaidUp) f.paidUpToMonth = computedPaidUp;
@@ -1073,13 +1096,18 @@ const deleteFee = async (req, res) => {
 const getFee = async (req, res) => {
   try {
     const fee = await FeeRecord.findOne({ _id: req.params.id, isDeleted: false })
-      .populate('student', 'fullName studentId fatherName phone address')
+      .populate({
+        path: 'student',
+        select: 'fullName studentId fatherName phone address currentCampus',
+        populate: { path: 'currentCampus', select: 'name' }
+      })
       .populate('studentAcademicRecord', 'className section rollNumber isFreeship')
-      .populate('campus', 'name phone address principalName code'); // make sure code exists if needed
+      .populate('campus', 'name phone address principalName code');
 
     if (!fee) return res.status(404).json({ message: 'Fee record not found' });
 
     const doc = fee.toJSON();
+    doc.campusName = fee.campus?.name || doc.student?.currentCampus?.name || '';
     doc.dueMonthRange = resolveAccurateDueMonthRange(doc);
     const computedPaidUp = computePaidUpToMonth(doc, (Number(doc.amountPaid) || 0) - (Number(doc.annualPaid) || 0));
     if (computedPaidUp) doc.paidUpToMonth = computedPaidUp;

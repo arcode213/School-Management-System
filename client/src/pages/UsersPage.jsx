@@ -75,9 +75,9 @@ export default function UsersPage() {
       setSessionScope(toIds(user.sessionScope));
     } else {
       reset({ name: '', email: '', password: '', role: 'Staff', isActive: true });
-      // A new account starts from the Office Staff preset — a sensible day-to-day
-      // set the admin can trim, rather than an empty grid that logs in to nothing.
-      setGrid(PRESETS.find(p => p.key === 'staff').build());
+      // A new account starts with an empty grid — only accesses explicitly allowed by
+      // the admin are granted, so any unallowed tab will not be displayed.
+      setGrid(emptyGrid());
       setCampusGrids({});
       setCampusScope([]);
       setSessionScope([]);

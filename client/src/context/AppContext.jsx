@@ -6,7 +6,14 @@ const AppContext = createContext();
 
 export function AppProvider({ children }) {
   const { user, setActiveCampus } = useAuth();
-  const [campuses, setCampuses] = useState([]);
+  const [campuses, setCampuses] = useState(() => {
+    try {
+      const cached = localStorage.getItem('sms_campuses_cache');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [sessions, setSessions] = useState([]);
   
   const [currentCampus, setCurrentCampus] = useState(() => localStorage.getItem('sms_campus'));
@@ -24,6 +31,9 @@ export function AppProvider({ children }) {
         ]);
         
         setCampuses(campRes.data);
+        try {
+          localStorage.setItem('sms_campuses_cache', JSON.stringify(campRes.data));
+        } catch {}
         setSessions(sessRes.data);
 
         // Both lists come back already narrowed to this account's campus and

@@ -228,13 +228,13 @@ export default function FeesPage() {
               {STATUSES.map(s => <option key={s} className="bg-surface-2">{s}</option>)}
             </select>
             {/* Date range filters */}
-            <div className="flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs items-center gap-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider t-muted">Start:</span>
-              <input type="date" className="bg-transparent outline-none w-full t-body focus:outline-none cursor-pointer font-medium" value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1); }} />
+            <div className="flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs items-center gap-2" title="Filter by pay date (from)">
+              <span className="text-[10px] uppercase font-bold tracking-wider t-muted">From:</span>
+              <input type="date" title="Pay date from" className="bg-transparent outline-none w-full t-body focus:outline-none cursor-pointer font-medium" value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1); }} />
             </div>
-            <div className="flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs items-center gap-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider t-muted">End:</span>
-              <input type="date" className="bg-transparent outline-none w-full t-body focus:outline-none cursor-pointer font-medium" value={endDate} onChange={e => { setEndDate(e.target.value); setPage(1); }} />
+            <div className="flex bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs items-center gap-2" title="Filter by pay date (to)">
+              <span className="text-[10px] uppercase font-bold tracking-wider t-muted">To:</span>
+              <input type="date" title="Pay date to" className="bg-transparent outline-none w-full t-body focus:outline-none cursor-pointer font-medium" value={endDate} onChange={e => { setEndDate(e.target.value); setPage(1); }} />
             </div>
           </div>
 

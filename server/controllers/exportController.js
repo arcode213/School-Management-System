@@ -3,6 +3,7 @@ const Expense = require('../models/Expense');
 const SalaryRecord = require('../models/SalaryRecord');
 const Campus = require('../models/Campus');
 const FeeRecord = require('../models/FeeRecord');
+const FeePayment = require('../models/FeePayment');
 const { sendWorkbook, sendPdf } = require('../utils/exporters');
 const { getLedgerRows } = require('./accountsController');
 const {
@@ -314,17 +315,34 @@ const exportFeeSummary = async (req, res) => {
         monthKey = month;
       }
     } else if (startDate || endDate) {
-      query.issueDate = {};
+      const payDateCond = {};
       if (startDate) {
-        query.issueDate.$gte = new Date(startDate);
-        monthKey = ledgerMonthOf(new Date(startDate));
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        payDateCond.$gte = start;
+        monthKey = ledgerMonthOf(start);
       }
       if (endDate) {
-        const e = new Date(endDate);
-        e.setHours(23, 59, 59, 999);
-        query.issueDate.$lte = e;
-        if (!monthKey) monthKey = ledgerMonthOf(e);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        payDateCond.$lte = end;
+        if (!monthKey) monthKey = ledgerMonthOf(end);
       }
+
+      const paymentQuery = {
+        receivedOn: payDateCond,
+        isDeleted: { $ne: true },
+        amount: { $gt: 0 },
+      };
+      if (currentCampus) paymentQuery.campus = oid(currentCampus);
+      if (currentSession) paymentQuery.academicSession = oid(currentSession);
+
+      const paymentFeeIds = await FeePayment.distinct('feeRecord', paymentQuery);
+
+      query.$or = [
+        { paymentDate: payDateCond },
+        { _id: { $in: paymentFeeIds } },
+      ];
       periodLabel = `${startDate || 'start'} to ${endDate || 'today'}`;
     }
 
