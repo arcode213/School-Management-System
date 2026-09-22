@@ -4,16 +4,19 @@ import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { getEmployees, deleteEmployee } from '../api/employees';
 import EmployeeFormModal from '../components/EmployeeFormModal';
+import EmployeePrintModal from '../components/EmployeePrintModal';
 import SalaryModal from '../components/SalaryModal';
 import ImportExcelModal from '../components/ImportExcelModal';
+import { exportObjectsToCsv } from '../utils/exportCsv';
 import toast from 'react-hot-toast';
 import {
-  UserPlus, Search, Download, Trash2, Edit2, Eye, Upload,
+  UserPlus, Search, Download, Printer, Trash2, Edit2, Eye, Upload,
   ChevronLeft, ChevronRight, Users, Briefcase, DollarSign, Layers
 } from 'lucide-react';
 
 const DESIGNATIONS = ['Teacher', 'Clerk', 'Peon', 'Guard', 'Principal', 'Admin Staff', 'Other'];
 const DEPARTMENTS = ['Academics', 'Administration', 'Finance', 'Support', 'Security'];
+const STATUSES = ['Active', 'Resigned', 'Terminated'];
 
 const StatusBadge = ({ status }) => {
   const map = { 
@@ -39,17 +42,27 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [filterDesig, setFilterDesig] = useState('');
   const [filterDept, setFilterDept] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [page, setPage] = useState(1);
 
-  // Modals
+  // Modals & Actions
   const [empModal, setEmpModal] = useState({ open: false, data: null });
   const [salaryModal, setSalaryModal] = useState({ open: false, emp: null });
   const [importOpen, setImportOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await getEmployees({ search, designation: filterDesig, department: filterDept, page, limit: 10 });
+      const { data } = await getEmployees({
+        search,
+        designation: filterDesig,
+        department: filterDept,
+        status: filterStatus,
+        page,
+        limit: 10
+      });
       setEmployees(data.employees);
       setPagination(data.pagination);
     } catch {
@@ -57,7 +70,7 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterDesig, filterDept, page]);
+  }, [search, filterDesig, filterDept, filterStatus, page]);
 
   useEffect(() => { 
     if (currentCampus) fetchEmployees(); 
@@ -74,6 +87,55 @@ export default function EmployeesPage() {
     }
   };
 
+  // CSV export
+  const date10 = (d) => (d ? String(d).substring(0, 10) : '');
+  const EXPORT_COLUMNS = [
+    { label: 'Employee ID',   get: e => e.employeeId },
+    { label: 'Full Name',     get: e => e.fullName },
+    { label: 'Father Name',   get: e => e.fatherName },
+    { label: 'CNIC',          get: e => e.cnic },
+    { label: 'Designation',   get: e => e.designation },
+    { label: 'Department',    get: e => e.department },
+    { label: 'Subject',       get: e => e.subject },
+    { label: 'Joining Date',  get: e => date10(e.joiningDate) },
+    { label: 'Status',        get: e => e.status },
+    { label: 'Salary',        get: e => e.salary },
+    { label: 'Allowances',    get: e => e.allowances },
+    { label: 'Deductions',    get: e => e.deductions },
+    { label: 'Phone',         get: e => e.phone },
+    { label: 'Email',         get: e => e.email },
+    { label: 'Address',       get: e => e.address },
+    { label: 'Qualification', get: e => e.qualification },
+    { label: 'Experience',    get: e => e.experience },
+    { label: 'Date of Birth', get: e => date10(e.dateOfBirth) },
+    { label: 'Gender',        get: e => e.gender },
+  ];
+
+  const exportCSV = async () => {
+    setExporting(true);
+    try {
+      const { data } = await getEmployees({
+        search,
+        designation: filterDesig,
+        department: filterDept,
+        status: filterStatus,
+        page: 1,
+        limit: 100000,
+      });
+      const all = data.employees || [];
+      if (all.length === 0) {
+        toast.error('No staff records match the current filters');
+        return;
+      }
+      exportObjectsToCsv('staff_directory.csv', EXPORT_COLUMNS, all);
+      toast.success(`Exported ${all.length} staff records`);
+    } catch {
+      toast.error('Failed to export staff records');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Screen Analytics Calculations
   const activeCount = employees.filter(e => e.status === 'Active').length;
   const teachersCount = employees.filter(e => e.designation === 'Teacher').length;
@@ -83,10 +145,25 @@ export default function EmployeesPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase">Staff Directory</h1>
+          <h1 className="text-xl sm:text-2xl font-bold t-body tracking-tight uppercase">Staff & Teachers Directory</h1>
           <p className="t-muted text-xs font-semibold mt-1 uppercase tracking-wider">{pagination.total} registered staff members</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={exportCSV}
+            disabled={exporting}
+            className="btn btn-ghost disabled:opacity-50"
+            title="Export CSV"
+          >
+            <Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}
+          </button>
+          <button
+            onClick={() => setPrintOpen(true)}
+            className="btn btn-ghost"
+            title="Print Records"
+          >
+            <Printer size={14} /> Print Records
+          </button>
           {can('employees', 'create') && (
             <button onClick={() => setImportOpen(true)}
               className="btn btn-ghost"
@@ -145,7 +222,7 @@ export default function EmployeesPage() {
         <div className="sm:col-span-2 relative bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs flex items-center gap-2">
           <Search size={14} className="t-faint" />
           <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search staff name, ID..." className="bg-transparent w-full t-body placeholder-faint focus:outline-none font-medium" />
+            placeholder="Search staff name, ID, phone, CNIC..." className="bg-transparent w-full t-body placeholder-faint focus:outline-none font-medium" />
         </div>
         <select value={filterDesig} onChange={e => { setFilterDesig(e.target.value); setPage(1); }} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer min-w-32">
           <option value="">All Designations</option>
@@ -244,6 +321,12 @@ export default function EmployeesPage() {
         onImportSuccess={fetchEmployees}
         type="employees"
       />
+      <EmployeePrintModal
+        open={printOpen}
+        onClose={() => setPrintOpen(false)}
+        filters={{ search, designation: filterDesig, department: filterDept, status: filterStatus }}
+      />
     </div>
   );
 }
+

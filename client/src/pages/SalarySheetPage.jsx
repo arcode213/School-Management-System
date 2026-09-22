@@ -157,29 +157,8 @@ export default function SalarySheetPage() {
   );
 }
 
-const getDaysInMonth = (m) => {
-  if (!m) return 30;
-  const parts = m.split('-');
-  const year = Number(parts[0]);
-  const monthNum = Number(parts[1]);
-  return new Date(year, monthNum, 0).getDate();
-};
-
-const getWorkingDaysInMonth = (m) => {
-  if (!m) return 26;
-  const parts = m.split('-');
-  const year = Number(parts[0]);
-  const monthNum = Number(parts[1]);
-  const totalDays = new Date(year, monthNum, 0).getDate();
-  let workingDays = 0;
-  for (let day = 1; day <= totalDays; day++) {
-    const date = new Date(year, monthNum - 1, day);
-    if (date.getDay() !== 0) { // 0 is Sunday
-      workingDays++;
-    }
-  }
-  return workingDays;
-};
+const getDaysInMonth = () => 30;
+const getWorkingDaysInMonth = () => 30;
 
 // ─── Sheet ───────────────────────────────────────────────────────────────────
 function SheetTable({ sheet, loading, isClosed, canPay, onPay, onSlip }) {
@@ -235,8 +214,8 @@ function SheetTable({ sheet, loading, isClosed, canPay, onPay, onSlip }) {
                     <span className="block text-[10px] t-faint font-mono mt-0.5">
                       {r.employee.employeeId} · {r.employee.designation}
                       {r.attendanceBonus > 0 && (
-                        <span className="text-ok font-semibold ml-1.5" title={r.employee.designation === 'Teacher' ? "No absences reward" : "No absences bonus"}>
-                          (incl. {r.employee.designation === 'Teacher' ? 'reward' : 'bonus'} {fmtPKR(r.attendanceBonus)})
+                        <span className="text-ok font-semibold ml-1.5" title="Bonus">
+                          (incl. bonus {fmtPKR(r.attendanceBonus)})
                         </span>
                       )}
                     </span>
@@ -288,7 +267,8 @@ function SheetTable({ sheet, loading, isClosed, canPay, onPay, onSlip }) {
 function PayModal({ row, month, onClose, onSaved }) {
   const [form, setForm] = useState({
     baseSalary: row.baseSalary,
-    allowances: row.allowances,
+    allowances: row.allowances || 0,
+    allowanceDays: '',
     absenceDeduction: row.absenceDeduction || 0,
     taxDeduction: row.taxDeduction || 0,
     otherDeduction: row.otherDeduction || 0,
@@ -300,37 +280,41 @@ function PayModal({ row, month, onClose, onSaved }) {
   });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (row.employee.designation === 'Teacher') {
-      const baseSalaryNum = Number(form.baseSalary) || 0;
-      const days = getWorkingDaysInMonth(month);
-      const oneDaySalary = Math.round((baseSalaryNum / days) / 10) * 10;
-      const absDays = Number(form.absentDays) || 0;
+  const perDaySalary = Math.round((Number(form.baseSalary || 0) / 30) * 100) / 100;
 
-      let deduction = 0;
-      let bonus = 0;
+  const handleBaseSalaryChange = (val) => {
+    const base = Number(val) || 0;
+    const perDay = base / 30;
+    const abs = Number(form.absentDays) || 0;
+    const allowDays = Number(form.allowanceDays) || 0;
+    setForm(prev => ({
+      ...prev,
+      baseSalary: val,
+      absenceDeduction: abs > 0 ? Math.round(abs * perDay) : prev.absenceDeduction,
+      allowances: allowDays > 0 ? Math.round(allowDays * perDay) : prev.allowances,
+    }));
+  };
 
-      if (absDays === 0) {
-        bonus = oneDaySalary;
-        deduction = 0;
-      } else if (absDays === 1) {
-        bonus = 0;
-        deduction = 0;
-      } else {
-        bonus = 0;
-        deduction = Math.round(((absDays - 1) * oneDaySalary) / 10) * 10;
-      }
+  const handleAbsentDaysChange = (val) => {
+    const abs = val === '' ? '' : Math.max(0, Number(val));
+    const perDay = Number(form.baseSalary || 0) / 30;
+    const ded = abs === '' || abs === 0 ? 0 : Math.round(abs * perDay);
+    setForm(prev => ({ ...prev, absentDays: val, absenceDeduction: ded }));
+  };
 
-      setForm(prev => {
-        if (prev.absenceDeduction === deduction && prev.attendanceBonus === bonus) return prev;
-        return { ...prev, absenceDeduction: deduction, attendanceBonus: bonus };
-      });
-    }
-  }, [form.absentDays, form.baseSalary, row.employee.designation, month]);
+  const handleAllowanceDaysChange = (val) => {
+    const days = val === '' ? '' : Math.max(0, Number(val));
+    const perDay = Number(form.baseSalary || 0) / 30;
+    const allow = days === '' || days === 0 ? 0 : Math.round(days * perDay);
+    setForm(prev => ({ ...prev, allowanceDays: val, allowances: allow }));
+  };
 
+  const roundUp10 = (n) => (n <= 0 ? 0 : Math.ceil(n / 10) * 10);
   const n = (v) => Number(v) || 0;
   const deductions = n(form.absenceDeduction) + n(form.taxDeduction) + n(form.otherDeduction) + n(row.advanceDeduction);
-  const net = n(form.baseSalary) + n(form.allowances) + n(form.attendanceBonus) - deductions;
+  const gross = n(form.baseSalary) + n(form.allowances) + n(form.attendanceBonus);
+  const rawNet = gross - deductions;
+  const net = roundUp10(rawNet);
   const paying = form.amountPaid === '' ? net : n(form.amountPaid);
   const isPartial = paying > 0 && paying < net;
 
@@ -343,6 +327,7 @@ function PayModal({ row, month, onClose, onSaved }) {
         month,
         baseSalary: n(form.baseSalary),
         allowances: n(form.allowances),
+        allowanceDays: n(form.allowanceDays),
         absenceDeduction: n(form.absenceDeduction),
         taxDeduction: n(form.taxDeduction),
         otherDeduction: n(form.otherDeduction),
@@ -375,35 +360,47 @@ function PayModal({ row, month, onClose, onSaved }) {
           </div>
 
           <form onSubmit={submit} className="px-5 sm:px-6 py-5 space-y-4 overflow-y-auto">
+            {/* Daily rate info badge */}
+            <div className="flex items-center justify-between px-3 py-2 bg-brand-soft border border-brand-border rounded-xl text-xs t-brand font-medium">
+              <span>Standard 30-Day Per-Day Rate:</span>
+              <strong className="font-mono">Rs. {Math.round(perDaySalary).toLocaleString()} / day</strong>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="label">Base salary</label>
+                <label className="label">Base salary (Rs.)</label>
                 <input type="number" min="0" value={form.baseSalary}
-                  onChange={e => setForm({ ...form, baseSalary: e.target.value })} className="field" />
+                  onChange={e => handleBaseSalaryChange(e.target.value)} className="field" />
               </div>
               <div>
-                <label className="label">Allowances</label>
+                <label className="label">Allowance (Days)</label>
+                <input type="number" min="0" max="30" value={form.allowanceDays}
+                  placeholder="e.g. 1, 2, 3 days"
+                  onChange={e => handleAllowanceDaysChange(e.target.value)} className="field" />
+              </div>
+              <div>
+                <label className="label">Allowances Amount (Rs.)</label>
                 <input type="number" min="0" value={form.allowances}
                   onChange={e => setForm({ ...form, allowances: e.target.value })} className="field" />
               </div>
               <div>
-                <label className="label">Absent days</label>
+                <label className="label">Absent Days</label>
                 <input type="number" min="0" max="31" value={form.absentDays}
-                  onChange={e => setForm({ ...form, absentDays: e.target.value })} className="field" />
+                  placeholder="e.g. 1, 2, 3 days"
+                  onChange={e => handleAbsentDaysChange(e.target.value)} className="field" />
               </div>
               <div>
-                <label className="label">{row.employee.designation === 'Teacher' ? 'Penalty' : 'Absence deduction'}</label>
+                <label className="label">Absence Deduction (Rs.)</label>
                 <input type="number" min="0" value={form.absenceDeduction}
-                  disabled={row.employee.designation === 'Teacher'}
                   onChange={e => setForm({ ...form, absenceDeduction: e.target.value })} className="field" />
               </div>
               <div>
-                <label className="label">Tax deduction</label>
+                <label className="label">Tax deduction (Rs.)</label>
                 <input type="number" min="0" value={form.taxDeduction}
                   onChange={e => setForm({ ...form, taxDeduction: e.target.value })} className="field" />
               </div>
-              <div>
-                <label className="label">Other deduction</label>
+              <div className="sm:col-span-2">
+                <label className="label">Other deduction (Rs.)</label>
                 <input type="number" min="0" value={form.otherDeduction}
                   onChange={e => setForm({ ...form, otherDeduction: e.target.value })} className="field" />
               </div>
@@ -421,14 +418,19 @@ function PayModal({ row, month, onClose, onSaved }) {
             )}
 
             <div className="surface-muted rounded-2xl p-4 space-y-2">
-              <Line label="Gross" value={n(form.baseSalary) + n(form.allowances)} />
+              <Line label="Gross Earnings" value={gross} />
               {n(form.attendanceBonus) > 0 && (
-                <Line label={row.employee.designation === 'Teacher' ? 'Reward' : 'Attendance Bonus'} value={n(form.attendanceBonus)} tone="t-ok" />
+                <Line label="Bonus" value={n(form.attendanceBonus)} tone="t-ok" />
               )}
-              <Line label="Total deductions" value={-deductions} tone="t-bad" />
+              <Line label="Total Deductions" value={-deductions} tone="t-bad" />
               <div className="divider" />
               <div className="flex justify-between items-center">
-                <span className="text-xs font-bold uppercase tracking-wider t-body">Net payable</span>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider t-body">Net Payable</span>
+                  {rawNet > 0 && rawNet !== net && (
+                    <span className="block text-[10px] t-faint">Rounded to next 10 from Rs. {rawNet.toLocaleString()}</span>
+                  )}
+                </div>
                 <span className="text-base font-black t-body">{fmtPKR(net)}</span>
               </div>
             </div>

@@ -27,18 +27,9 @@ const {
  */
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const roundUp10 = (n) => (n <= 0 ? 0 : Math.ceil((Number(n) || 0) / 10) * 10);
 
-const getWorkingDaysInMonth = (year, month) => {
-  const totalDays = new Date(year, month, 0).getDate();
-  let workingDays = 0;
-  for (let day = 1; day <= totalDays; day++) {
-    const date = new Date(year, month - 1, day);
-    if (date.getDay() !== 0) { // 0 is Sunday
-      workingDays++;
-    }
-  }
-  return workingDays;
-};
+const getWorkingDaysInMonth = (year, month) => 30;
 
 /** The Salaries category for a campus, used to file salary payments in the ledger. */
 const salaryCategoryFor = async (campusId, session = null) => {
@@ -139,16 +130,6 @@ const getSalarySheet = async (req, res) => {
       let proposedAbsenceDeduction = 0;
       let proposedAttendanceBonus = 0;
 
-      if (emp.designation === 'Teacher') {
-        const parts = partsOf(monthKey);
-        if (parts) {
-          const totalDays = getWorkingDaysInMonth(parts.year, parts.month);
-          const oneDaySalary = Math.round((base / totalDays) / 10) * 10;
-          // Default unposted has 0 absentDays, yielding 1 day bonus
-          proposedAttendanceBonus = oneDaySalary;
-        }
-      }
-
       const deductions = round2(standing + advanceDue + proposedAbsenceDeduction);
       const net = round2(base + allowances + proposedAttendanceBonus - deductions);
 
@@ -212,6 +193,7 @@ const paySalary = async (req, res) => {
       // says", which is exactly what the salary sheet proposed.
       baseSalary, allowances, otherDeduction,
       absenceDeduction = 0, taxDeduction = 0, absentDays = 0,
+      attendanceBonus = 0,
       amountPaid, paymentMethod = 'Bank Transfer', paymentDate, remarks,
       recoverAdvances = true,
     } = req.body;
@@ -266,34 +248,30 @@ const paySalary = async (req, res) => {
         });
       }
 
+      const oneDaySalary = base / 30;
+
       let calcAbsenceDeduction = Number(absenceDeduction || 0);
-      let calcAttendanceBonus = 0;
+      let calcAttendanceBonus = Number(attendanceBonus || 0);
 
-      if (employee.designation === 'Teacher') {
-        const parts = partsOf(month);
-        if (parts) {
-          const totalDays = getWorkingDaysInMonth(parts.year, parts.month);
-          const oneDaySalary = Math.round((base / totalDays) / 10) * 10;
-          const absDays = Number(absentDays || 0);
+      const absDays = Number(absentDays || 0);
+      if (absDays > 0) {
+        calcAbsenceDeduction = Math.round(absDays * oneDaySalary);
+      } else if (absDays === 0 && absenceDeduction === 0) {
+        calcAbsenceDeduction = 0;
+      }
 
-          if (absDays === 0) {
-            calcAttendanceBonus = oneDaySalary;
-            calcAbsenceDeduction = 0;
-          } else if (absDays === 1) {
-            calcAttendanceBonus = 0;
-            calcAbsenceDeduction = 0;
-          } else {
-            calcAttendanceBonus = 0;
-            calcAbsenceDeduction = Math.round(((absDays - 1) * oneDaySalary) / 10) * 10;
-          }
-        }
+      // If allowanceDays provided, calculate allowances per day
+      let finalAllowances = allow;
+      const allowDays = Number(req.body.allowanceDays || 0);
+      if (allowDays > 0) {
+        finalAllowances = Math.round(allowDays * oneDaySalary);
       }
 
       // The record's figures are settled BEFORE anything is validated against
       // them. Advances accumulate onto whatever this sheet already recovered, so
       // topping up a part-paid salary cannot deduct the same advance twice.
       record.baseSalary = base;
-      record.allowances = allow;
+      record.allowances = finalAllowances;
       record.absenceDeduction = calcAbsenceDeduction;
       record.attendanceBonus = calcAttendanceBonus;
       record.taxDeduction = Number(taxDeduction);
@@ -305,21 +283,16 @@ const paySalary = async (req, res) => {
       );
 
       /**
-       * netSalary is set HERE, not left to the schema's pre('save') hook.
-       *
-       * Mongoose registers its validation as the first pre-save hook, so a
-       * userland pre('save') runs AFTER validation — and `netSalary` is a required
-       * path. Relying on the hook means the save is rejected before the hook ever
-       * gets to compute the value. The existing salary screen sidesteps this the
-       * same way, by computing the net itself before create().
+       * netSalary is rounded up to the nearest 10 (e.g. 7953 -> 7960).
        */
-      const net = round2(base + allow + calcAttendanceBonus - record.deductions);
-      if (net < 0) {
+      const rawNet = base + finalAllowances + calcAttendanceBonus - record.deductions;
+      if (rawNet < 0) {
         throw Object.assign(
           new Error('Deductions exceed the salary — net pay cannot be negative'),
           { statusCode: 400 }
         );
       }
+      const net = roundUp10(rawNet);
       record.netSalary = net;
 
       const alreadyPaid = record.isNew ? 0 : SalaryRecord.hydrate(record.toObject()).paidAmount();
