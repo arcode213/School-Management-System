@@ -104,14 +104,43 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
   const unpaidStartAbs = (challan) => {
     if (monthlyOutstanding(challan) <= 0) return null;
     const feeIdx = MONTHS.indexOf(challan.feeMonth);
+
+    // First, resolve the range's own absolute window so we can place the
+    // candidate (= first still-unpaid month) correctly within it.
+    //
+    // WHY NOT just parseStartYear(range, defaultForCandidate)?
+    // parseStartYear extracts the year encoded at the BEGINNING of the range
+    // label (e.g. "Aug 25" → 2025 from "Aug 25 to Aug 26"). That is right for
+    // the range start, but WRONG for the candidate when the candidate falls in
+    // the range's END year. Example: range "Aug 25 to Aug 26", paid through
+    // Jan 2026 → candidate is February. The range starts in 2025, but
+    // February's correct year is 2026. The old code returned Feb 2025, which
+    // is a year before the range, creating phantom gap months.
+    const rangeStart = parseStartMonth(challan.dueMonthRange, challan.feeMonth);
+    const rangeStartIdx = MONTHS.indexOf(rangeStart);
+    const defaultRangeStartYear = rangeStartIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
+    const rangeStartYear = parseStartYear(challan.dueMonthRange, defaultRangeStartYear);
+    const rangeStartAbs = absMonth(rangeStart, rangeStartYear);
+    const feeAbs = absMonth(challan.feeMonth, challan.feeYear);
+
     const candidate = outstandingStartMonth(challan);
-    const candidateIdx = MONTHS.indexOf(candidate);
-    // If the range carries an explicit year, use it; otherwise, if the range wraps
-    // the calendar year ("December - January"), the start month belongs to the
-    // previous calendar year.
-    const defaultStartYear = candidateIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
-    const startYear = parseStartYear(challan.dueMonthRange, defaultStartYear);
-    return { abs: absMonth(candidate, startYear), month: candidate };
+
+    // Try feeYear first — correct for same-year ranges and for candidates that
+    // fall in the range's END year (e.g. Feb 2026 in "Aug 25 to Aug 26").
+    // Shift by −1 when the candidate overshoots the challan's own month
+    // (calendar-year-wrap case: range ends Jan, candidate is December).
+    // Shift by +1 (rare) when the candidate undershoots the range start.
+    let candidateYear = challan.feeYear;
+    let candidateAbs = absMonth(candidate, candidateYear);
+    if (candidateAbs > feeAbs) {
+      candidateYear--;
+      candidateAbs = absMonth(candidate, candidateYear);
+    } else if (candidateAbs < rangeStartAbs) {
+      candidateYear++;
+      candidateAbs = absMonth(candidate, candidateYear);
+    }
+
+    return { abs: candidateAbs, month: candidate };
   };
 
   // The last month a challan's unpaid monthly balance accounts for.
@@ -183,10 +212,20 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
 
     // Months this challan has already billed (paid or not) must never be re-billed
     // as gaps, so mark its FULL labelled range as covered.
+    //
+    // WHY parseStartYear here (not the simple <= guard)?
+    // The <= guard (`rangeStartIdx <= feeIdx ? feeYear : feeYear - 1`) only
+    // handles a single calendar-year wrap. When start and end share the SAME
+    // month name but are in DIFFERENT years ("Aug 25 to Aug 26") the condition
+    // is 7 <= 7 = true, so it returns feeYear (2026) — covering only the one
+    // month Aug 2026 instead of the full 13-month window Aug 2025 → Aug 2026.
+    // parseStartYear reads the year encoded in the label ("25" → 2025) and is
+    // used as an override precisely for this case.
     const feeIdx = MONTHS.indexOf(challan.feeMonth);
     const rangeStart = parseStartMonth(challan.dueMonthRange, challan.feeMonth);
     const rangeStartIdx = MONTHS.indexOf(rangeStart);
-    const rangeStartYear = rangeStartIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
+    const defaultRangeStartYear = rangeStartIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
+    const rangeStartYear = parseStartYear(challan.dueMonthRange, defaultRangeStartYear);
     const challanFeeAbs = absMonth(challan.feeMonth, challan.feeYear);
     for (let m = absMonth(rangeStart, rangeStartYear); m <= challanFeeAbs; m++) coveredMonths.add(m);
 
