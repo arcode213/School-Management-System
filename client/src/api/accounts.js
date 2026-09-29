@@ -28,6 +28,7 @@ export const setExpenseStatus = (id, data) => api.patch(`/expenses/${id}/status`
 export const getSalarySheet = (params) => api.get('/salaries/sheet', { params });
 export const paySalary = (data) => api.post('/salaries/pay', data);
 export const getSalaryRecord = (id) => api.get(`/salaries/${id}`);
+export const updateSalaryRecord = (id, data) => api.put(`/salaries/${id}`, data);
 export const getAdvances = (params) => api.get('/salaries/advances', { params });
 export const createAdvance = (data) => api.post('/salaries/advances', data);
 export const cancelAdvance = (id) => api.delete(`/salaries/advances/${id}`);

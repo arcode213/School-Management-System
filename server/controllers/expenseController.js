@@ -100,6 +100,7 @@ const getExpenses = async (req, res) => {
     const summaryQuery = { isDeleted: false, ...Expense.APPROVED_MATCH };
     if (currentCampus) summaryQuery.campus = new mongoose.Types.ObjectId(currentCampus);
     if (currentSession) summaryQuery.academicSession = new mongoose.Types.ObjectId(currentSession);
+    if (query.date) summaryQuery.date = query.date;
 
     const aggregateTotals = await Expense.aggregate([
       { $match: summaryQuery },

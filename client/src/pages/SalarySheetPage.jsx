@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users, Wallet, HandCoins, Printer, Plus, X, Check, Trash2, RefreshCw, Lock, AlertCircle,
+  Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { getEmployees } from '../api/employees';
 import {
-  getSalarySheet, paySalary, getAdvances, createAdvance, cancelAdvance, getClosedMonths,
+  getSalarySheet, paySalary, updateSalaryRecord, getAdvances, createAdvance, cancelAdvance, getClosedMonths,
   exportSalarySheet,
 } from '../api/accounts';
 import { fmtPKR, formatMonthKey, currentMonthKey, shiftMonthKey } from '../utils/money';
@@ -30,11 +31,13 @@ export default function SalarySheetPage() {
   const [loading, setLoading] = useState(true);
 
   const [payRow, setPayRow] = useState(null);
+  const [editRow, setEditRow] = useState(null);
   const [slipRow, setSlipRow] = useState(null);
   const [advanceOpen, setAdvanceOpen] = useState(false);
 
   const isClosed = closedKeys.includes(month);
   const canPay = can('salaries', 'create');
+  const canEdit = can('salaries', 'edit') || can('salaries', 'create');
   const canManageAdvances = can('accounts', 'create');
 
   const load = useCallback(async () => {
@@ -127,8 +130,8 @@ export default function SalarySheetPage() {
 
       {tab === 'sheet' ? (
         <SheetTable
-          sheet={sheet} loading={loading} isClosed={isClosed} canPay={canPay}
-          onPay={setPayRow} onSlip={setSlipRow}
+          sheet={sheet} loading={loading} isClosed={isClosed} canPay={canPay} canEdit={canEdit}
+          onPay={setPayRow} onEdit={setEditRow} onSlip={setSlipRow}
         />
       ) : (
         <AdvancesTable
@@ -141,6 +144,14 @@ export default function SalarySheetPage() {
           row={payRow} month={month}
           onClose={() => setPayRow(null)}
           onSaved={() => { setPayRow(null); load(); }}
+        />
+      )}
+
+      {editRow && (
+        <EditSalaryModal
+          row={editRow} month={month}
+          onClose={() => setEditRow(null)}
+          onSaved={() => { setEditRow(null); load(); }}
         />
       )}
 
@@ -161,7 +172,7 @@ const getDaysInMonth = () => 30;
 const getWorkingDaysInMonth = () => 30;
 
 // ─── Sheet ───────────────────────────────────────────────────────────────────
-function SheetTable({ sheet, loading, isClosed, canPay, onPay, onSlip }) {
+function SheetTable({ sheet, loading, isClosed, canPay, canEdit, onPay, onEdit, onSlip }) {
   const { can } = useAuth();
   const rows = sheet?.rows || [];
 
@@ -243,8 +254,13 @@ function SheetTable({ sheet, loading, isClosed, canPay, onPay, onSlip }) {
                 <td data-actions="" className="px-5 py-4">
                   <div className="row-actions">
                     {canPay && !isClosed && r.outstanding > 0 && (
-                      <button onClick={() => onPay(r)} className="btn btn-ok btn-sm">
+                      <button onClick={() => onPay(r)} className="btn btn-ok btn-sm" title="Pay Remaining Salary">
                         <Wallet size={12} /> Pay
+                      </button>
+                    )}
+                    {canEdit && !isClosed && (
+                      <button onClick={() => onEdit(r)} className="icon-btn hover:text-brand" title="Edit salary record">
+                        <Pencil size={14} />
                       </button>
                     )}
                     {r.posted && (
@@ -474,6 +490,433 @@ function PayModal({ row, month, onClose, onSaved }) {
               </button>
               <button type="submit" disabled={saving || net < 0 || paying <= 0} className="btn btn-primary disabled:opacity-50">
                 <Wallet size={14} /> Pay {fmtPKR(paying)}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </ModalPortal>
+  );
+}
+
+// ─── Edit Salary modal ───────────────────────────────────────────────────────
+function EditSalaryModal({ row, month, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    baseSalary: row.baseSalary ?? 0,
+    allowances: row.allowances ?? 0,
+    allowanceDays: '',
+    absenceDeduction: row.absenceDeduction ?? 0,
+    absentDays: row.absentDays ?? 0,
+    advanceDeduction: row.advanceDeduction ?? 0,
+    taxDeduction: row.taxDeduction ?? 0,
+    otherDeduction: row.otherDeduction ?? 0,
+    attendanceBonus: row.attendanceBonus ?? 0,
+    amountPaid: row.posted ? (row.amountPaid ?? '') : (row.amountPaid || ''),
+    paymentMethod: row.paymentMethod || 'Bank Transfer',
+    paymentDate: row.paymentDate ? new Date(row.paymentDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    status: row.status || (row.posted ? 'Paid' : 'Pending'),
+    remarks: row.remarks || '',
+  });
+  const [autoStatus, setAutoStatus] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const perDaySalary = Math.round((Number(form.baseSalary || 0) / 30) * 100) / 100;
+
+  const handleBaseSalaryChange = (val) => {
+    const base = Number(val) || 0;
+    const perDay = base / 30;
+    const abs = Number(form.absentDays) || 0;
+    const allowDays = Number(form.allowanceDays) || 0;
+    setForm(prev => ({
+      ...prev,
+      baseSalary: val,
+      absenceDeduction: abs > 0 ? Math.round(abs * perDay) : prev.absenceDeduction,
+      allowances: allowDays > 0 ? Math.round(allowDays * perDay) : prev.allowances,
+    }));
+  };
+
+  const handleAbsentDaysChange = (val) => {
+    const abs = val === '' ? '' : Math.max(0, Number(val));
+    const perDay = Number(form.baseSalary || 0) / 30;
+    const ded = abs === '' || abs === 0 ? 0 : Math.round(abs * perDay);
+    setForm(prev => ({ ...prev, absentDays: val, absenceDeduction: ded }));
+  };
+
+  const handleAllowanceDaysChange = (val) => {
+    const days = val === '' ? '' : Math.max(0, Number(val));
+    const perDay = Number(form.baseSalary || 0) / 30;
+    const allow = days === '' || days === 0 ? 0 : Math.round(days * perDay);
+    setForm(prev => ({ ...prev, allowanceDays: val, allowances: allow }));
+  };
+
+  const roundUp10 = (n) => (n <= 0 ? 0 : Math.ceil(n / 10) * 10);
+  const n = (v) => Number(v) || 0;
+
+  const deductions = n(form.absenceDeduction) + n(form.taxDeduction) + n(form.otherDeduction) + n(form.advanceDeduction);
+  const gross = n(form.baseSalary) + n(form.allowances) + n(form.attendanceBonus);
+  const rawNet = gross - deductions;
+  const net = roundUp10(rawNet);
+
+  const paidNum = form.amountPaid === '' ? (row.posted ? n(row.amountPaid) : 0) : n(form.amountPaid);
+
+  const handleAmountPaidChange = (val) => {
+    const p = val === '' ? 0 : Number(val);
+    setForm(prev => {
+      const next = { ...prev, amountPaid: val };
+      if (autoStatus) {
+        next.status = p >= net && net > 0 ? 'Paid' : (p > 0 ? 'Partial' : 'Pending');
+      }
+      return next;
+    });
+  };
+
+  const setFullPayment = () => {
+    setForm(prev => ({
+      ...prev,
+      amountPaid: net,
+      status: 'Paid',
+    }));
+  };
+
+  const setZeroPayment = () => {
+    setForm(prev => ({
+      ...prev,
+      amountPaid: 0,
+      status: 'Pending',
+    }));
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (net < 0) {
+      toast.error('Deductions exceed the salary — net pay cannot be negative');
+      return;
+    }
+    if (paidNum > net) {
+      toast.error(`Paid amount (Rs. ${paidNum.toLocaleString()}) cannot exceed net salary of Rs. ${net.toLocaleString()}`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        baseSalary: n(form.baseSalary),
+        allowances: n(form.allowances),
+        allowanceDays: form.allowanceDays !== '' ? n(form.allowanceDays) : undefined,
+        absenceDeduction: n(form.absenceDeduction),
+        absentDays: n(form.absentDays),
+        advanceDeduction: n(form.advanceDeduction),
+        taxDeduction: n(form.taxDeduction),
+        otherDeduction: n(form.otherDeduction),
+        attendanceBonus: n(form.attendanceBonus),
+        amountPaid: paidNum,
+        paymentMethod: form.paymentMethod,
+        paymentDate: form.paymentDate || undefined,
+        status: form.status,
+        remarks: form.remarks || undefined,
+      };
+
+      if (row.posted && row.salaryRecord) {
+        const { data } = await updateSalaryRecord(row.salaryRecord, payload);
+        toast.success(data.message || 'Salary record updated successfully');
+      } else {
+        const { data } = await paySalary({
+          employee: row.employee._id,
+          month,
+          ...payload,
+          recoverAdvances: false, // advance is explicitly set via advanceDeduction
+        });
+        toast.success(data.message || 'Salary record saved successfully');
+      }
+
+      onSaved();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save salary record');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalPortal>
+      <div className="modal-shell">
+        <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
+        <div className="card card-lg modal-box sm:max-w-xl max-h-[90vh] flex flex-col">
+          <div className="px-5 sm:px-6 py-4 border-b border-line bg-surface-2 flex items-center justify-between gap-3 flex-shrink-0">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Pencil size={15} className="t-brand" />
+                <h2 className="text-sm font-bold uppercase tracking-wider t-body truncate">
+                  Edit Salary Record
+                </h2>
+                <span className={`badge text-[9px] ${
+                  row.status === 'Paid' ? 'badge-ok' : row.status === 'Partial' ? 'badge-warn' : 'badge-neutral'
+                }`}>
+                  {row.posted ? row.status : 'Unposted'}
+                </span>
+              </div>
+              <p className="t-faint text-[10px] font-semibold uppercase tracking-wider mt-0.5 truncate">
+                {row.employee.fullName} ({row.employee.employeeId}) · {row.employee.designation || 'Staff'} · {formatMonthKey(month)}
+              </p>
+            </div>
+            <button onClick={onClose} className="icon-btn flex-shrink-0" aria-label="Close">
+              <X size={18} />
+            </button>
+          </div>
+
+          <form onSubmit={submit} className="px-5 sm:px-6 py-5 space-y-5 overflow-y-auto flex-1">
+            {/* Daily rate info badge */}
+            <div className="flex items-center justify-between px-3 py-2 bg-brand-soft border border-brand-border rounded-xl text-xs t-brand font-medium">
+              <span>Standard 30-Day Per-Day Rate:</span>
+              <strong className="font-mono">Rs. {Math.round(perDaySalary).toLocaleString()} / day</strong>
+            </div>
+
+            {/* Earnings Section */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider t-body flex items-center gap-1.5 t-brand">
+                Earnings &amp; Additions
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="label">Base Salary (Rs.)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.baseSalary}
+                    onChange={e => handleBaseSalaryChange(e.target.value)}
+                    className="field"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label">Allowance (Days)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={form.allowanceDays}
+                    placeholder="e.g. 1, 2, 3 days"
+                    onChange={e => handleAllowanceDaysChange(e.target.value)}
+                    className="field"
+                  />
+                </div>
+                <div>
+                  <label className="label">Allowances Amount (Rs.)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.allowances}
+                    onChange={e => setForm({ ...form, allowances: e.target.value })}
+                    className="field"
+                  />
+                </div>
+                <div>
+                  <label className="label">Attendance Bonus (Rs.)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.attendanceBonus}
+                    onChange={e => setForm({ ...form, attendanceBonus: e.target.value })}
+                    className="field"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Deductions Section */}
+            <div className="space-y-3 pt-2 border-t border-line">
+              <h3 className="text-xs font-bold uppercase tracking-wider t-body flex items-center gap-1.5 t-bad">
+                Deductions &amp; Recoveries
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="label">Absent Days</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="31"
+                    value={form.absentDays}
+                    placeholder="0"
+                    onChange={e => handleAbsentDaysChange(e.target.value)}
+                    className="field"
+                  />
+                </div>
+                <div>
+                  <label className="label">Absence Deduction (Rs.)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.absenceDeduction}
+                    onChange={e => setForm({ ...form, absenceDeduction: e.target.value })}
+                    className="field"
+                  />
+                </div>
+                <div>
+                  <label className="label">Advance Deduction (Rs.)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.advanceDeduction}
+                    onChange={e => setForm({ ...form, advanceDeduction: e.target.value })}
+                    className="field"
+                  />
+                </div>
+                <div>
+                  <label className="label">Tax Deduction (Rs.)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.taxDeduction}
+                    onChange={e => setForm({ ...form, taxDeduction: e.target.value })}
+                    className="field"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="label">Other Deduction (Rs.)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.otherDeduction}
+                    onChange={e => setForm({ ...form, otherDeduction: e.target.value })}
+                    className="field"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Live Calculation summary */}
+            <div className="surface-muted rounded-2xl p-4 space-y-2">
+              <Line label="Gross Earnings" value={gross} />
+              {n(form.attendanceBonus) > 0 && (
+                <Line label="Bonus" value={n(form.attendanceBonus)} tone="t-ok" />
+              )}
+              <Line label="Total Deductions" value={-deductions} tone="t-bad" />
+              <div className="divider" />
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider t-body">Net Payable</span>
+                  {rawNet > 0 && rawNet !== net && (
+                    <span className="block text-[10px] t-faint">Rounded to next 10 from Rs. {rawNet.toLocaleString()}</span>
+                  )}
+                </div>
+                <span className="text-base font-black t-body">{fmtPKR(net)}</span>
+              </div>
+            </div>
+
+            {/* Payment & Status Section */}
+            <div className="space-y-3 pt-2 border-t border-line">
+              <h3 className="text-xs font-bold uppercase tracking-wider t-body">
+                Payment &amp; Settlement
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="label mb-0">Amount Paid (Rs.)</label>
+                    <div className="flex gap-1.5 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={setFullPayment}
+                        className="text-brand hover:underline font-bold"
+                      >
+                        Full
+                      </button>
+                      <span className="t-faint">·</span>
+                      <button
+                        type="button"
+                        onClick={setZeroPayment}
+                        className="text-muted hover:underline font-bold"
+                      >
+                        Zero
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max={net}
+                    value={form.amountPaid}
+                    onChange={e => handleAmountPaidChange(e.target.value)}
+                    className="field"
+                    placeholder={`Full — ${fmtPKR(net)}`}
+                  />
+                  <p className="t-faint text-[10px] mt-1">
+                    Remaining balance: <strong className="t-warn font-semibold">{fmtPKR(Math.max(0, net - paidNum))}</strong>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="label">Status</label>
+                  <select
+                    value={form.status}
+                    onChange={e => {
+                      setAutoStatus(false);
+                      setForm({ ...form, status: e.target.value });
+                    }}
+                    className="field"
+                  >
+                    <option value="Paid">Paid</option>
+                    <option value="Partial">Partial</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="label">Payment Method</label>
+                  <select
+                    value={form.paymentMethod}
+                    onChange={e => setForm({ ...form, paymentMethod: e.target.value })}
+                    className="field"
+                  >
+                    {['Bank Transfer', 'Cash', 'Cheque'].map(m => <option key={m}>{m}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="label">Payment Date</label>
+                  <input
+                    type="date"
+                    value={form.paymentDate}
+                    onChange={e => setForm({ ...form, paymentDate: e.target.value })}
+                    className="field"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="label">Remarks</label>
+                  <input
+                    value={form.remarks}
+                    onChange={e => setForm({ ...form, remarks: e.target.value })}
+                    className="field"
+                    placeholder="Optional notes or reference number"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {net < 0 && (
+              <div className="note note-bad">Deductions exceed the salary — net pay cannot be negative.</div>
+            )}
+
+            <div className="modal-actions pt-4 border-t border-line">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider t-muted border border-line rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving || net < 0}
+                className="btn btn-primary disabled:opacity-50"
+              >
+                {saving ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : (
+                  <Check size={14} />
+                )}
+                Save Changes
               </button>
             </div>
           </form>

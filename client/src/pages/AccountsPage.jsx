@@ -260,7 +260,7 @@ export default function AccountsPage() {
             <p className="t-eyebrow">Download the register for {formatMonthKey(month)}</p>
             <ExportButtons onExport={exportExpenseLedger} params={{ month }} label="Expense Ledger" />
           </div>
-          <ExpenseLedger />
+          <ExpenseLedger month={month} isClosed={isClosed} />
         </div>
       )}
       {tab === 'overview' && (

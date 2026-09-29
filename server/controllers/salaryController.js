@@ -117,6 +117,7 @@ const getSalarySheet = async (req, res) => {
           status: record.status,
           paymentDate: record.paymentDate,
           paymentMethod: record.paymentMethod,
+          remarks: record.remarks || '',
           pendingAdvances,
         };
       }
@@ -152,6 +153,7 @@ const getSalarySheet = async (req, res) => {
         status: 'Pending',
         paymentDate: null,
         paymentMethod: null,
+        remarks: '',
         pendingAdvances,
       };
     });
@@ -417,6 +419,209 @@ const getSalaryRecord = async (req, res) => {
   }
 };
 
+// @desc    Update an existing salary record
+// @route   PUT /api/salaries/:id
+const updateSalaryRecord = async (req, res) => {
+  try {
+    const { currentCampus, currentSession } = req;
+    if (!currentCampus) {
+      return res.status(400).json({ message: 'Active campus context is required' });
+    }
+
+    const record = await SalaryRecord.findOne({
+      _id: req.params.id,
+      campus: currentCampus,
+      isDeleted: false,
+    });
+    if (!record) {
+      return res.status(404).json({ message: 'Salary record not found at this campus' });
+    }
+
+    const monthKey = monthKeyFromName(record.salaryMonth, record.salaryYear);
+    const payDate = req.body.paymentDate
+      ? new Date(req.body.paymentDate)
+      : (record.paymentDate || defaultPayDate(monthKey));
+
+    // Assert month is not locked/closed
+    await assertMonthsOpen(currentCampus, [payDate]);
+
+    const result = await withTransaction(async (session) => {
+      const employee = await Employee.findById(record.employee).session(session);
+
+      const base = req.body.baseSalary !== undefined
+        ? Number(req.body.baseSalary)
+        : Number(record.baseSalary ?? employee?.salary ?? 0);
+
+      const oneDaySalary = base / 30;
+
+      // Allowances: if allowanceDays specified, calculate; else use provided or existing
+      let finalAllowances = req.body.allowances !== undefined
+        ? Number(req.body.allowances)
+        : Number(record.allowances ?? 0);
+      if (req.body.allowanceDays !== undefined && Number(req.body.allowanceDays) > 0) {
+        finalAllowances = Math.round(Number(req.body.allowanceDays) * oneDaySalary);
+      }
+
+      // Absence deduction: if absentDays specified, calculate; else use provided or existing
+      const absDays = req.body.absentDays !== undefined ? Number(req.body.absentDays) : Number(record.absentDays ?? 0);
+      let calcAbsenceDeduction = req.body.absenceDeduction !== undefined
+        ? Number(req.body.absenceDeduction)
+        : Number(record.absenceDeduction ?? 0);
+      if (req.body.absentDays !== undefined) {
+        calcAbsenceDeduction = absDays > 0 ? Math.round(absDays * oneDaySalary) : 0;
+      }
+
+      const calcAttendanceBonus = req.body.attendanceBonus !== undefined
+        ? Number(req.body.attendanceBonus)
+        : Number(record.attendanceBonus ?? 0);
+
+      const advanceDeduction = req.body.advanceDeduction !== undefined
+        ? Number(req.body.advanceDeduction)
+        : Number(record.advanceDeduction ?? 0);
+
+      const taxDeduction = req.body.taxDeduction !== undefined
+        ? Number(req.body.taxDeduction)
+        : Number(record.taxDeduction ?? 0);
+
+      const otherDeduction = req.body.otherDeduction !== undefined
+        ? Number(req.body.otherDeduction)
+        : Number(record.otherDeduction ?? 0);
+
+      const totalDeductions = round2(calcAbsenceDeduction + taxDeduction + otherDeduction + advanceDeduction);
+      const rawNet = base + finalAllowances + calcAttendanceBonus - totalDeductions;
+      if (rawNet < 0) {
+        throw Object.assign(
+          new Error('Deductions exceed the salary — net pay cannot be negative'),
+          { statusCode: 400 }
+        );
+      }
+      const net = roundUp10(rawNet);
+
+      // Amount paid:
+      // If user supplied amountPaid, use it; otherwise maintain current amountPaid capped to net.
+      const currentPaid = SalaryRecord.hydrate(record.toObject()).paidAmount();
+      let targetPaid = req.body.amountPaid !== undefined
+        ? round2(Number(req.body.amountPaid))
+        : currentPaid;
+
+      if (targetPaid > net) {
+        throw Object.assign(
+          new Error(`Paid amount of Rs. ${targetPaid.toLocaleString()} cannot exceed the net salary of Rs. ${net.toLocaleString()}.`),
+          { statusCode: 400 }
+        );
+      }
+
+      const paymentMethod = req.body.paymentMethod || record.paymentMethod || 'Bank Transfer';
+      const remarks = req.body.remarks !== undefined ? req.body.remarks : (record.remarks || '');
+
+      // Status
+      let status = req.body.status;
+      if (!status) {
+        status = targetPaid >= net ? 'Paid' : (targetPaid > 0 ? 'Partial' : 'Pending');
+      }
+
+      // Update fields
+      record.baseSalary = base;
+      record.allowances = finalAllowances;
+      record.attendanceBonus = calcAttendanceBonus;
+      record.absentDays = absDays;
+      record.absenceDeduction = calcAbsenceDeduction;
+      record.advanceDeduction = advanceDeduction;
+      record.taxDeduction = taxDeduction;
+      record.otherDeduction = otherDeduction;
+      record.deductions = totalDeductions;
+      record.netSalary = net;
+      record.amountPaid = targetPaid;
+      record.status = status;
+      record.paymentDate = payDate;
+      record.paymentMethod = paymentMethod;
+      record.remarks = remarks;
+      record.updatedBy = req.user?._id;
+
+      // Update payments array
+      if (targetPaid > 0) {
+        record.payments = [{
+          amount: targetPaid,
+          date: payDate,
+          method: paymentMethod,
+          recordedBy: req.user?._id,
+          remarks: remarks || 'Salary payment',
+        }];
+      } else {
+        record.payments = [];
+      }
+
+      await record.save(sessionOpts(session));
+
+      // Handle linked Expense
+      if (record.expense) {
+        if (targetPaid > 0) {
+          await Expense.updateOne(
+            { _id: record.expense },
+            {
+              $set: {
+                amount: targetPaid,
+                paymentMethod: paymentMethod === 'Bank Transfer' ? 'Bank' : paymentMethod,
+                date: payDate,
+                paidTo: employee?.fullName || 'Staff',
+                title: `Salary — ${employee?.fullName || 'Staff'} (${formatMonthKey(monthKey)})`,
+                description: remarks,
+                isDeleted: false,
+                updatedBy: req.user?._id,
+              },
+            },
+            sessionOpts(session)
+          );
+        } else {
+          // If amount paid was reduced to 0, mark the expense as deleted
+          await Expense.updateOne(
+            { _id: record.expense },
+            { $set: { isDeleted: true, updatedBy: req.user?._id } },
+            sessionOpts(session)
+          );
+        }
+      } else if (targetPaid > 0) {
+        // Create an Expense if none existed previously
+        const category = await salaryCategoryFor(currentCampus, session);
+        const created = await Expense.create([{
+          campus: currentCampus,
+          academicSession: currentSession || record.academicSession,
+          title: `Salary — ${employee?.fullName || 'Staff'} (${formatMonthKey(monthKey)})`,
+          type: 'Expense',
+          category: 'Salary',
+          categoryRef: category?._id,
+          amount: targetPaid,
+          date: payDate,
+          paymentMethod: paymentMethod === 'Bank Transfer' ? 'Bank' : paymentMethod,
+          paidTo: employee?.fullName || 'Staff',
+          paidToEmployee: employee?._id,
+          status: 'Approved',
+          approvedBy: req.user?._id,
+          approvedAt: new Date(),
+          salaryRecord: record._id,
+          recordedBy: req.user?._id,
+          description: remarks,
+        }], sessionOpts(session));
+
+        record.expense = created[0]._id;
+        await record.save(sessionOpts(session));
+      }
+
+      return record;
+    });
+
+    res.json({
+      message: 'Salary record updated successfully',
+      salary: result,
+    });
+  } catch (err) {
+    if (err instanceof MonthClosedError) {
+      return res.status(err.statusCode).json({ message: err.message, month: err.monthKey });
+    }
+    res.status(err.statusCode || 500).json({ message: err.message });
+  }
+};
+
 // ─── Advances ────────────────────────────────────────────────────────────────
 
 // @desc    List advances
@@ -563,6 +768,7 @@ module.exports = {
   getSalarySheet,
   paySalary,
   getSalaryRecord,
+  updateSalaryRecord,
   getAdvances,
   createAdvance,
   cancelAdvance,

@@ -66,6 +66,7 @@ const ROUTES = [
   { re: /^\/api\/expense-categories\/?$/i, model: 'ExpenseCategory', module: 'accounts', entity: 'ExpenseCategory' },
 
   { re: /^\/api\/salaries\/pay\/?$/i, model: 'SalaryRecord', module: 'salaries', entity: 'SalaryRecord', action: 'create', verb: 'Paid a salary' },
+  { re: new RegExp(`^/api/salaries/${OID}/?$`, 'i'), model: 'SalaryRecord', module: 'salaries', entity: 'SalaryRecord', action: 'edit', verb: 'Updated salary record' },
   { re: new RegExp(`^/api/salaries/advances/${OID}/?$`, 'i'), model: 'SalaryAdvance', module: 'accounts', entity: 'SalaryAdvance' },
   { re: /^\/api\/salaries\/advances\/?$/i, model: 'SalaryAdvance', module: 'accounts', entity: 'SalaryAdvance', verb: 'Gave a salary advance' },
 

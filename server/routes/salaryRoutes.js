@@ -8,6 +8,7 @@ const {
   getSalarySheet,
   paySalary,
   getSalaryRecord,
+  updateSalaryRecord,
   getAdvances,
   createAdvance,
   cancelAdvance,
@@ -21,16 +22,36 @@ const paySchema = z.object({
   month: monthKey('Month'),
   baseSalary: money('Base salary').optional(),
   allowances: money('Allowances').optional(),
+  allowanceDays: z.coerce.number().int().min(0).max(31).optional(),
   absenceDeduction: money('Absence deduction').optional(),
   taxDeduction: money('Tax deduction').optional(),
   otherDeduction: money('Other deduction').optional(),
+  advanceDeduction: money('Advance deduction').optional(),
   absentDays: z.coerce.number().int().min(0, 'Absent days cannot be negative').max(31).optional(),
+  attendanceBonus: money('Attendance bonus').optional(),
   // Omitting this pays the full net salary; sending a smaller figure part-pays.
   amountPaid: money('Amount paid').optional(),
   paymentMethod: z.enum(SALARY_METHODS).optional(),
   paymentDate: pastOrToday('Payment date').optional(),
   remarks: trimmed(300).optional(),
   recoverAdvances: z.boolean().optional(),
+});
+
+const updateSalarySchema = z.object({
+  baseSalary: money('Base salary').optional(),
+  allowances: money('Allowances').optional(),
+  allowanceDays: z.coerce.number().int().min(0).max(31).optional(),
+  absenceDeduction: money('Absence deduction').optional(),
+  taxDeduction: money('Tax deduction').optional(),
+  otherDeduction: money('Other deduction').optional(),
+  advanceDeduction: money('Advance deduction').optional(),
+  absentDays: z.coerce.number().int().min(0, 'Absent days cannot be negative').max(31).optional(),
+  attendanceBonus: money('Attendance bonus').optional(),
+  amountPaid: money('Amount paid').optional(),
+  paymentMethod: z.enum(SALARY_METHODS).optional(),
+  paymentDate: pastOrToday('Payment date').optional(),
+  status: z.enum(['Paid', 'Partial', 'Pending']).optional(),
+  remarks: trimmed(300).optional(),
 });
 
 const advanceSchema = z.object({
@@ -57,6 +78,8 @@ router.get('/sheet', requireAnyPermission(['accounts', 'view'], ['salaries', 'vi
 // grant the API has always checked for this.
 router.post('/pay', requirePermission('salaries', 'create'), validate(paySchema), paySalary);
 
-router.get('/:id', requireAnyPermission(['accounts', 'view'], ['salaries', 'view']), getSalaryRecord);
+router.route('/:id')
+  .get(requireAnyPermission(['accounts', 'view'], ['salaries', 'view']), getSalaryRecord)
+  .put(requireAnyPermission(['salaries', 'edit'], ['salaries', 'create']), validate(updateSalarySchema), updateSalaryRecord);
 
 module.exports = router;

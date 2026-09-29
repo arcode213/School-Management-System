@@ -28,7 +28,7 @@ const MODULES = [
     hint: 'Staff records and profiles',
   },
   {
-    key: 'salaries', label: 'Salaries', group: 'People', actions: ['view', 'create'],
+    key: 'salaries', label: 'Salaries', group: 'People', actions: ['view', 'create', 'edit'],
     hint: 'Salary history and posting a salary payment',
   },
   {
@@ -108,7 +108,7 @@ const ROLE_DEFAULTS = {
     dashboard: ['view'],
     students: ACTIONS,
     employees: ACTIONS,
-    salaries: ['view', 'create'],
+    salaries: ['view', 'create', 'edit'],
     promotions: ['view', 'edit'],
     fees: ACTIONS,
     challans: ['view', 'create'],

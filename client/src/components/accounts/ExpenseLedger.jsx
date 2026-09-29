@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppContext } from '../../context/AppContext';
 import { getExpenses, createExpense, updateExpense, deleteExpense } from '../../api/expenses';
 import { getCategories } from '../../api/accounts';
-import { fmtPKR } from '../../utils/money';
+import { fmtPKR, formatMonthKey } from '../../utils/money';
 import toast from 'react-hot-toast';
 import { 
   Plus, Pencil, Trash2, Search, DollarSign, 
@@ -15,7 +15,7 @@ import {
 // defaults claim the old enum values, so records written under the old lists
 // still resolve to a named category without any of them being rewritten.
 
-export default function ExpenseLedger() {
+export default function ExpenseLedger({ month, isClosed }) {
   const { can } = useAuth();
   const { currentCampus, currentSession } = useAppContext();
   
@@ -40,6 +40,13 @@ export default function ExpenseLedger() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
 
+  // Reset custom date filters and page when selected month changes
+  useEffect(() => {
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+  }, [month]);
+
   // Form State
   const [form, setForm] = useState({
     title: '', type: 'Expense', categoryRef: '', subCategory: '',
@@ -61,6 +68,7 @@ export default function ExpenseLedger() {
         categoryRef: filterCategory || undefined,
         type: filterType,
         paymentMethod: filterMethod || undefined,
+        month: (dateFrom || dateTo) ? undefined : month,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         page,
@@ -74,7 +82,7 @@ export default function ExpenseLedger() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterCategory, filterType, filterMethod, dateFrom, dateTo, page]);
+  }, [search, filterCategory, filterType, filterMethod, month, dateFrom, dateTo, page]);
 
   useEffect(() => {
     if (currentCampus && currentSession) fetchExpenses();
@@ -114,9 +122,12 @@ export default function ExpenseLedger() {
 
   const openAdd = () => {
     setEditingExpense(null);
+    const today = new Date().toISOString().substring(0, 10);
+    const todayMonth = today.slice(0, 7);
+    const defaultDate = (month && month !== todayMonth) ? `${month}-01` : today;
     setForm({
       title: '', type: 'Expense', categoryRef: '', subCategory: '', amount: '',
-      date: new Date().toISOString().substring(0, 10), description: '',
+      date: defaultDate, description: '',
       paymentMethod: 'Cash', paidTo: '',
     });
     setModalOpen(true);
@@ -157,10 +168,21 @@ export default function ExpenseLedger() {
           three summary cards this screen used to carry are gone rather than
           repeated a few hundred pixels apart. */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <p className="t-muted text-xs font-semibold uppercase tracking-wider">
-          Every income and expense entry, filterable and paged from the server
-        </p>
-        {can('expenses', 'create') && (
+        <div>
+          <p className="t-muted text-xs font-semibold uppercase tracking-wider">
+            {month ? (
+              <>Showing transactions for <strong className="t-brand font-bold">{formatMonthKey(month)}</strong></>
+            ) : (
+              'Every income and expense entry'
+            )}
+          </p>
+          {(dateFrom || dateTo) && (
+            <p className="text-[10px] t-warn font-semibold mt-0.5">
+              Filtered by custom range: {dateFrom || 'Start'} → {dateTo || 'End'}
+            </p>
+          )}
+        </div>
+        {can('expenses', 'create') && !isClosed && (
           <button onClick={openAdd} className="btn btn-primary self-start">
             <Plus size={16} /> Record Transaction
           </button>
@@ -318,7 +340,7 @@ export default function ExpenseLedger() {
                     </td>
                     <td data-actions="" className="px-5 py-4">
                       <div className="row-actions">
-                        {can('expenses', 'edit') && (
+                        {can('expenses', 'edit') && !isClosed && (
                           <button
                             onClick={() => openEdit(e)}
                             className="p-1.5 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition"
@@ -327,7 +349,7 @@ export default function ExpenseLedger() {
                             <Pencil size={14} />
                           </button>
                         )}
-                        {can('expenses', 'delete') && (
+                        {can('expenses', 'delete') && !isClosed && (
                           <button 
                             onClick={() => handleDelete(e._id)} 
                             className="p-1.5 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" 
