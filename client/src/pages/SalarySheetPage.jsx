@@ -203,6 +203,7 @@ function SheetTable({ sheet, loading, isClosed, canPay, canEdit, onPay, onEdit, 
               <th className="px-5 py-4">Employee</th>
               <th className="px-5 py-4 text-right">Base</th>
               <th className="px-5 py-4 text-right">Allowances</th>
+              <th className="px-5 py-4 text-right">Sec. Deposit</th>
               <th className="px-5 py-4 text-right">Deductions</th>
               <th className="px-5 py-4 text-right">Net Payable</th>
               <th className="px-5 py-4 text-right">Paid</th>
@@ -234,6 +235,13 @@ function SheetTable({ sheet, loading, isClosed, canPay, canEdit, onPay, onEdit, 
                 </td>
                 <td data-label="Base" className="px-5 py-4 text-right">{fmtPKR(r.baseSalary)}</td>
                 <td data-label="Allowances" className="px-5 py-4 text-right t-ok">{fmtPKR(r.allowances)}</td>
+                <td data-label="Sec. Deposit" className="px-5 py-4 text-right font-medium">
+                  {r.securityDeposit > 0 ? (
+                    <span className="text-amber-500 font-semibold">{fmtPKR(r.securityDeposit)}</span>
+                  ) : (
+                    <span className="t-faint">—</span>
+                  )}
+                </td>
                 <td data-label="Deductions" className="px-5 py-4 text-right">
                   <div>
                     <span className="t-bad font-semibold">{fmtPKR(r.deductions)}</span>
@@ -287,6 +295,7 @@ function PayModal({ row, month, onClose, onSaved }) {
     allowanceDays: '',
     absenceDeduction: row.absenceDeduction || 0,
     taxDeduction: row.taxDeduction || 0,
+    securityDeposit: row.securityDeposit || 0,
     otherDeduction: row.otherDeduction || 0,
     absentDays: row.absentDays || 0,
     attendanceBonus: row.attendanceBonus || 0,
@@ -327,7 +336,7 @@ function PayModal({ row, month, onClose, onSaved }) {
 
   const roundUp10 = (n) => (n <= 0 ? 0 : Math.ceil(n / 10) * 10);
   const n = (v) => Number(v) || 0;
-  const deductions = n(form.absenceDeduction) + n(form.taxDeduction) + n(form.otherDeduction) + n(row.advanceDeduction);
+  const deductions = n(form.absenceDeduction) + n(form.taxDeduction) + n(form.securityDeposit) + n(form.otherDeduction) + n(row.advanceDeduction);
   const gross = n(form.baseSalary) + n(form.allowances) + n(form.attendanceBonus);
   const rawNet = gross - deductions;
   const net = roundUp10(rawNet);
@@ -346,6 +355,7 @@ function PayModal({ row, month, onClose, onSaved }) {
         allowanceDays: n(form.allowanceDays),
         absenceDeduction: n(form.absenceDeduction),
         taxDeduction: n(form.taxDeduction),
+        securityDeposit: n(form.securityDeposit),
         otherDeduction: n(form.otherDeduction),
         absentDays: n(form.absentDays),
         attendanceBonus: n(form.attendanceBonus),
@@ -414,6 +424,13 @@ function PayModal({ row, month, onClose, onSaved }) {
                 <label className="label">Tax deduction (Rs.)</label>
                 <input type="number" min="0" value={form.taxDeduction}
                   onChange={e => setForm({ ...form, taxDeduction: e.target.value })} className="field" />
+              </div>
+              <div>
+                <label className="label">Security Deposit (Rs.)</label>
+                <input type="number" min="0" value={form.securityDeposit}
+                  placeholder="0"
+                  onChange={e => setForm({ ...form, securityDeposit: e.target.value })} className="field" />
+                <span className="text-[10px] t-faint block mt-0.5">Held by school for security</span>
               </div>
               <div className="sm:col-span-2">
                 <label className="label">Other deduction (Rs.)</label>
@@ -509,6 +526,7 @@ function EditSalaryModal({ row, month, onClose, onSaved }) {
     absentDays: row.absentDays ?? 0,
     advanceDeduction: row.advanceDeduction ?? 0,
     taxDeduction: row.taxDeduction ?? 0,
+    securityDeposit: row.securityDeposit ?? 0,
     otherDeduction: row.otherDeduction ?? 0,
     attendanceBonus: row.attendanceBonus ?? 0,
     amountPaid: row.posted ? (row.amountPaid ?? '') : (row.amountPaid || ''),
@@ -552,7 +570,7 @@ function EditSalaryModal({ row, month, onClose, onSaved }) {
   const roundUp10 = (n) => (n <= 0 ? 0 : Math.ceil(n / 10) * 10);
   const n = (v) => Number(v) || 0;
 
-  const deductions = n(form.absenceDeduction) + n(form.taxDeduction) + n(form.otherDeduction) + n(form.advanceDeduction);
+  const deductions = n(form.absenceDeduction) + n(form.taxDeduction) + n(form.securityDeposit) + n(form.otherDeduction) + n(form.advanceDeduction);
   const gross = n(form.baseSalary) + n(form.allowances) + n(form.attendanceBonus);
   const rawNet = gross - deductions;
   const net = roundUp10(rawNet);
@@ -607,6 +625,7 @@ function EditSalaryModal({ row, month, onClose, onSaved }) {
         absentDays: n(form.absentDays),
         advanceDeduction: n(form.advanceDeduction),
         taxDeduction: n(form.taxDeduction),
+        securityDeposit: n(form.securityDeposit),
         otherDeduction: n(form.otherDeduction),
         attendanceBonus: n(form.attendanceBonus),
         amountPaid: paidNum,
@@ -771,6 +790,18 @@ function EditSalaryModal({ row, month, onClose, onSaved }) {
                     onChange={e => setForm({ ...form, taxDeduction: e.target.value })}
                     className="field"
                   />
+                </div>
+                <div>
+                  <label className="label">Security Deposit (Rs.)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.securityDeposit}
+                    placeholder="0"
+                    onChange={e => setForm({ ...form, securityDeposit: e.target.value })}
+                    className="field"
+                  />
+                  <span className="text-[10px] t-faint block mt-0.5">Held by school for security</span>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="label">Other Deduction (Rs.)</label>

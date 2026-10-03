@@ -107,6 +107,7 @@ const getSalarySheet = async (req, res) => {
           advanceDeduction: record.advanceDeduction || 0,
           absenceDeduction: record.absenceDeduction || 0,
           taxDeduction: record.taxDeduction || 0,
+          securityDeposit: record.securityDeposit || 0,
           otherDeduction: record.otherDeduction || 0,
           absentDays: record.absentDays || 0,
           attendanceBonus: record.attendanceBonus || 0,
@@ -143,6 +144,7 @@ const getSalarySheet = async (req, res) => {
         advanceDeduction: advanceDue,
         absenceDeduction: proposedAbsenceDeduction,
         taxDeduction: 0,
+        securityDeposit: 0,
         otherDeduction: standing,
         absentDays: 0,
         attendanceBonus: proposedAttendanceBonus,
@@ -162,12 +164,13 @@ const getSalarySheet = async (req, res) => {
       (acc, r) => ({
         headcount: acc.headcount + 1,
         gross: round2(acc.gross + r.baseSalary + r.allowances),
+        securityDeposit: round2((acc.securityDeposit || 0) + (r.securityDeposit || 0)),
         deductions: round2(acc.deductions + r.deductions),
         net: round2(acc.net + r.netSalary),
         paid: round2(acc.paid + r.amountPaid),
         outstanding: round2(acc.outstanding + r.outstanding),
       }),
-      { headcount: 0, gross: 0, deductions: 0, net: 0, paid: 0, outstanding: 0 }
+      { headcount: 0, gross: 0, securityDeposit: 0, deductions: 0, net: 0, paid: 0, outstanding: 0 }
     );
 
     res.json({ month: monthKey, label: formatMonthKey(monthKey), rows, totals });
@@ -194,7 +197,7 @@ const paySalary = async (req, res) => {
       // allowances. Omitting the field must mean "use what the employee record
       // says", which is exactly what the salary sheet proposed.
       baseSalary, allowances, otherDeduction,
-      absenceDeduction = 0, taxDeduction = 0, absentDays = 0,
+      absenceDeduction = 0, taxDeduction = 0, securityDeposit = 0, absentDays = 0,
       attendanceBonus = 0,
       amountPaid, paymentMethod = 'Bank Transfer', paymentDate, remarks,
       recoverAdvances = true,
@@ -277,11 +280,12 @@ const paySalary = async (req, res) => {
       record.absenceDeduction = calcAbsenceDeduction;
       record.attendanceBonus = calcAttendanceBonus;
       record.taxDeduction = Number(taxDeduction);
+      record.securityDeposit = Number(securityDeposit || 0);
       record.otherDeduction = otherDed;
       record.absentDays = Number(absentDays);
       record.advanceDeduction = round2((record.advanceDeduction || 0) + advanceDeduction);
       record.deductions = round2(
-        calcAbsenceDeduction + Number(taxDeduction) + otherDed + record.advanceDeduction
+        calcAbsenceDeduction + Number(taxDeduction) + record.securityDeposit + otherDed + record.advanceDeduction
       );
 
       /**
@@ -483,11 +487,15 @@ const updateSalaryRecord = async (req, res) => {
         ? Number(req.body.taxDeduction)
         : Number(record.taxDeduction ?? 0);
 
+      const securityDeposit = req.body.securityDeposit !== undefined
+        ? Number(req.body.securityDeposit)
+        : Number(record.securityDeposit ?? 0);
+
       const otherDeduction = req.body.otherDeduction !== undefined
         ? Number(req.body.otherDeduction)
         : Number(record.otherDeduction ?? 0);
 
-      const totalDeductions = round2(calcAbsenceDeduction + taxDeduction + otherDeduction + advanceDeduction);
+      const totalDeductions = round2(calcAbsenceDeduction + taxDeduction + securityDeposit + otherDeduction + advanceDeduction);
       const rawNet = base + finalAllowances + calcAttendanceBonus - totalDeductions;
       if (rawNet < 0) {
         throw Object.assign(
@@ -528,6 +536,7 @@ const updateSalaryRecord = async (req, res) => {
       record.absenceDeduction = calcAbsenceDeduction;
       record.advanceDeduction = advanceDeduction;
       record.taxDeduction = taxDeduction;
+      record.securityDeposit = securityDeposit;
       record.otherDeduction = otherDeduction;
       record.deductions = totalDeductions;
       record.netSalary = net;

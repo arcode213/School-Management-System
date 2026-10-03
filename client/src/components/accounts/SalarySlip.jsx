@@ -23,6 +23,7 @@ const slipHTML = (rec, month, campusName) => {
   const deductionRows = [
     rec.advanceDeduction > 0 ? row('Salary Advance Recovery', fmtPKR(rec.advanceDeduction), 'neg') : '',
     rec.absenceDeduction > 0 ? row(rec.employee?.designation === 'Teacher' ? `Penalty (${rec.absentDays || 0} day${rec.absentDays === 1 ? '' : 's'})` : `Absence (${rec.absentDays || 0} day${rec.absentDays === 1 ? '' : 's'})`, fmtPKR(rec.absenceDeduction), 'neg') : '',
+    rec.securityDeposit > 0 ? row('Security Deposit (Held)', fmtPKR(rec.securityDeposit), 'neg') : '',
     rec.taxDeduction > 0 ? row('Tax', fmtPKR(rec.taxDeduction), 'neg') : '',
     rec.otherDeduction > 0 ? row('Other', fmtPKR(rec.otherDeduction), 'neg') : '',
   ].filter(Boolean).join('');

@@ -94,10 +94,12 @@ export default function DuesPage() {
     return dues.filter(d => {
       const matchClass = filterClass ? d.student?.class === filterClass : true;
       const matchMonth = filterMonth ? d.feeMonth === filterMonth : true;
-      const matchSearch = search ? (
-        d.student?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
-        d.student?.studentId?.toLowerCase().includes(search.toLowerCase()) ||
-        d.challanNo?.toLowerCase().includes(search.toLowerCase())
+      const q = search.trim().toLowerCase();
+      const matchSearch = q ? (
+        (d.student?.fullName || '').toLowerCase().includes(q) ||
+        (d.student?.fatherName || '').toLowerCase().includes(q) ||
+        (d.student?.studentId || '').toLowerCase().includes(q) ||
+        (d.challanNo || '').toLowerCase().includes(q)
       ) : true;
       return matchClass && matchMonth && matchSearch;
     });
@@ -438,7 +440,7 @@ export default function DuesPage() {
       <div className="card card-lg p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="sm:col-span-2 relative bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs flex items-center gap-2">
           <Search size={14} className="t-faint" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search student name, ID or receipt..." className="bg-transparent w-full t-body placeholder-faint focus:outline-none font-medium" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search student or father name, ID, receipt..." className="bg-transparent w-full t-body placeholder-faint focus:outline-none font-medium" />
         </div>
         <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer min-w-32">
           <option value="">All Months</option>

@@ -223,6 +223,7 @@ const exportSalarySheet = async (req, res) => {
           baseSalary: 1,
           allowances: { $ifNull: ['$allowances', 0] },
           advanceDeduction: { $ifNull: ['$advanceDeduction', 0] },
+          securityDeposit: { $ifNull: ['$securityDeposit', 0] },
           otherDeductions: {
             $add: [
               { $ifNull: ['$absenceDeduction', 0] },
@@ -247,12 +248,13 @@ const exportSalarySheet = async (req, res) => {
       baseSalary: a.baseSalary + (r.baseSalary || 0),
       allowances: a.allowances + (r.allowances || 0),
       advanceDeduction: a.advanceDeduction + (r.advanceDeduction || 0),
+      securityDeposit: a.securityDeposit + (r.securityDeposit || 0),
       otherDeductions: a.otherDeductions + (r.otherDeductions || 0),
       netSalary: a.netSalary + (r.netSalary || 0),
       amountPaid: a.amountPaid + (r.amountPaid || 0),
       outstanding: a.outstanding + r.outstanding,
     }), {
-      baseSalary: 0, allowances: 0, advanceDeduction: 0,
+      baseSalary: 0, allowances: 0, advanceDeduction: 0, securityDeposit: 0,
       otherDeductions: 0, netSalary: 0, amountPaid: 0, outstanding: 0,
     });
 
@@ -273,6 +275,7 @@ const exportSalarySheet = async (req, res) => {
         { header: 'Basic', key: 'baseSalary', width: 14, money: true, weight: 1 },
         { header: 'Allowances', key: 'allowances', width: 14, money: true, weight: 1 },
         { header: 'Advance', key: 'advanceDeduction', width: 14, money: true, weight: 1 },
+        { header: 'Sec. Deposit', key: 'securityDeposit', width: 14, money: true, weight: 1 },
         { header: 'Other Ded.', key: 'otherDeductions', width: 14, money: true, weight: 1 },
         { header: 'Net', key: 'netSalary', width: 14, money: true, weight: 1 },
         { header: 'Paid', key: 'amountPaid', width: 14, money: true, weight: 1 },

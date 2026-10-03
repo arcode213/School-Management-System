@@ -59,6 +59,7 @@ const salaryRecordSchema = new mongoose.Schema(
     advanceDeduction: { type: Number, default: 0 },
     absenceDeduction: { type: Number, default: 0 },
     taxDeduction: { type: Number, default: 0 },
+    securityDeposit: { type: Number, default: 0 },
     otherDeduction: { type: Number, default: 0 },
     absentDays: { type: Number, default: 0 },
     attendanceBonus: { type: Number, default: 0 },

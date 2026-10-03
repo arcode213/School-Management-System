@@ -120,7 +120,7 @@ const postSalary = async (req, res) => {
       return res.status(400).json({ message: 'Campus and Academic Session context are required' });
     }
 
-    const { employeeId, salaryMonth, salaryYear, baseSalary, allowances, deductions, paymentMethod, remarks } = req.body;
+    const { employeeId, salaryMonth, salaryYear, baseSalary, allowances, deductions, securityDeposit, paymentMethod, remarks } = req.body;
     
     // Check if salary already posted for this month/year/session
     const existing = await SalaryRecord.findOne({ 
@@ -134,7 +134,10 @@ const postSalary = async (req, res) => {
       return res.status(400).json({ message: `Salary for ${salaryMonth} ${salaryYear} is already posted.` });
     }
 
-    const netSalary = Number(baseSalary) + Number(allowances) - Number(deductions);
+    const sec = Number(securityDeposit || 0);
+    const otherDed = Number(deductions || 0);
+    const totalDeductions = otherDed + sec;
+    const netSalary = Number(baseSalary) + Number(allowances) - totalDeductions;
 
     const salary = await SalaryRecord.create({
       employee: employeeId,
@@ -144,7 +147,9 @@ const postSalary = async (req, res) => {
       salaryYear,
       baseSalary,
       allowances,
-      deductions,
+      securityDeposit: sec,
+      otherDeduction: otherDed,
+      deductions: totalDeductions,
       netSalary,
       paymentMethod,
       remarks,

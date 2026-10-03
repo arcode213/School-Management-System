@@ -13,7 +13,8 @@ export default function SalaryModal({ open, onClose, employee, onSaved }) {
   const base = Number(watch('baseSalary') || 0);
   const allow = Number(watch('allowances') || 0);
   const ded = Number(watch('deductions') || 0);
-  const net = base + allow - ded;
+  const sec = Number(watch('securityDeposit') || 0);
+  const net = base + allow - ded - sec;
 
   useEffect(() => {
     if (open && employee) {
@@ -25,6 +26,7 @@ export default function SalaryModal({ open, onClose, employee, onSaved }) {
         baseSalary: employee.salary || 0,
         allowances: employee.allowances || 0,
         deductions: employee.deductions || 0,
+        securityDeposit: 0,
         paymentMethod: 'Bank Transfer',
         remarks: ''
       });
@@ -78,18 +80,22 @@ export default function SalaryModal({ open, onClose, employee, onSaved }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium t-muted mb-1">Base</label>
-              <input type="number" {...register('baseSalary')} className="w-full border border-line rounded-lg px-2 py-2 text-sm" />
+              <label className="block text-xs font-medium t-muted mb-1">Base (Rs.)</label>
+              <input type="number" min="0" {...register('baseSalary')} className="w-full border border-line rounded-lg px-2 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium t-muted mb-1">Allowances</label>
-              <input type="number" {...register('allowances')} className="w-full border border-line rounded-lg px-2 py-2 text-sm" />
+              <label className="block text-xs font-medium t-muted mb-1">Allowances (Rs.)</label>
+              <input type="number" min="0" {...register('allowances')} className="w-full border border-line rounded-lg px-2 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium t-muted mb-1">Deductions</label>
-              <input type="number" {...register('deductions')} className="w-full border border-bad-border rounded-lg px-2 py-2 text-sm t-bad bg-bad-soft" />
+              <label className="block text-xs font-medium t-muted mb-1">Sec. Deposit (Rs.)</label>
+              <input type="number" min="0" {...register('securityDeposit')} placeholder="0" className="w-full border border-line rounded-lg px-2 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium t-muted mb-1">Other Deductions (Rs.)</label>
+              <input type="number" min="0" {...register('deductions')} className="w-full border border-bad-border rounded-lg px-2 py-2 text-sm t-bad bg-bad-soft" />
             </div>
           </div>
 
