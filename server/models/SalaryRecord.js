@@ -87,12 +87,17 @@ const salaryRecordSchema = new mongoose.Schema(
  * report nil. Same fallback shape as FeeRecord's monthly/annual balances.
  */
 salaryRecordSchema.methods.paidAmount = function () {
+  if (this.status === 'Paid') {
+    // If marked Paid, it paid in full (absorbs cash roundoff differences <= 10 PKR)
+    return this.netSalary || this.amountPaid || 0;
+  }
   if (this.amountPaid !== undefined && this.amountPaid !== null) return this.amountPaid;
-  return this.status === 'Paid' ? (this.netSalary || 0) : 0;
+  return 0;
 };
 
 /** What is still owed on this salary. */
 salaryRecordSchema.methods.outstandingAmount = function () {
+  if (this.status === 'Paid') return 0;
   return Math.max(0, (this.netSalary || 0) - this.paidAmount());
 };
 

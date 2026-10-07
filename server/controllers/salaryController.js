@@ -63,20 +63,34 @@ const getSalarySheet = async (req, res) => {
     const mf = monthFields(monthKey);
     if (!mf) return res.status(400).json({ message: 'Month must look like 2026-08' });
 
-    // Three bounded reads — a school's staff list, this month's postings, and the
-    // open advances — merged below. Nothing here scans a large collection.
-    const [employees, posted, advances] = await Promise.all([
-      Employee.find({ campus: currentCampus, isDeleted: false, status: 'Active' })
-        .select('employeeId fullName designation department salary allowances deductions')
-        .sort({ fullName: 1 })
-        .lean(),
+    const parts = partsOf(monthKey);
+    const startOfMonth = new Date(Date.UTC(parts.year, parts.month - 1, 1, 0, 0, 0));
+    const endOfMonth = new Date(Date.UTC(parts.year, parts.month, 0, 23, 59, 59, 999));
+
+    // 1. Fetch this month's posted records and open advances
+    const [posted, advances] = await Promise.all([
       SalaryRecord.find({ campus: currentCampus, ...mf, isDeleted: false }).lean(),
       SalaryAdvance.find({
         campus: currentCampus, status: 'Outstanding', isDeleted: false,
       }).lean(),
     ]);
 
+    const postedEmpIds = posted.map((p) => p.employee);
     const postedBy = new Map(posted.map((p) => [String(p.employee), p]));
+
+    // 2. Fetch employees:
+    // - Include ANY employee who has a posted salary record for this month (even if now Resigned/Left/Deleted)
+    // - Plus any staff at this campus
+    const employees = await Employee.find({
+      campus: currentCampus,
+      $or: [
+        { _id: { $in: postedEmpIds } },
+        { isDeleted: false },
+      ],
+    })
+      .select('employeeId fullName designation department salary allowances deductions status joiningDate leavingDate updatedAt isDeleted')
+      .sort({ fullName: 1 })
+      .lean();
 
     const advancesBy = new Map();
     for (const a of advances) {
@@ -89,17 +103,30 @@ const getSalarySheet = async (req, res) => {
       advancesBy.set(String(a.employee), list);
     }
 
-    const rows = employees.map((emp) => {
-      const record = postedBy.get(String(emp._id));
-      const pendingAdvances = advancesBy.get(String(emp._id)) || [];
-      const advanceDue = round2(pendingAdvances.reduce((s, a) => s + a.amount, 0));
+    const processedEmpIds = new Set();
+    const rows = [];
 
+    // Filter and build rows for employees
+    for (const emp of employees) {
+      const empIdStr = String(emp._id);
+      const record = postedBy.get(empIdStr);
+
+      // Rule: If a salary was already posted, ALWAYS include it on this month's sheet.
+      // A posted salary is an official historical financial transaction that must never be hidden or omitted.
       if (record) {
-        // Already posted — report what it says, using the legacy-safe fallback so
-        // a record written before part-payments existed reads as fully paid.
+        processedEmpIds.add(empIdStr);
         const doc = SalaryRecord.hydrate(record);
-        return {
-          employee: { _id: emp._id, employeeId: emp.employeeId, fullName: emp.fullName, designation: emp.designation, department: emp.department },
+        const pendingAdvances = advancesBy.get(empIdStr) || [];
+        rows.push({
+          employee: {
+            _id: emp._id,
+            employeeId: emp.employeeId,
+            fullName: emp.fullName,
+            designation: emp.designation,
+            department: emp.department,
+            status: emp.status,
+            leavingDate: emp.leavingDate,
+          },
           salaryRecord: record._id,
           posted: true,
           baseSalary: record.baseSalary,
@@ -120,11 +147,36 @@ const getSalarySheet = async (req, res) => {
           paymentMethod: record.paymentMethod,
           remarks: record.remarks || '',
           pendingAdvances,
-        };
+        });
+        continue;
       }
 
-      // Not posted yet — a proposal built from the employee record, with any
-      // outstanding advance already suggested as a deduction.
+      // If not posted, determine whether this employee was employed during this month:
+      if (emp.isDeleted) continue;
+
+      // 1. Check joining date: if they joined AFTER this month ended, they don't belong here yet
+      if (emp.joiningDate && new Date(emp.joiningDate) > endOfMonth) {
+        continue;
+      }
+
+      // 2. Check leaving status and date:
+      if (emp.status && emp.status !== 'Active') {
+        if (emp.leavingDate) {
+          // If they left BEFORE this month started, they are no longer employed this month
+          if (new Date(emp.leavingDate) < startOfMonth) {
+            continue;
+          }
+        } else if (emp.updatedAt && new Date(emp.updatedAt) < startOfMonth) {
+          // Fallback if no leavingDate was set: if updated before this month, skip
+          continue;
+        }
+      }
+
+      // Employee was active during this month -> build proposal
+      processedEmpIds.add(empIdStr);
+      const pendingAdvances = advancesBy.get(empIdStr) || [];
+      const advanceDue = round2(pendingAdvances.reduce((s, a) => s + a.amount, 0));
+
       const base = emp.salary || 0;
       const allowances = emp.allowances || 0;
       const standing = emp.deductions || 0;
@@ -135,8 +187,16 @@ const getSalarySheet = async (req, res) => {
       const deductions = round2(standing + advanceDue + proposedAbsenceDeduction);
       const net = round2(base + allowances + proposedAttendanceBonus - deductions);
 
-      return {
-        employee: { _id: emp._id, employeeId: emp.employeeId, fullName: emp.fullName, designation: emp.designation, department: emp.department },
+      rows.push({
+        employee: {
+          _id: emp._id,
+          employeeId: emp.employeeId,
+          fullName: emp.fullName,
+          designation: emp.designation,
+          department: emp.department,
+          status: emp.status,
+          leavingDate: emp.leavingDate,
+        },
         salaryRecord: null,
         posted: false,
         baseSalary: base,
@@ -157,8 +217,50 @@ const getSalarySheet = async (req, res) => {
         paymentMethod: null,
         remarks: '',
         pendingAdvances,
-      };
-    });
+      });
+    }
+
+    // Safety net: in case a posted salary record exists for an employee document that was removed
+    for (const record of posted) {
+      const empIdStr = String(record.employee);
+      if (!processedEmpIds.has(empIdStr)) {
+        processedEmpIds.add(empIdStr);
+        const doc = SalaryRecord.hydrate(record);
+        rows.push({
+          employee: {
+            _id: record.employee,
+            employeeId: '—',
+            fullName: '(Archived Staff)',
+            designation: '—',
+            department: '—',
+            status: 'Left',
+          },
+          salaryRecord: record._id,
+          posted: true,
+          baseSalary: record.baseSalary,
+          allowances: record.allowances || 0,
+          advanceDeduction: record.advanceDeduction || 0,
+          absenceDeduction: record.absenceDeduction || 0,
+          taxDeduction: record.taxDeduction || 0,
+          securityDeposit: record.securityDeposit || 0,
+          otherDeduction: record.otherDeduction || 0,
+          absentDays: record.absentDays || 0,
+          attendanceBonus: record.attendanceBonus || 0,
+          deductions: record.deductions || 0,
+          netSalary: record.netSalary,
+          amountPaid: doc.paidAmount(),
+          outstanding: doc.outstandingAmount(),
+          status: record.status,
+          paymentDate: record.paymentDate,
+          paymentMethod: record.paymentMethod,
+          remarks: record.remarks || '',
+          pendingAdvances: [],
+        });
+      }
+    }
+
+    // Sort rows alphabetically by employee name
+    rows.sort((a, b) => (a.employee?.fullName || '').localeCompare(b.employee?.fullName || ''));
 
     const totals = rows.reduce(
       (acc, r) => ({

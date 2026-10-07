@@ -36,6 +36,9 @@ export default function EmployeeProfilePage() {
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs t-faint">
             <span className="flex items-center gap-1.5"><Phone size={12}/> {employee.phone || 'No phone'}</span>
             <span className="flex items-center gap-1.5"><Calendar size={12}/> Joined {new Date(employee.joiningDate).toLocaleDateString()}</span>
+            {employee.leavingDate && (
+              <span className="flex items-center gap-1.5 t-warn"><Calendar size={12}/> Left {new Date(employee.leavingDate).toLocaleDateString()}</span>
+            )}
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useAppContext } from '../../context/AppContext';
 import { getExpenses, createExpense, updateExpense, deleteExpense } from '../../api/expenses';
@@ -7,7 +7,8 @@ import { fmtPKR, formatMonthKey } from '../../utils/money';
 import toast from 'react-hot-toast';
 import { 
   Plus, Pencil, Trash2, Search, DollarSign, 
-  AlertCircle, RefreshCw, Calendar, Tag, FileText, ChevronLeft, ChevronRight, TrendingUp, TrendingDown
+  AlertCircle, RefreshCw, Calendar, Tag, FileText, ChevronLeft, ChevronRight, TrendingUp, TrendingDown,
+  Users, ChevronDown, ChevronUp, ExternalLink
 } from 'lucide-react';
 
 // The fixed category lists this screen used to carry are gone: categories are now
@@ -32,6 +33,8 @@ export default function ExpenseLedger({ month, isClosed }) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
+  const [groupSalaries, setGroupSalaries] = useState(true);
+  const [expandedGroup, setExpandedGroup] = useState(null);
 
   // The configurable categories from the accounts module.
   const [categories, setCategories] = useState([]);
@@ -72,7 +75,8 @@ export default function ExpenseLedger({ month, isClosed }) {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         page,
-        limit: 10
+        limit: 10,
+        groupSalaries: groupSalaries ? 'true' : 'false',
       });
       setExpenses(data.expenses);
       setTotals(data.totals || { income: 0, expense: 0, balance: 0 });
@@ -82,7 +86,7 @@ export default function ExpenseLedger({ month, isClosed }) {
     } finally {
       setLoading(false);
     }
-  }, [search, filterCategory, filterType, filterMethod, month, dateFrom, dateTo, page]);
+  }, [search, filterCategory, filterType, filterMethod, month, dateFrom, dateTo, page, groupSalaries]);
 
   useEffect(() => {
     if (currentCampus && currentSession) fetchExpenses();
@@ -191,25 +195,41 @@ export default function ExpenseLedger({ month, isClosed }) {
 
       {/* Filters & Tabs */}
       <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4">
-        {/* Type tabs */}
-        <div className="tab-strip gap-2 bg-surface-2 border border-line p-1 rounded-xl self-start max-w-full">
-          <button 
-            onClick={() => { setFilterType(''); setPage(1); }} 
-            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${filterType === '' ? 'bg-brand t-body shadow' : 't-muted hover:t-body'}`}
+        {/* Type tabs & Salary group toggle */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="tab-strip gap-2 bg-surface-2 border border-line p-1 rounded-xl self-start max-w-full">
+            <button 
+              onClick={() => { setFilterType(''); setPage(1); }} 
+              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${filterType === '' ? 'bg-brand t-body shadow' : 't-muted hover:t-body'}`}
+            >
+              All Ledger
+            </button>
+            <button 
+              onClick={() => { setFilterType('Income'); setPage(1); }} 
+              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${filterType === 'Income' ? 'bg-ok t-body shadow' : 't-muted hover:t-body'}`}
+            >
+              Incomes
+            </button>
+            <button 
+              onClick={() => { setFilterType('Expense'); setPage(1); }} 
+              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${filterType === 'Expense' ? 'bg-rose-600 t-body shadow' : 't-muted hover:t-body'}`}
+            >
+              Expenses
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => { setGroupSalaries(prev => !prev); setPage(1); }}
+            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 border whitespace-nowrap cursor-pointer ${
+              groupSalaries
+                ? 'bg-brand/15 t-brand border-brand/30 shadow-sm hover:bg-brand/25'
+                : 'bg-surface-2 t-muted hover:t-body border-line'
+            }`}
+            title={groupSalaries ? 'All staff salaries grouped into 1 consolidated monthly record. Click to show individually.' : 'Showing individual salary payments. Click to consolidate into 1 record.'}
           >
-            All Ledger
-          </button>
-          <button 
-            onClick={() => { setFilterType('Income'); setPage(1); }} 
-            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${filterType === 'Income' ? 'bg-ok t-body shadow' : 't-muted hover:t-body'}`}
-          >
-            Incomes
-          </button>
-          <button 
-            onClick={() => { setFilterType('Expense'); setPage(1); }} 
-            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${filterType === 'Expense' ? 'bg-rose-600 t-body shadow' : 't-muted hover:t-body'}`}
-          >
-            Expenses
+            <Users size={14} className={groupSalaries ? 't-brand' : 't-muted'} />
+            <span>{groupSalaries ? 'Salaries: Combined (1 Record)' : 'Salaries: Individual'}</span>
           </button>
         </div>
 
@@ -302,66 +322,188 @@ export default function ExpenseLedger({ month, isClosed }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line t-muted">
-                {expenses.map(e => (
-                  <tr key={e._id} className="hover:bg-surface-2 transition group">
-                    <td data-label="Date" className="px-5 py-4 font-mono font-bold t-muted">
-                      {e.date ? new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                    </td>
-                    <td data-label="Title" className="px-5 py-4 font-bold t-body md:whitespace-nowrap">{e.title}</td>
-                    <td data-label="Type" className="px-5 py-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
-                        e.type === 'Income' ? 'bg-ok-soft t-ok border-ok-border' : 'bg-bad-soft t-bad border-bad-border'
-                      }`}>
-                        {e.type}
-                      </span>
-                    </td>
-                    <td data-label="Category" className="px-5 py-4">
-                      <div>
-                        {/* `resolvedCategory` is the configurable category where the
-                            row has one, and the legacy string where it does not —
-                            resolved on the server so nothing had to be migrated. */}
-                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-surface-3 t-muted">
-                          {e.resolvedCategory || e.category}
+                {expenses.map(e => {
+                  if (e.isSalaryGroup) {
+                    const isExpanded = expandedGroup === e._id;
+                    return (
+                      <Fragment key={e._id}>
+                        <tr className="bg-brand/5 hover:bg-brand/10 transition group border-l-4 border-l-brand">
+                          <td data-label="Date" className="px-5 py-4 font-mono font-bold t-muted">
+                            {e.date ? new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                          </td>
+                          <td data-label="Title" className="px-5 py-4 font-bold t-body md:whitespace-nowrap">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold">{e.title}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/20 t-brand border border-brand/30">
+                                <Users size={11} /> {e.salaryCount} Staff Members
+                              </span>
+                            </div>
+                          </td>
+                          <td data-label="Type" className="px-5 py-4">
+                            <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border bg-bad-soft t-bad border-bad-border">
+                              {e.type}
+                            </span>
+                          </td>
+                          <td data-label="Category" className="px-5 py-4">
+                            <div>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-surface-3 t-muted font-bold">
+                                {e.resolvedCategory || 'Salaries'}
+                              </span>
+                              <span className="block text-[10px] t-brand font-semibold mt-0.5">
+                                Monthly Total
+                              </span>
+                            </div>
+                          </td>
+                          <td data-label="Description" className="px-5 py-4 t-muted font-medium md:max-w-xs md:truncate" title={e.description}>
+                            {e.description || '—'}
+                          </td>
+                          <td data-label="Recorded By" className="px-5 py-4 t-muted font-semibold">
+                            {e.recordedBy?.name || 'Super Admin'}
+                          </td>
+                          <td data-label="Amount" className="px-5 py-4 text-right font-black t-bad text-sm">
+                            -{fmtRs(e.amount)}
+                          </td>
+                          <td data-actions="" className="px-5 py-4">
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedGroup(isExpanded ? null : e._id)}
+                                className="px-2.5 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1 t-brand bg-brand-soft hover:bg-brand/25 border border-brand-border cursor-pointer"
+                                title="Toggle staff salary breakdown"
+                              >
+                                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                <span>{isExpanded ? 'Hide' : 'Breakdown'}</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {isExpanded && (
+                          <tr className="bg-surface-2/60 border-b border-line">
+                            <td colSpan={8} className="p-4 sm:p-5">
+                              <div className="card bg-surface-1 border border-brand/30 p-4 rounded-xl shadow-inner space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-line">
+                                  <div className="flex items-center gap-2">
+                                    <Users size={16} className="t-brand" />
+                                    <h4 className="text-xs font-bold uppercase tracking-wider t-body">
+                                      Staff Salary Breakdown — {formatMonthKey(e.monthKey)}
+                                    </h4>
+                                    <span className="text-[11px] t-muted">({e.subRecords?.length || 0} staff members)</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs font-bold t-muted">
+                                      Total Paid: <strong className="t-bad font-black">-{fmtRs(e.amount)}</strong>
+                                    </span>
+                                    <a
+                                      href={`/salaries?month=${e.monthKey}`}
+                                      className="text-[11px] font-bold t-brand hover:underline flex items-center gap-1"
+                                    >
+                                      <ExternalLink size={12} /> Open Salary Sheet
+                                    </a>
+                                  </div>
+                                </div>
+
+                                <div className="max-h-60 overflow-y-auto rounded-lg border border-line">
+                                  <table className="w-full text-xs text-left">
+                                    <thead className="bg-surface-2 text-[10px] uppercase font-bold t-muted tracking-wider sticky top-0">
+                                      <tr>
+                                        <th className="px-3.5 py-2.5">Staff Member</th>
+                                        <th className="px-3.5 py-2.5">Date Paid</th>
+                                        <th className="px-3.5 py-2.5">Method</th>
+                                        <th className="px-3.5 py-2.5">Remarks</th>
+                                        <th className="px-3.5 py-2.5 text-right">Amount</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-line t-muted">
+                                      {(e.subRecords || []).map((sub, idx) => (
+                                        <tr key={sub._id || idx} className="hover:bg-surface-2/40 transition">
+                                          <td className="px-3.5 py-2 font-bold t-body">{sub.paidTo}</td>
+                                          <td className="px-3.5 py-2 font-mono text-[11px]">
+                                            {sub.date ? new Date(sub.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                                          </td>
+                                          <td className="px-3.5 py-2">
+                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-surface-3 t-muted">
+                                              {sub.paymentMethod || 'Cash'}
+                                            </span>
+                                          </td>
+                                          <td className="px-3.5 py-2 text-[11px] t-faint truncate max-w-xs">{sub.description || '—'}</td>
+                                          <td className="px-3.5 py-2 text-right font-black t-bad">
+                                            -{fmtRs(sub.amount)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  }
+
+                  return (
+                    <tr key={e._id} className="hover:bg-surface-2 transition group">
+                      <td data-label="Date" className="px-5 py-4 font-mono font-bold t-muted">
+                        {e.date ? new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                      </td>
+                      <td data-label="Title" className="px-5 py-4 font-bold t-body md:whitespace-nowrap">{e.title}</td>
+                      <td data-label="Type" className="px-5 py-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
+                          e.type === 'Income' ? 'bg-ok-soft t-ok border-ok-border' : 'bg-bad-soft t-bad border-bad-border'
+                        }`}>
+                          {e.type}
                         </span>
-                        {e.subCategory && (
-                          <span className="block text-[10px] t-faint mt-1">{e.subCategory}</span>
-                        )}
-                        {e.paymentMethod && (
-                          <span className="block text-[10px] t-faint mt-0.5">{e.paymentMethod}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td data-label="Description" className="px-5 py-4 t-muted font-medium md:max-w-xs md:truncate" title={e.description}>
-                      {e.description || '—'}
-                    </td>
-                    <td data-label="Recorded By" className="px-5 py-4 t-muted font-semibold">{e.recordedBy?.name || 'Unknown'}</td>
-                    <td data-label="Amount" className={`px-5 py-4 text-right font-black ${e.type === 'Income' ? 't-ok' : 't-bad'}`}>
-                      {e.type === 'Income' ? '+' : '-'}{fmtRs(e.amount)}
-                    </td>
-                    <td data-actions="" className="px-5 py-4">
-                      <div className="row-actions">
-                        {can('expenses', 'edit') && !isClosed && (
-                          <button
-                            onClick={() => openEdit(e)}
-                            className="p-1.5 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition"
-                            title="Edit transaction"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        )}
-                        {can('expenses', 'delete') && !isClosed && (
-                          <button 
-                            onClick={() => handleDelete(e._id)} 
-                            className="p-1.5 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" 
-                            title="Delete transaction"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td data-label="Category" className="px-5 py-4">
+                        <div>
+                          {/* `resolvedCategory` is the configurable category where the
+                              row has one, and the legacy string where it does not —
+                              resolved on the server so nothing had to be migrated. */}
+                          <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-surface-3 t-muted">
+                            {e.resolvedCategory || e.category}
+                          </span>
+                          {e.subCategory && (
+                            <span className="block text-[10px] t-faint mt-1">{e.subCategory}</span>
+                          )}
+                          {e.paymentMethod && (
+                            <span className="block text-[10px] t-faint mt-0.5">{e.paymentMethod}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td data-label="Description" className="px-5 py-4 t-muted font-medium md:max-w-xs md:truncate" title={e.description}>
+                        {e.description || '—'}
+                      </td>
+                      <td data-label="Recorded By" className="px-5 py-4 t-muted font-semibold">{e.recordedBy?.name || 'Unknown'}</td>
+                      <td data-label="Amount" className={`px-5 py-4 text-right font-black ${e.type === 'Income' ? 't-ok' : 't-bad'}`}>
+                        {e.type === 'Income' ? '+' : '-'}{fmtRs(e.amount)}
+                      </td>
+                      <td data-actions="" className="px-5 py-4">
+                        <div className="row-actions">
+                          {can('expenses', 'edit') && !isClosed && (
+                            <button
+                              onClick={() => openEdit(e)}
+                              className="p-1.5 t-muted hover:t-brand hover:bg-brand-soft border border-transparent hover:border-brand-border rounded-xl transition"
+                              title="Edit transaction"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          )}
+                          {can('expenses', 'delete') && !isClosed && (
+                            <button 
+                              onClick={() => handleDelete(e._id)} 
+                              className="p-1.5 t-muted hover:t-bad hover:bg-bad-soft border border-transparent hover:border-bad-border rounded-xl transition" 
+                              title="Delete transaction"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

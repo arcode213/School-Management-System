@@ -223,6 +223,11 @@ function SheetTable({ sheet, loading, isClosed, canPay, canEdit, onPay, onEdit, 
                     ) : (
                       r.employee.fullName
                     )}
+                    {r.employee.status && r.employee.status !== 'Active' && (
+                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-warn-soft t-warn border border-warn-border">
+                        {r.employee.status}
+                      </span>
+                    )}
                     <span className="block text-[10px] t-faint font-mono mt-0.5">
                       {r.employee.employeeId} · {r.employee.designation}
                       {r.attendanceBonus > 0 && (
@@ -261,7 +266,7 @@ function SheetTable({ sheet, loading, isClosed, canPay, canEdit, onPay, onEdit, 
                 </td>
                 <td data-actions="" className="px-5 py-4">
                   <div className="row-actions">
-                    {canPay && !isClosed && r.outstanding > 0 && (
+                    {canPay && !isClosed && r.status !== 'Paid' && r.outstanding > 0 && (
                       <button onClick={() => onPay(r)} className="btn btn-ok btn-sm" title="Pay Remaining Salary">
                         <Wallet size={12} /> Pay
                       </button>

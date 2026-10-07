@@ -162,7 +162,47 @@ const exportExpenses = async (req, res) => {
       },
     ]);
 
-    const { campusName, meta } = await metaFor(req, [`Period: ${periodLabel}`, `${rows.length} entries`]);
+    let finalRows = rows;
+    if (req.query.groupSalaries !== 'false') {
+      const nonSalaries = [];
+      const salaryByMonth = new Map();
+      for (const r of rows) {
+        const isSalary =
+          r.category === 'Salary' ||
+          (r.category && r.category.toLowerCase().includes('salar')) ||
+          (r.title && /^\s*Salary\s*[-—–]/i.test(r.title)) ||
+          (r.title && r.title.toLowerCase().startsWith('salary'));
+
+        if (isSalary) {
+          const mMatch = r.title && r.title.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i);
+          const mKey = mMatch ? `${mMatch[1]} ${mMatch[2]}` : (month ? formatMonthKey(month) : 'Salaries');
+          const list = salaryByMonth.get(mKey) || [];
+          list.push(r);
+          salaryByMonth.set(mKey, list);
+        } else {
+          nonSalaries.push(r);
+        }
+      }
+
+      const grouped = [];
+      for (const [mLabel, list] of salaryByMonth.entries()) {
+        const totalAmt = list.reduce((s, r) => s + r.amount, 0);
+        grouped.push({
+          date: list[list.length - 1]?.date || '',
+          title: `Staff Salaries (${mLabel})`,
+          type: 'Expense',
+          category: 'Salaries',
+          subCategory: 'Combined Total',
+          paidTo: `${list.length} Staff Member${list.length === 1 ? '' : 's'}`,
+          paymentMethod: list[0]?.paymentMethod || 'Cash',
+          recordedBy: list[0]?.recordedBy || 'Super Admin',
+          amount: Math.round(totalAmt * 100) / 100,
+        });
+      }
+      finalRows = [...nonSalaries, ...grouped];
+    }
+
+    const { campusName, meta } = await metaFor(req, [`Period: ${periodLabel}`, `${finalRows.length} entries`]);
 
     await dispatch(res, format, {
       name: 'Expense Ledger',
@@ -180,8 +220,8 @@ const exportExpenses = async (req, res) => {
         { header: 'Recorded By', key: 'recordedBy', width: 18, weight: 1.1 },
         { header: 'Amount', key: 'amount', width: 16, money: true, weight: 1.1 },
       ],
-      rows,
-      totals: { amount: rows.reduce((s, r) => s + r.amount, 0) },
+      rows: finalRows,
+      totals: { amount: finalRows.reduce((s, r) => s + r.amount, 0) },
       footNote:
         'Income is shown positive and expenditure negative, so the Amount column totals the net movement. ' +
         'Only approved entries are included.',
@@ -241,7 +281,7 @@ const exportSalarySheet = async (req, res) => {
 
     const withOutstanding = rows.map(r => ({
       ...r,
-      outstanding: Math.round(((r.netSalary || 0) - (r.amountPaid || 0)) * 100) / 100,
+      outstanding: r.status === 'Paid' ? 0 : Math.max(0, Math.round(((r.netSalary || 0) - (r.amountPaid || 0)) * 100) / 100),
     }));
 
     const totals = withOutstanding.reduce((a, r) => ({

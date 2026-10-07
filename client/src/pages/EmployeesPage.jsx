@@ -16,13 +16,15 @@ import {
 
 const DESIGNATIONS = ['Teacher', 'Clerk', 'Peon', 'Guard', 'Principal', 'Admin Staff', 'Other'];
 const DEPARTMENTS = ['Academics', 'Administration', 'Finance', 'Support', 'Security'];
-const STATUSES = ['Active', 'Resigned', 'Terminated'];
+const STATUSES = ['Active', 'Leave', 'Resigned', 'Terminated', 'Left'];
 
 const StatusBadge = ({ status }) => {
   const map = { 
     Active: 'bg-ok-soft t-ok border-ok-border', 
+    Leave: 'bg-warn-soft t-warn border-warn-border',
     Resigned: 'bg-warn-soft t-warn border-warn-border', 
-    Terminated: 'bg-bad-soft t-bad border-bad-border' 
+    Terminated: 'bg-bad-soft t-bad border-bad-border',
+    Left: 'bg-bad-soft t-bad border-bad-border'
   };
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${map[status] || 'bg-surface-3 t-muted border-line'}`}>
@@ -218,7 +220,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Filters */}
-      <div className="card card-lg p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="card card-lg p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="sm:col-span-2 relative bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs flex items-center gap-2">
           <Search size={14} className="t-faint" />
           <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
@@ -231,6 +233,10 @@ export default function EmployeesPage() {
         <select value={filterDept} onChange={e => { setFilterDept(e.target.value); setPage(1); }} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer min-w-32">
           <option value="">All Departments</option>
           {DEPARTMENTS.map(d => <option key={d} className="bg-surface-2">{d}</option>)}
+        </select>
+        <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }} className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider t-body focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer min-w-32">
+          <option value="">All Statuses</option>
+          {STATUSES.map(s => <option key={s} className="bg-surface-2">{s}</option>)}
         </select>
       </div>
 

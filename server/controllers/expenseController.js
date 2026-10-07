@@ -3,7 +3,7 @@ const Expense = require('../models/Expense');
 const ExpenseCategory = require('../models/ExpenseCategory');
 const { legacyCategoryMap } = require('../utils/seedExpenseCategories');
 const { assertMonthsOpen, MonthClosedError } = require('../utils/monthLock');
-const { ledgerMonthOf, monthRange } = require('../utils/ledgerMonth');
+const { ledgerMonthOf, monthRange, formatMonthKey, currentMonthKey, monthKeyFromName } = require('../utils/ledgerMonth');
 
 /**
  * Expense entries.
@@ -20,6 +20,7 @@ const { ledgerMonthOf, monthRange } = require('../utils/ledgerMonth');
 // so the UI always has something to render.
 const attachResolvedCategory = (rows, legacyMap) =>
   rows.map((row) => {
+    if (row.resolvedCategory) return row;
     if (row.categoryRef && typeof row.categoryRef === 'object') {
       return { ...row, resolvedCategory: row.categoryRef.name };
     }
@@ -37,6 +38,7 @@ const getExpenses = async (req, res) => {
       // original behaviour exactly.
       categoryRef, paymentMethod, status, month, dateFrom, dateTo, paidToEmployee,
       sortBy = 'date', sortDir = 'desc',
+      groupSalaries = 'true',
     } = req.query;
 
     const query = { isDeleted: false };
@@ -84,15 +86,110 @@ const getExpenses = async (req, res) => {
     const sortField = ['date', 'amount', 'createdAt'].includes(sortBy) ? sortBy : 'date';
     const sort = { [sortField]: sortDir === 'asc' ? 1 : -1 };
 
-    const count = await Expense.countDocuments(query);
-    const expenses = await Expense.find(query)
-      .populate('recordedBy', 'name email')
-      .populate('categoryRef', 'name type')
-      .populate('paidToEmployee', 'fullName employeeId')
-      .sort(sort)
-      .skip((page - 1) * limit)
-      .limit(Number(limit))
-      .lean();
+    const shouldGroupSalaries = (groupSalaries === 'true' || groupSalaries === true) && !paidToEmployee;
+
+    let paged;
+    let count;
+
+    if (shouldGroupSalaries) {
+      const allMatching = await Expense.find(query)
+        .populate('recordedBy', 'name email')
+        .populate('categoryRef', 'name type')
+        .populate('paidToEmployee', 'fullName employeeId')
+        .sort(sort)
+        .lean();
+
+      const isSalaryRecord = (e) =>
+        e.category === 'Salary' ||
+        e.resolvedCategory === 'Salaries' ||
+        e.categoryRef?.legacyKey === 'Salary' ||
+        Boolean(e.categoryRef?.name && e.categoryRef.name.toLowerCase().includes('salar')) ||
+        Boolean(e.salaryRecord) ||
+        Boolean(e.title && /^\s*Salary\s*[-—–]/i.test(e.title)) ||
+        Boolean(e.title && e.title.toLowerCase().startsWith('salary'));
+
+      const extractSalaryMonth = (exp) => {
+        if (exp.title) {
+          const match = exp.title.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i);
+          if (match) {
+            const m = monthKeyFromName(match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase(), match[2]);
+            if (m) return m;
+          }
+        }
+        return exp.date ? ledgerMonthOf(exp.date) : (month || currentMonthKey());
+      };
+
+      const nonSalaries = [];
+      const salariesByMonth = new Map();
+
+      for (const exp of allMatching) {
+        if (isSalaryRecord(exp)) {
+          const mKey = extractSalaryMonth(exp);
+          const list = salariesByMonth.get(mKey) || [];
+          list.push(exp);
+          salariesByMonth.set(mKey, list);
+        } else {
+          nonSalaries.push(exp);
+        }
+      }
+
+      const salaryGroups = [];
+      for (const [mKey, list] of salariesByMonth.entries()) {
+        const totalAmount = Math.round(list.reduce((sum, s) => sum + (s.amount || 0), 0) * 100) / 100;
+        const latestDate = list.reduce((max, s) => (!max || new Date(s.date) > new Date(max) ? s.date : max), null);
+        const primaryMethod = list[0]?.paymentMethod || 'Cash';
+        const recorder = list[0]?.recordedBy || { name: 'Super Admin' };
+
+        salaryGroups.push({
+          _id: `salary-group-${mKey}`,
+          title: `Staff Salaries (${formatMonthKey(mKey)})`,
+          type: 'Expense',
+          category: 'Salary',
+          resolvedCategory: 'Salaries',
+          amount: totalAmount,
+          date: latestDate,
+          paymentMethod: primaryMethod,
+          paidTo: `${list.length} Staff Member${list.length === 1 ? '' : 's'}`,
+          description: `Total monthly salaries for ${list.length} staff member${list.length === 1 ? '' : 's'} (${formatMonthKey(mKey)})`,
+          recordedBy: recorder,
+          isSalaryGroup: true,
+          salaryCount: list.length,
+          monthKey: mKey,
+          subRecords: list.map((s) => ({
+            _id: s._id,
+            title: s.title,
+            paidTo: s.paidTo || s.paidToEmployee?.fullName || 'Staff',
+            amount: s.amount,
+            date: s.date,
+            paymentMethod: s.paymentMethod,
+            description: s.description,
+            recordedBy: s.recordedBy?.name || 'Admin',
+          })),
+        });
+      }
+
+      const consolidated = [...nonSalaries, ...salaryGroups];
+      consolidated.sort((a, b) => {
+        const da = new Date(a.date || 0);
+        const db = new Date(b.date || 0);
+        return sortDir === 'asc' ? da - db : db - da;
+      });
+
+      count = consolidated.length;
+      const pageNum = Number(page);
+      const limitNum = Number(limit);
+      paged = consolidated.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+    } else {
+      count = await Expense.countDocuments(query);
+      paged = await Expense.find(query)
+        .populate('recordedBy', 'name email')
+        .populate('categoryRef', 'name type')
+        .populate('paidToEmployee', 'fullName employeeId')
+        .sort(sort)
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean();
+    }
 
     // Totals for the current context. Deliberately NOT narrowed by the filters
     // above — the older screen shows these as campus/session totals and changing
@@ -113,7 +210,7 @@ const getExpenses = async (req, res) => {
     const legacyMap = currentCampus ? await legacyCategoryMap(currentCampus) : {};
 
     res.json({
-      expenses: attachResolvedCategory(expenses, legacyMap),
+      expenses: attachResolvedCategory(paged, legacyMap),
       totals: {
         income: incomeTotal,
         expense: expenseTotal,
@@ -122,7 +219,7 @@ const getExpenses = async (req, res) => {
       pagination: {
         total: count,
         page: Number(page),
-        pages: Math.ceil(count / limit),
+        pages: Math.ceil(count / Number(limit)) || 1,
       },
     });
   } catch (err) {

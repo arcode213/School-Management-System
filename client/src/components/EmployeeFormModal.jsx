@@ -10,7 +10,8 @@ const DEPARTMENTS = ['Academics', 'Administration', 'Finance', 'Support', 'Secur
 
 export default function EmployeeFormModal({ open, onClose, employee, onSaved }) {
   const isEdit = !!employee;
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm();
+  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm();
+  const currentStatus = watch('status');
 
   useEffect(() => {
     if (open) {
@@ -18,23 +19,34 @@ export default function EmployeeFormModal({ open, onClose, employee, onSaved }) 
         ...employee,
         dateOfBirth: employee.dateOfBirth ? employee.dateOfBirth.substring(0, 10) : '',
         joiningDate: employee.joiningDate ? employee.joiningDate.substring(0, 10) : '',
+        leavingDate: employee.leavingDate ? employee.leavingDate.substring(0, 10) : '',
       } : {
         status: 'Active',
         gender: 'Male',
         designation: 'Teacher',
         department: 'Academics',
         joiningDate: new Date().toISOString().substring(0, 10),
+        leavingDate: '',
       });
     }
   }, [open, employee, reset, isEdit]);
 
   const onSubmit = async (data) => {
     try {
+      const payload = { ...data };
+      if (payload.status !== 'Active') {
+        if (!payload.leavingDate) {
+          payload.leavingDate = new Date().toISOString().substring(0, 10);
+        }
+      } else {
+        payload.leavingDate = null;
+      }
+
       if (isEdit) {
-        await updateEmployee(employee._id, data);
+        await updateEmployee(employee._id, payload);
         toast.success('Employee updated');
       } else {
-        await addEmployee(data);
+        await addEmployee(payload);
         toast.success('Employee added');
       }
       onSaved();
@@ -104,8 +116,19 @@ export default function EmployeeFormModal({ open, onClose, employee, onSaved }) 
               <input type="date" {...register('joiningDate')} className={input()} />
             </Field>
             <Field label="Status">
-              <select {...register('status')} className={input()}><option>Active</option><option>Resigned</option><option>Terminated</option></select>
+              <select {...register('status')} className={input()}>
+                <option>Active</option>
+                <option>Leave</option>
+                <option>Resigned</option>
+                <option>Terminated</option>
+                <option>Left</option>
+              </select>
             </Field>
+            {currentStatus !== 'Active' && (
+              <Field label="Leaving / Resignation Date">
+                <input type="date" {...register('leavingDate')} className={input()} />
+              </Field>
+            )}
           </Section>
 
           <Section title="Compensation">

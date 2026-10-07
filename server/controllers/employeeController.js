@@ -79,13 +79,20 @@ const getEmployee = async (req, res) => {
   }
 };
 
-// @desc    Update employee
-// @route   PUT /api/employees/:id
 const updateEmployee = async (req, res) => {
   try {
+    const updateData = { ...req.body };
+    if (updateData.status && updateData.status !== 'Active') {
+      if (!updateData.leavingDate) {
+        updateData.leavingDate = new Date();
+      }
+    } else if (updateData.status === 'Active') {
+      updateData.leavingDate = null;
+    }
+
     const employee = await Employee.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
-      { $set: req.body },
+      { $set: updateData },
       { new: true, runValidators: true }
     );
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
@@ -101,7 +108,7 @@ const deleteEmployee = async (req, res) => {
   try {
     const employee = await Employee.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
-      { $set: { isDeleted: true, status: 'Terminated' } },
+      { $set: { isDeleted: true, status: 'Terminated', leavingDate: new Date() } },
       { new: true }
     );
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
