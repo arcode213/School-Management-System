@@ -185,7 +185,8 @@ const getSalarySheet = async (req, res) => {
       let proposedAttendanceBonus = 0;
 
       const deductions = round2(standing + advanceDue + proposedAbsenceDeduction);
-      const net = round2(base + allowances + proposedAttendanceBonus - deductions);
+      const rawNet = base + allowances + proposedAttendanceBonus - deductions;
+      const net = roundUp10(rawNet);
 
       rows.push({
         employee: {

@@ -87,11 +87,11 @@ const salaryRecordSchema = new mongoose.Schema(
  * report nil. Same fallback shape as FeeRecord's monthly/annual balances.
  */
 salaryRecordSchema.methods.paidAmount = function () {
-  if (this.status === 'Paid') {
-    // If marked Paid, it paid in full (absorbs cash roundoff differences <= 10 PKR)
-    return this.netSalary || this.amountPaid || 0;
-  }
   if (this.amountPaid !== undefined && this.amountPaid !== null) return this.amountPaid;
+  if (this.status === 'Paid') {
+    // If marked Paid and no amountPaid stored (legacy record), it paid in full
+    return this.netSalary || 0;
+  }
   return 0;
 };
 
@@ -112,9 +112,10 @@ salaryRecordSchema.statics.paidAmountExpr = () => ({
   ],
 });
 
-// Auto-calculate netSalary before save
+// Auto-calculate netSalary before save (rounded up to nearest 10)
 salaryRecordSchema.pre('save', function (next) {
-  this.netSalary = this.baseSalary + this.allowances + (this.attendanceBonus || 0) - this.deductions;
+  const rawNet = (this.baseSalary || 0) + (this.allowances || 0) + (this.attendanceBonus || 0) - (this.deductions || 0);
+  this.netSalary = rawNet <= 0 ? 0 : Math.ceil((Number(rawNet) || 0) / 10) * 10;
   next();
 });
 

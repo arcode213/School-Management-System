@@ -364,7 +364,7 @@ function PayModal({ row, month, onClose, onSaved }) {
         otherDeduction: n(form.otherDeduction),
         absentDays: n(form.absentDays),
         attendanceBonus: n(form.attendanceBonus),
-        ...(form.amountPaid === '' ? {} : { amountPaid: n(form.amountPaid) }),
+        amountPaid: paying,
         paymentMethod: form.paymentMethod,
         remarks: form.remarks || undefined,
       });
