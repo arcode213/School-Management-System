@@ -12,7 +12,7 @@ import { loadCalibration } from '../utils/challanCalibration';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function ChallansPage() {
-  const { currentCampus, currentSession } = useAppContext();
+  const { currentCampus, currentSession, campuses } = useAppContext();
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState([]);
@@ -196,8 +196,8 @@ export default function ChallansPage() {
             <p className="text-xl sm:text-2xl font-extrabold t-brand mt-0.5 tracking-tight break-words">
               {filterClass ? `Class ${filterClass}` : 'All Classes'}
             </p>
-            <p className="t-faint text-xs mt-1 font-medium">
-              Month: {filterMonth || 'All Months'}
+            <p className="t-faint text-xs mt-1 font-medium truncate">
+              Campus: <span className="font-semibold t-body">{campuses?.find(c => String(c._id) === String(currentCampus))?.name || 'Current'}</span> • Month: {filterMonth || 'All Months'}
             </p>
           </div>
         </div>

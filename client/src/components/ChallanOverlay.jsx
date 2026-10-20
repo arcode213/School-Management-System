@@ -6,6 +6,15 @@ const fmt = (n) => Number(n || 0).toLocaleString();
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB') : '');
 const monthBefore = (m) => MONTHS[(MONTHS.indexOf(m) + 11) % 12];
 
+const formatCampusDisplay = (name) => {
+  if (!name) return '';
+  const trimmed = name.trim();
+  if (/campus|branch|wing|section/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `${trimmed} Campus`;
+};
+
 // Accepts the fee object from either getFee (fee.student.*) or the getFees
 // aggregate (fee.studentInfo.*) and returns a flat shape.
 const normalize = (fee, campuses = [], currentCampusId = null) => {
@@ -59,60 +68,64 @@ const normalize = (fee, campuses = [], currentCampusId = null) => {
   const section = s.section || fee.academicInfo?.section || '';
 
   // Multi-tier fallback ladder to guarantee campus name is found
-  let campusName =
+  let rawCampusName =
     fee.campusName ||
     (typeof fee.campus === 'object' && fee.campus?.name ? fee.campus.name : null) ||
     (typeof fee.campusInfo === 'object' && fee.campusInfo?.name ? fee.campusInfo.name : null) ||
+    (typeof fee.studentAcademicRecord?.campus === 'object' && fee.studentAcademicRecord?.campus?.name ? fee.studentAcademicRecord.campus.name : null) ||
+    (typeof fee.academicInfo?.campus === 'object' && fee.academicInfo?.campus?.name ? fee.academicInfo.campus.name : null) ||
     (typeof fee.student?.currentCampus === 'object' && fee.student?.currentCampus?.name ? fee.student.currentCampus.name : null) ||
     (typeof fee.studentInfo?.currentCampus === 'object' && fee.studentInfo?.currentCampus?.name ? fee.studentInfo.currentCampus.name : null);
 
-  if (!campusName && Array.isArray(campuses) && campuses.length > 0) {
+  if (!rawCampusName && Array.isArray(campuses) && campuses.length > 0) {
     const rawCampusId =
       (typeof fee.campus === 'string' ? fee.campus : fee.campus?._id) ||
+      (typeof fee.studentAcademicRecord?.campus === 'string' ? fee.studentAcademicRecord.campus : fee.studentAcademicRecord?.campus?._id) ||
+      (typeof fee.academicInfo?.campus === 'string' ? fee.academicInfo.campus : fee.academicInfo?.campus?._id) ||
       (typeof fee.student?.currentCampus === 'string' ? fee.student.currentCampus : fee.student?.currentCampus?._id) ||
       (typeof fee.studentInfo?.currentCampus === 'string' ? fee.studentInfo.currentCampus : fee.studentInfo?.currentCampus?._id);
 
     if (rawCampusId) {
       const match = campuses.find((c) => String(c._id) === String(rawCampusId));
-      if (match?.name) campusName = match.name;
+      if (match?.name) rawCampusName = match.name;
     }
   }
 
   // Fallback to active campus in session / context
-  if (!campusName && currentCampusId && Array.isArray(campuses) && campuses.length > 0) {
+  if (!rawCampusName && currentCampusId && Array.isArray(campuses) && campuses.length > 0) {
     const activeMatch = campuses.find((c) => String(c._id) === String(currentCampusId));
-    if (activeMatch?.name) campusName = activeMatch.name;
+    if (activeMatch?.name) rawCampusName = activeMatch.name;
   }
 
   // Fallback to localStorage sms_campus
-  if (!campusName && Array.isArray(campuses) && campuses.length > 0) {
+  if (!rawCampusName && Array.isArray(campuses) && campuses.length > 0) {
     try {
       const storedCampusId = localStorage.getItem('sms_campus');
       if (storedCampusId) {
         const match = campuses.find((c) => String(c._id) === String(storedCampusId));
-        if (match?.name) campusName = match.name;
+        if (match?.name) rawCampusName = match.name;
       }
     } catch {}
   }
 
-  // Fallback to single campus setup
-  if (!campusName && Array.isArray(campuses) && campuses.length === 1 && campuses[0]?.name) {
-    campusName = campuses[0].name;
+  // Fallback to single or first campus setup
+  if (!rawCampusName && Array.isArray(campuses) && campuses.length > 0 && campuses[0]?.name) {
+    rawCampusName = campuses[0].name;
   }
 
   // Fallback to stored user campus
-  if (!campusName) {
+  if (!rawCampusName) {
     try {
       const storedUser = JSON.parse(localStorage.getItem('sms_user') || '{}');
       if (storedUser?.campus?.name) {
-        campusName = storedUser.campus.name;
+        rawCampusName = storedUser.campus.name;
       } else if (storedUser?.campusName) {
-        campusName = storedUser.campusName;
+        rawCampusName = storedUser.campusName;
       }
     } catch {}
   }
 
-  campusName = campusName || '';
+  const campusName = formatCampusDisplay(rawCampusName);
 
   return {
     campusName,
@@ -152,13 +165,19 @@ const normalize = (fee, campuses = [], currentCampusId = null) => {
 function Copy({ d, dx, fontMm, calib, onDragUpdate }) {
   const at = (x, y) => ({ position: 'absolute', left: `${x + dx}%`, top: `${y}%` });
   const textStyle = (align, isCampus) => ({
-    fontSize: isCampus ? `${fontMm * 1.1}mm` : `${fontMm}mm`,
+    fontSize: isCampus ? `${fontMm * 1.15}mm` : `${fontMm}mm`,
     lineHeight: 1,
     whiteSpace: 'nowrap',
-    transform: align === 'right' ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
-    fontWeight: isCampus ? 700 : 600,
+    transform: align === 'right' 
+      ? 'translate(-100%, -50%)' 
+      : align === 'center' 
+        ? 'translate(-50%, -50%)' 
+        : 'translate(0, -50%)',
+    textAlign: align || 'left',
+    fontWeight: isCampus ? 800 : 600,
     color: '#000',
-    letterSpacing: isCampus ? '0.02em' : 'normal',
+    letterSpacing: isCampus ? '0.04em' : 'normal',
+    textTransform: isCampus ? 'uppercase' : 'none',
   });
 
   const fieldMap = calib?.fieldMap || DEFAULT_CALIBRATION.fieldMap;
