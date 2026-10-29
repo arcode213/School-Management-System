@@ -15,18 +15,36 @@ connectDB();
 const app = express();
 
 // Middleware
+const envOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(url => url.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
 const allowedOrigins = [
   'http://localhost:5173',
-  process.env.FRONTEND_URL
-].filter(Boolean);
+  'http://localhost:3000',
+  'https://symecs.com',
+  'https://www.symecs.com',
+  ...envOrigins
+];
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, or server-to-server)
     if (!origin) return callback(null, true);
     
-    // Check if the origin matches local, env url, or any Vercel domain
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app') || origin.startsWith('http://localhost:')) {
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    
+    // Check if the origin matches local, env url, Vercel domain, or symecs domain
+    if (
+      allowedOrigins.includes(cleanOrigin) ||
+      cleanOrigin.endsWith('.vercel.app') ||
+      cleanOrigin.startsWith('http://localhost:') ||
+      cleanOrigin.startsWith('http://127.0.0.1:') ||
+      cleanOrigin === 'https://symecs.com' ||
+      cleanOrigin === 'https://www.symecs.com' ||
+      cleanOrigin.endsWith('.symecs.com')
+    ) {
       return callback(null, true);
     }
     
