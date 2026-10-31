@@ -35,7 +35,7 @@ const modelFor = (name) => {
 };
 
 const loadDoc = async (modelName, id) => {
-  if (!id) return null;
+  if (!id || mongoose.connection.readyState !== 1) return null;
   const Model = modelFor(modelName);
   if (!Model) return null;
   try {
@@ -83,6 +83,9 @@ const auditMiddleware = async (req, res, next) => {
 };
 
 const writeEntry = async ({ req, res, route, before, body }) => {
+  // If the database is disconnected, do not attempt to write audit log entries
+  if (mongoose.connection.readyState !== 1) return;
+
   const status = res.statusCode;
   const denied = status === 401 || status === 403;
   const mutation = isMutation(req.method);

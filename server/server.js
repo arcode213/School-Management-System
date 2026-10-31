@@ -10,7 +10,9 @@ const { auditMiddleware } = require('./middleware/auditMiddleware');
 dotenv.config();
 
 // Connect to DB
-connectDB();
+connectDB().catch(err => {
+  console.error('Initial DB connection error:', err.message);
+});
 
 const app = express();
 
@@ -58,6 +60,22 @@ app.use(cors({
 // is only a safety net.
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+
+// Ensure database is connected before processing requests (critical for serverless cold starts)
+app.use(async (req, res, next) => {
+  if (req.path === '/' || req.path === '/api/health') {
+    return next();
+  }
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    return res.status(503).json({
+      message: 'Database connection unavailable. Please try again.',
+      error: process.env.NODE_ENV === 'production' ? undefined : err.message,
+    });
+  }
+});
 
 // Global Context Middleware
 app.use(contextMiddleware);

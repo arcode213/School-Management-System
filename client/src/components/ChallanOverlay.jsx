@@ -3,7 +3,15 @@ import { MONTHS, parseStartMonth } from '../utils/feeMonths';
 import { useAppContext } from '../context/AppContext';
 
 const fmt = (n) => Number(n || 0).toLocaleString();
-const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB') : '');
+const fmtDate = (d) => {
+  if (!d) return '';
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d)) {
+    const [y, m, day] = d.substring(0, 10).split('-');
+    return `${day}/${m}/${y}`;
+  }
+  const dateObj = new Date(d);
+  return isNaN(dateObj.getTime()) ? '' : dateObj.toLocaleDateString('en-GB');
+};
 const monthBefore = (m) => MONTHS[(MONTHS.indexOf(m) + 11) % 12];
 
 const formatCampusDisplay = (name) => {

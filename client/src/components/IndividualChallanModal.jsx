@@ -7,20 +7,37 @@ import ModalPortal from './ModalPortal';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-const blankForm = () => ({
-  feeMonth: MONTHS[new Date().getMonth()],
-  feeYear: new Date().getFullYear(),
-  dueDate: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString().split('T')[0],
-  tuitionFee: 0,
-  examFee: 0,
-  transportFee: 0,
-  miscFee: 0,
-  previousDues: 0,
-  // Annual fee is opt-in per challan.
-  chargeAnnualFee: false,
-  annualFee: 0,
-  previousAnnualDues: 0,
-});
+const getTodayDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const blankForm = () => {
+  const due = new Date();
+  due.setDate(due.getDate() + 10);
+  const dueYear = due.getFullYear();
+  const dueMonth = String(due.getMonth() + 1).padStart(2, '0');
+  const dueDay = String(due.getDate()).padStart(2, '0');
+
+  return {
+    feeMonth: MONTHS[new Date().getMonth()],
+    feeYear: new Date().getFullYear(),
+    issueDate: getTodayDate(),
+    dueDate: `${dueYear}-${dueMonth}-${dueDay}`,
+    tuitionFee: 0,
+    examFee: 0,
+    transportFee: 0,
+    miscFee: 0,
+    previousDues: 0,
+    // Annual fee is opt-in per challan.
+    chargeAnnualFee: false,
+    annualFee: 0,
+    previousAnnualDues: 0,
+  };
+};
 
 // Dual-purpose modal: create an individual challan (with student search) or
 // edit an existing challan's charges (feeRecord supplied).
@@ -49,6 +66,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
       setForm({
         feeMonth: feeRecord.feeMonth,
         feeYear: feeRecord.feeYear,
+        issueDate: feeRecord.issueDate ? feeRecord.issueDate.substring(0, 10) : getTodayDate(),
         dueDate: feeRecord.dueDate ? feeRecord.dueDate.substring(0, 10) : blankForm().dueDate,
         tuitionFee: feeRecord.tuitionFee || 0,
         examFee: feeRecord.examFee || 0,
@@ -190,6 +208,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
         await updateFee(feeRecord._id, {
           feeMonth: form.feeMonth,
           feeYear: form.feeYear,
+          issueDate: form.issueDate,
           dueDate: form.dueDate,
           tuitionFee: Number(form.tuitionFee) || 0,
           examFee: Number(form.examFee) || 0,
@@ -206,6 +225,7 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
           studentAcademicRecord: selectedStudent.academicRecordId,
           feeMonth: form.feeMonth,
           feeYear: form.feeYear,
+          issueDate: form.issueDate,
           dueDate: form.dueDate,
           tuitionFee: Number(form.tuitionFee) || 0,
           examFee: Number(form.examFee) || 0,
@@ -440,9 +460,27 @@ export default function IndividualChallanModal({ open, onClose, onSaved, feeReco
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium t-muted mb-1">Due Date</label>
-            <input type="date" required value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium t-muted mb-1">Issue Date</label>
+              <input
+                type="date"
+                required
+                value={form.issueDate}
+                onChange={e => setForm({ ...form, issueDate: e.target.value })}
+                className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium t-muted mb-1">Due Date</label>
+              <input
+                type="date"
+                required
+                value={form.dueDate}
+                onChange={e => setForm({ ...form, dueDate: e.target.value })}
+                className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2"
+              />
+            </div>
           </div>
 
           <div className="flex justify-between items-center bg-surface-2 px-3 py-2 rounded-lg text-sm">

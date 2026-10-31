@@ -441,7 +441,7 @@ const addFee = async (req, res) => {
     }
 
     const {
-      student, studentAcademicRecord, feeMonth, feeYear, dueDate,
+      student, studentAcademicRecord, feeMonth, feeYear, issueDate, dueDate,
       tuitionFee, examFee, transportFee, miscFee, annualFee, chargeAnnualFee,
     } = req.body;
 
@@ -536,6 +536,7 @@ const addFee = async (req, res) => {
       previousAnnualDues,
       arrearsFromMonth: arrears.from,
       arrearsToMonth: arrears.to,
+      issueDate: issueDate || new Date(),
       dueDate: dueDate || new Date(new Date().setDate(new Date().getDate() + 10)) // Default +10 days
     });
 
@@ -591,7 +592,7 @@ const addBulkFees = async (req, res) => {
     // the old "amount > 0 means charge it" test would have skipped the whole batch.
     // Requests without the flag fall back to that old test so nothing already
     // integrated against this endpoint breaks.
-    const { class: studentClass, section, feeMonth, feeYear, dueDate, annualFee, chargeAnnualFee } = req.body;
+    const { class: studentClass, section, feeMonth, feeYear, issueDate, dueDate, annualFee, chargeAnnualFee } = req.body;
     const requestedAnnual = Math.max(Number(annualFee) || 0, 0);
     const chargeAnnual = chargeAnnualFee === undefined ? requestedAnnual > 0 : !!chargeAnnualFee;
 
@@ -725,6 +726,7 @@ const addBulkFees = async (req, res) => {
         previousAnnualDues,
         arrearsFromMonth: arrears.from,
         arrearsToMonth: arrears.to,
+        issueDate: issueDate || new Date(),
         dueDate: dueDate || new Date(new Date().setDate(new Date().getDate() + 10))
       });
 
@@ -1020,6 +1022,7 @@ const updateFee = async (req, res) => {
     }
     if (req.body.previousDues !== undefined) fee.previousDues = req.body.previousDues;
     if (req.body.previousAnnualDues !== undefined) fee.previousAnnualDues = req.body.previousAnnualDues;
+    if (req.body.issueDate) fee.issueDate = req.body.issueDate;
     if (req.body.dueDate) fee.dueDate = req.body.dueDate;
     if (req.body.feeMonth) {
       // A multi-month range ("April to August") comes from carried-forward dues and

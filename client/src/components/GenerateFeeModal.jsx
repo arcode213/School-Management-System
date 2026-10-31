@@ -7,18 +7,35 @@ import ModalPortal from './ModalPortal';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-const blankForm = () => ({
-  class: '',
-  section: '',
-  feeMonth: MONTHS[new Date().getMonth()],
-  feeYear: new Date().getFullYear(),
-  dueDate: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString().split('T')[0],
-  // Annual fee is opt-in: nothing is charged unless the box is ticked.
-  chargeAnnualFee: false,
-  // Blank means "use the amount from Fee Structures". It only holds a number once
-  // the user deliberately types a different one for this batch.
-  annualFee: '',
-});
+const getTodayDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const blankForm = () => {
+  const due = new Date();
+  due.setDate(due.getDate() + 10);
+  const dueYear = due.getFullYear();
+  const dueMonth = String(due.getMonth() + 1).padStart(2, '0');
+  const dueDay = String(due.getDate()).padStart(2, '0');
+
+  return {
+    class: '',
+    section: '',
+    feeMonth: MONTHS[new Date().getMonth()],
+    feeYear: new Date().getFullYear(),
+    issueDate: getTodayDate(),
+    dueDate: `${dueYear}-${dueMonth}-${dueDay}`,
+    // Annual fee is opt-in: nothing is charged unless the box is ticked.
+    chargeAnnualFee: false,
+    // Blank means "use the amount from Fee Structures". It only holds a number once
+    // the user deliberately types a different one for this batch.
+    annualFee: '',
+  };
+};
 
 export default function GenerateFeeModal({ open, onClose, onSaved }) {
   const [classes, setClasses] = useState([]);
@@ -120,9 +137,27 @@ export default function GenerateFeeModal({ open, onClose, onSaved }) {
               <input type="number" required value={formData.feeYear} onChange={e => setFormData({...formData, feeYear: e.target.value})} className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2" />
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium t-muted mb-1">Due Date</label>
-            <input type="date" required value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})} className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium t-muted mb-1">Issue Date</label>
+              <input
+                type="date"
+                required
+                value={formData.issueDate}
+                onChange={e => setFormData({...formData, issueDate: e.target.value})}
+                className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium t-muted mb-1">Due Date</label>
+              <input
+                type="date"
+                required
+                value={formData.dueDate}
+                onChange={e => setFormData({...formData, dueDate: e.target.value})}
+                className="w-full text-sm border rounded-lg px-3 py-2 bg-surface-2"
+              />
+            </div>
           </div>
 
           {/* Annual fee — opt in for any month's batch */}
