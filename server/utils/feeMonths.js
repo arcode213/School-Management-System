@@ -105,8 +105,11 @@ const computePaidUpToMonth = (fee, monthlyPaid) => {
   const defaultStartYear = startIdx <= feeIdx ? feeYear : feeYear - 1;
   const startYear = parseStartYear(fee.dueMonthRange, defaultStartYear);
 
-  const startAbs = absMonth(startMonth, startYear);
+  let startAbs = absMonth(startMonth, startYear);
   const feeAbs = absMonth(fee.feeMonth, feeYear);
+  if (startAbs > feeAbs) {
+    startAbs = absMonth(startMonth, defaultStartYear);
+  }
   const totalMonths = Math.max(1, feeAbs - startAbs + 1);
 
   // Discounts waive monthly fee obligations, so discount + paid = total settled monthly amount
@@ -194,7 +197,11 @@ const parseFlexibleDate = (value) => {
 
 // Month/year of a date read in UTC. These inputs are date-only values, so reading
 // them in UTC stops "2026-01-01" from sliding into December on a server west of UTC.
-const monthYearOf = (date) => ({ month: MONTHS[date.getUTCMonth()], year: date.getUTCFullYear() });
+const monthYearOf = (date) => {
+  let year = date.getUTCFullYear();
+  if (year < 100) year += 2000;
+  return { month: MONTHS[date.getUTCMonth()], year };
+};
 
 // A cell holding nothing but a month name ("April", "Apr", "june"). Such a value
 // carries no year, so parseFlexibleDate rejects it — but it is a perfectly clear
@@ -273,7 +280,8 @@ const resolveAccurateDueMonthRange = (fee) => {
   const range = fee.dueMonthRange;
   if (range === 'Previous Arrears') return 'Previous Arrears';
   const feeMonth = fee.feeMonth;
-  const feeYear = Number(fee.feeYear) || new Date().getFullYear();
+  let feeYear = Number(fee.feeYear) || new Date().getFullYear();
+  if (feeYear < 100) feeYear += 2000;
   const prevDues = Number(fee.previousDues) || 0;
   const recurring = (Number(fee.tuitionFee) || 0) + (Number(fee.transportFee) || 0) + (Number(fee.miscFee) || 0);
 
@@ -302,8 +310,9 @@ const resolveAccurateDueMonthRange = (fee) => {
     }
   }
 
-  if (!startYear) {
-    startYear = startIdx <= feeIdx ? feeYear : feeYear - 1;
+  const defaultStartYear = startIdx <= feeIdx ? feeYear : feeYear - 1;
+  if (!startYear || absMonth(startMonth, startYear) > absMonth(feeMonth, feeYear)) {
+    startYear = defaultStartYear;
   }
 
   if (startMonth === feeMonth && startYear === feeYear) {

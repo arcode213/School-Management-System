@@ -19,6 +19,9 @@ const badRequest = (message) => Object.assign(new Error(message), { statusCode: 
 // remainder of the range falls back to the labelled start month.
 const outstandingStartMonth = (challan) => {
   const paidUp = computePaidUpToMonth(challan, (challan.amountPaid || 0) - (challan.annualPaid || 0)) || challan.paidUpToMonth;
+  if (paidUp && paidUp === challan.feeMonth && monthlyOutstanding(challan) > 0) {
+    return challan.feeMonth;
+  }
   return paidUp ? monthAfter(paidUp) : parseStartMonth(challan.dueMonthRange, challan.feeMonth);
 };
 
@@ -103,6 +106,8 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
   // must not drag the printed arrears range backwards.
   const unpaidStartAbs = (challan) => {
     if (monthlyOutstanding(challan) <= 0) return null;
+    let feeYear = Number(challan.feeYear) || new Date().getFullYear();
+    if (feeYear < 100) feeYear += 2000;
     const feeIdx = MONTHS.indexOf(challan.feeMonth);
 
     // First, resolve the range's own absolute window so we can place the
@@ -118,10 +123,14 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     // is a year before the range, creating phantom gap months.
     const rangeStart = parseStartMonth(challan.dueMonthRange, challan.feeMonth);
     const rangeStartIdx = MONTHS.indexOf(rangeStart);
-    const defaultRangeStartYear = rangeStartIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
-    const rangeStartYear = parseStartYear(challan.dueMonthRange, defaultRangeStartYear);
-    const rangeStartAbs = absMonth(rangeStart, rangeStartYear);
-    const feeAbs = absMonth(challan.feeMonth, challan.feeYear);
+    const defaultRangeStartYear = rangeStartIdx <= feeIdx ? feeYear : feeYear - 1;
+    let rangeStartYear = parseStartYear(challan.dueMonthRange, defaultRangeStartYear);
+    if (rangeStartYear < 100) rangeStartYear += 2000;
+    let rangeStartAbs = absMonth(rangeStart, rangeStartYear);
+    const feeAbs = absMonth(challan.feeMonth, feeYear);
+    if (rangeStartAbs > feeAbs) {
+      rangeStartAbs = absMonth(rangeStart, defaultRangeStartYear);
+    }
 
     const candidate = outstandingStartMonth(challan);
 
@@ -130,7 +139,7 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     // Shift by −1 when the candidate overshoots the challan's own month
     // (calendar-year-wrap case: range ends Jan, candidate is December).
     // Shift by +1 (rare) when the candidate undershoots the range start.
-    let candidateYear = challan.feeYear;
+    let candidateYear = feeYear;
     let candidateAbs = absMonth(candidate, candidateYear);
     if (candidateAbs > feeAbs) {
       candidateYear--;
@@ -146,7 +155,9 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
   // The last month a challan's unpaid monthly balance accounts for.
   const trackUnpaidEnd = (challan) => {
     if (monthlyOutstanding(challan) <= 0) return;
-    const endAbs = absMonth(challan.feeMonth, challan.feeYear);
+    let feeYear = Number(challan.feeYear) || new Date().getFullYear();
+    if (feeYear < 100) feeYear += 2000;
+    const endAbs = absMonth(challan.feeMonth, feeYear);
     if (endAbs > globalDisplayEndAbs) {
       globalDisplayEndAbs = endAbs;
       displayEndMonth = challan.feeMonth;
@@ -221,13 +232,20 @@ const getPreviousDues = async (studentId, currentSession, session, currentFeeMon
     // month Aug 2026 instead of the full 13-month window Aug 2025 → Aug 2026.
     // parseStartYear reads the year encoded in the label ("25" → 2025) and is
     // used as an override precisely for this case.
+    let challanFeeYear = Number(challan.feeYear) || new Date().getFullYear();
+    if (challanFeeYear < 100) challanFeeYear += 2000;
     const feeIdx = MONTHS.indexOf(challan.feeMonth);
     const rangeStart = parseStartMonth(challan.dueMonthRange, challan.feeMonth);
     const rangeStartIdx = MONTHS.indexOf(rangeStart);
-    const defaultRangeStartYear = rangeStartIdx <= feeIdx ? challan.feeYear : challan.feeYear - 1;
-    const rangeStartYear = parseStartYear(challan.dueMonthRange, defaultRangeStartYear);
-    const challanFeeAbs = absMonth(challan.feeMonth, challan.feeYear);
-    for (let m = absMonth(rangeStart, rangeStartYear); m <= challanFeeAbs; m++) coveredMonths.add(m);
+    const defaultRangeStartYear = rangeStartIdx <= feeIdx ? challanFeeYear : challanFeeYear - 1;
+    let rangeStartYear = parseStartYear(challan.dueMonthRange, defaultRangeStartYear);
+    if (rangeStartYear < 100) rangeStartYear += 2000;
+    let rangeStartAbs = absMonth(rangeStart, rangeStartYear);
+    const challanFeeAbs = absMonth(challan.feeMonth, challanFeeYear);
+    if (rangeStartAbs > challanFeeAbs) {
+      rangeStartAbs = absMonth(rangeStart, defaultRangeStartYear);
+    }
+    for (let m = rangeStartAbs; m <= challanFeeAbs; m++) coveredMonths.add(m);
 
     trackUnpaidEnd(challan);
 

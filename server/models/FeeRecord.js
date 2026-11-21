@@ -134,6 +134,9 @@ const feeRecordSchema = new mongoose.Schema(
 
 // Auto-calculate the bucket subtotals, balance, and status before saving
 feeRecordSchema.pre('save', function (next) {
+  if (this.feeYear && this.feeYear < 100) {
+    this.feeYear = 2000 + this.feeYear;
+  }
   // Two independent buckets. The monthly side is the recurring obligation plus
   // whatever monthly arrears rolled in; the annual side is the one-off annual fee
   // plus any annual fee still unpaid from before.
